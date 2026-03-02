@@ -696,7 +696,53 @@
       text-shadow: 0 0 10px rgba(205,127,50,0.6), 2px 2px 4px rgba(0,0,0,0.3);
       font-size: 1.9em;
     }
+/* =========================
+   MODE ADAPTATIF AUTO
+   ========================= */
 
+body.mobile-mode .tv-footer {
+  display: none;
+}
+
+body.mobile-mode .ranking-title {
+  font-size: 1.6rem;
+  text-align: center;
+}
+
+body.mobile-mode .grid-row {
+  grid-template-columns: 60px 1fr 80px;
+  padding: 12px;
+}
+
+body.mobile-mode .cell.rank {
+  font-size: 1.4rem;
+}
+
+body.mobile-mode .cell.name {
+  font-size: 1.1rem;
+}
+
+body.mobile-mode .cell.score {
+  font-size: 1.3rem;
+  font-weight: bold;
+}
+
+body.mobile-mode .grid-head {
+  grid-template-columns: 60px 1fr 80px;
+  font-size: 0.9rem;
+}
+
+body.mobile-mode body {
+  padding: 10px;
+}
+
+body.tv-mode .ranking-title {
+  font-size: 2.5rem;
+}
+
+body.tv-mode .cell.score {
+  font-size: 2rem;
+}
   </style>
 </head>
 
