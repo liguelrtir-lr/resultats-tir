@@ -12,12 +12,41 @@
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
 
-    :root{ --sbw: 12px; }
+    :root{
+      /* Scrollbar width (JS) */
+      --sbw: 12px;
+
+      /* 🎯 Thème Moderne / Sport Dynamique */
+      --bg1:#0b1220;         /* nuit */
+      --bg2:#0f1a33;         /* nuit + */
+      --text:#eaf0ff;        /* texte */
+      --muted:#a9b6d6;       /* texte secondaire */
+
+      --primary:#4f7cff;     /* bleu sport */
+      --accent:#7c3aed;      /* violet énergie */
+
+      --danger:#ef4444;
+      --danger2:#fb7185;
+
+      --card:#0f1a30cc;      /* verre */
+      --stroke:#223055;
+
+      --whiteCard: rgba(255,255,255,0.97);   /* conteneur principal clair */
+      --whiteCard2: rgba(244,247,255,0.97);  /* variante */
+      --ink:#0b1220;         /* texte sur fond clair */
+
+      --gold:#fbbf24;
+      --silver:#cbd5e1;
+      --bronze:#fb7185;
+    }
 
     body{
-      font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
-      color: white;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:
+        radial-gradient(900px 500px at 15% 10%, rgba(79,124,255,.35), transparent 55%),
+        radial-gradient(900px 500px at 85% 0%, rgba(124,58,237,.30), transparent 55%),
+        linear-gradient(180deg, var(--bg2), var(--bg1));
+      color: var(--text);
       overflow-x: hidden;
     }
 
@@ -40,7 +69,7 @@
       overflow: hidden;
     }
 
-    /* Overlay sombre pour améliorer la lisibilité du texte */
+    /* Overlay moderne (nuit + accent) */
     .header::before{
       content: '';
       position: absolute;
@@ -48,11 +77,15 @@
       left: 0;
       right: 0;
       bottom: 0;
-      background: linear-gradient(135deg, rgba(30, 60, 114, 0.85) 0%, rgba(42, 82, 152, 0.75) 100%);
+      background: linear-gradient(135deg,
+        rgba(11,18,32,0.78) 0%,
+        rgba(15,26,51,0.70) 45%,
+        rgba(124,58,237,0.25) 100%
+      );
       z-index: 1;
     }
 
-    /* Effet de brillance qui se déplace */
+    /* Effet de brillance */
     .header::after{
       content: '';
       position: absolute;
@@ -63,7 +96,7 @@
       background: linear-gradient(
         45deg,
         transparent 30%,
-        rgba(255, 255, 255, 0.1) 50%,
+        rgba(255, 255, 255, 0.08) 50%,
         transparent 70%
       );
       animation: shine 8s infinite;
@@ -83,67 +116,62 @@
     .header h1{
       font-size: 3.2em;
       margin-bottom: 10px;
-      text-shadow: 
-        0 0 20px rgba(255, 215, 0, 0.6),
-        0 0 40px rgba(255, 215, 0, 0.4),
-        3px 3px 15px rgba(0,0,0,0.8);
-      color: #fff;
-      font-weight: 900;
+      font-weight: 950;
       letter-spacing: 2px;
-      background: linear-gradient(to right, #fff, #ffd700, #fff);
+      background: linear-gradient(to right, #ffffff, var(--primary), var(--accent), #ffffff);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
       animation: textGlow 3s ease-in-out infinite;
+      text-shadow:
+        0 0 18px rgba(79,124,255,0.35),
+        0 0 40px rgba(124,58,237,0.25),
+        3px 3px 15px rgba(0,0,0,0.75);
     }
 
     @keyframes textGlow{
-      0%, 100% { 
-        text-shadow: 
-          0 0 20px rgba(255, 215, 0, 0.6),
-          0 0 40px rgba(255, 215, 0, 0.4),
-          3px 3px 15px rgba(0,0,0,0.8);
+      0%, 100% {
+        filter: drop-shadow(0 0 10px rgba(79,124,255,0.35))
+                drop-shadow(0 0 18px rgba(124,58,237,0.25));
       }
-      50% { 
-        text-shadow: 
-          0 0 30px rgba(255, 215, 0, 0.8),
-          0 0 60px rgba(255, 215, 0, 0.6),
-          3px 3px 15px rgba(0,0,0,0.8);
+      50% {
+        filter: drop-shadow(0 0 14px rgba(79,124,255,0.5))
+                drop-shadow(0 0 26px rgba(124,58,237,0.35));
       }
     }
 
     .header .competition-name{
       font-size: 1.6em;
-      color: #ffd700;
-      text-shadow: 
-        2px 2px 8px rgba(0,0,0,0.8),
-        0 0 15px rgba(255, 215, 0, 0.5);
+      color: #ffffff;
+      text-shadow: 2px 2px 10px rgba(0,0,0,0.8);
       margin-bottom: 8px;
-      font-weight: 700;
-      letter-spacing: 1px;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      opacity: 0.95;
     }
 
     .header .date{
       font-size: 1.1em;
-      color: #e8f4f8;
-      text-shadow: 2px 2px 6px rgba(0,0,0,0.7);
-      font-weight: 500;
+      color: rgba(234,240,255,0.92);
+      text-shadow: 2px 2px 8px rgba(0,0,0,0.7);
+      font-weight: 600;
     }
 
     .header .live-indicator{
       display: inline-block;
       padding: 8px 20px;
-      background: linear-gradient(135deg, rgba(220, 20, 60, 0.95), rgba(255, 0, 0, 0.95));
+      background: linear-gradient(135deg, var(--danger), var(--danger2));
       border-radius: 30px;
       margin-top: 12px;
-      font-weight: bold;
+      font-weight: 800;
       font-size: 0.95em;
       animation: pulse 2s infinite;
-      box-shadow: 
-        0 0 20px rgba(255, 0, 0, 0.6),
-        0 0 40px rgba(255, 0, 0, 0.4),
-        0 5px 15px rgba(0,0,0,0.5);
-      border: 2px solid rgba(255, 255, 255, 0.3);
+      box-shadow:
+        0 0 18px rgba(239,68,68,0.55),
+        0 0 40px rgba(251,113,133,0.35),
+        0 8px 18px rgba(0,0,0,0.35);
+      border: 1px solid rgba(255,255,255,0.25);
+      letter-spacing: 0.4px;
     }
 
     .view-selector{
@@ -155,13 +183,14 @@
 
     .view-tabs{
       display: inline-flex;
-      background: rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.18);
       border-radius: 50px;
       padding: 8px;
       gap: 8px;
       flex-wrap: wrap;
       justify-content: center;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      box-shadow: 0 10px 34px rgba(0,0,0,0.3);
       backdrop-filter: blur(10px);
     }
 
@@ -169,81 +198,48 @@
       padding: 12px 24px;
       border: none;
       background: transparent;
-      color: white;
+      color: var(--text);
       cursor: pointer;
       border-radius: 50px;
       font-size: 1em;
-      transition: all 0.3s;
+      transition: all 0.25s ease;
       white-space: nowrap;
     }
 
     .view-tab.active{
-      background: linear-gradient(135deg, rgba(255,255,255,0.4), rgba(255,255,255,0.2));
-      font-weight: bold;
-      box-shadow: 0 4px 15px rgba(255,255,255,0.3);
+      background: linear-gradient(135deg, rgba(79,124,255,0.35), rgba(124,58,237,0.25));
+      font-weight: 900;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+      border: 1px solid rgba(255,255,255,0.18);
     }
 
-    .view-tab:hover{ 
-      background: rgba(255,255,255,0.25);
+    .view-tab:hover{
+      background: rgba(255,255,255,0.18);
       transform: translateY(-2px);
     }
 
     .ranking-container{
-      background: linear-gradient(135deg, rgba(255,255,255,0.98), rgba(248,250,252,0.98));
+      background: linear-gradient(135deg, var(--whiteCard), var(--whiteCard2));
       border-radius: 30px;
       padding: 40px;
-      box-shadow: 
+      box-shadow:
         0 25px 80px rgba(0,0,0,0.4),
-        0 0 0 1px rgba(255,255,255,0.1);
+        0 0 0 1px rgba(255,255,255,0.08);
       animation: slideIn 0.5s;
       min-height: 600px;
       margin: 30px;
       backdrop-filter: blur(10px);
-      border: 1px solid rgba(255,255,255,0.2);
+      border: 1px solid rgba(79,124,255,0.18);
     }
 
-    /* Zone scrollable pour le tableau (mode TV) */
-    .table-scroll{
-      max-height: 520px;
-      overflow-y: auto;
-      scroll-behavior: smooth;
-      padding-right: 12px;
-    
-      scrollbar-gutter: stable;
-    }
-    .table-scroll::-webkit-scrollbar{ width: 12px; }
-    .table-scroll::-webkit-scrollbar-thumb{ 
-      background: linear-gradient(135deg, rgba(30,60,114,0.5), rgba(30,60,114,0.7));
-      border-radius: 10px;
-      border: 2px solid transparent;
-      background-clip: padding-box;
-    }
-    .table-scroll::-webkit-scrollbar-thumb:hover{
-      background: linear-gradient(135deg, rgba(30,60,114,0.7), rgba(30,60,114,0.9));
-      background-clip: padding-box;
-    }
-    .table-scroll::-webkit-scrollbar-track{ 
-      background: rgba(30,60,114,0.08);
-      border-radius: 10px;
-      margin: 5px;
-    }
-
-    
-
-    /* ✅ Bandeau fixe (aligné) séparé du scroll */
-    .table-head{ padding-right: 0; }
-    .table-head .rankings-table{ margin-bottom: 0; width: calc(100% - var(--sbw)); }
-    .table-scroll{ padding-right: 0; }
-    .table-scroll .rankings-table{ border-spacing: 0 12px; margin-top: 0; width: calc(100% - var(--sbw)); }
-
-.ranking-title{
+    .ranking-title{
       font-size: 3em;
-      color: #1e3c72;
+      color: var(--ink);
       text-align: center;
       margin-bottom: 35px;
       padding-bottom: 20px;
-      font-weight: 800;
-      letter-spacing: 1px;
+      font-weight: 900;
+      letter-spacing: 0.8px;
       position: relative;
     }
 
@@ -253,277 +249,262 @@
       bottom: 0;
       left: 50%;
       transform: translateX(-50%);
-      width: 200px;
+      width: 220px;
       height: 4px;
-      background: linear-gradient(90deg, transparent, #ffd700, transparent);
+      background: linear-gradient(90deg, transparent, var(--primary), var(--accent), transparent);
       border-radius: 2px;
     }
 
-    .rankings-table{
-      width: 100%;
-      border-collapse: separate;
-      border-spacing: 0 12px;
-      table-layout: fixed;
-      margin: 0;
-      padding: 0;
+    /* Mode TV : on masque les onglets de catégories */
+    .view-selector{ display:none !important; }
+
+    /* =========================
+       ✅ ALIGNEMENT PAR GRILLE (anti-décalage)
+       ========================= */
+    .ranking-grid{
+      --col-rank: 100px;
+      --col-club: 260px;
+      --col-score: 220px;
+      --sbw: 0px; /* scrollbar width (JS) */
     }
 
-    .rankings-table thead tr{
+    .grid-head{
+      display: grid;
+      grid-template-columns: var(--col-rank) 1fr var(--col-club) var(--col-score);
+      gap: 0;
+      align-items: center;
+      width: calc(100% - var(--sbw));
+      margin-bottom: 12px;
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+      border: 1px solid rgba(79,124,255,0.18);
     }
 
-    .rankings-table thead th{
-      background: linear-gradient(135deg, #1e3c72, #2a5298);
-      color: white;
-      padding: 18px;
-      text-align: left;
-      font-size: 1.3em;
-      font-weight: 700;
-      letter-spacing: 0.5px;
+    .grid-head .hcell{
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: #fff;
+      padding: 18px 18px;
+      font-size: 1.18em;
+      font-weight: 900;
+      letter-spacing: 0.6px;
       text-transform: uppercase;
-      box-shadow: 0 4px 15px rgba(30,60,114,0.3);
-      vertical-align: middle;
       white-space: nowrap;
+      display:flex;
+      align-items:center;
+    }
+    .grid-head .hcell:nth-child(1){ justify-content:center; }
+    .grid-head .hcell:nth-child(2){ justify-content:flex-start; padding-left: 26px; }
+    .grid-head .hcell:nth-child(3){ justify-content:center; }
+    .grid-head .hcell:nth-child(4){ justify-content:center; }
+
+    .grid-scroll{
+      max-height: 520px;
+      overflow-y: auto;
+      scroll-behavior: smooth;
+      scrollbar-gutter: stable;
     }
 
-    .rankings-table thead th:first-child{
-      text-align: center;
-      border-radius: 15px 0 0 15px;
+    .grid-scroll::-webkit-scrollbar{ width: 12px; }
+    .grid-scroll::-webkit-scrollbar-thumb{
+      background: linear-gradient(135deg, rgba(79,124,255,0.55), rgba(124,58,237,0.55));
+      border-radius: 10px;
+      border: 2px solid transparent;
+      background-clip: padding-box;
+    }
+    .grid-scroll::-webkit-scrollbar-thumb:hover{
+      background: linear-gradient(135deg, rgba(79,124,255,0.75), rgba(124,58,237,0.75));
+      background-clip: padding-box;
+    }
+    .grid-scroll::-webkit-scrollbar-track{
+      background: rgba(15,26,51,0.08);
+      border-radius: 10px;
+      margin: 5px;
     }
 
-    .rankings-table thead th:nth-child(2){
-      text-align: left;
-    }
-
-    .rankings-table thead th:nth-child(3){
-      text-align: center;
-    }
-
-    .rankings-table thead th:nth-child(4){
-      text-align: center;
-      border-radius: 0 15px 15px 0;
-    }
-
-    /* ✅ Verrouillage des largeurs de colonnes (thead + tbody) */
-    .rankings-table th:nth-child(1),
-    .rankings-table td:nth-child(1){ width:100px; }
-    .rankings-table th:nth-child(2),
-    .rankings-table td:nth-child(2){ width:45%; }
-    .rankings-table th:nth-child(3),
-    .rankings-table td:nth-child(3){ width:25%; }
-    .rankings-table th:nth-child(4),
-    .rankings-table td:nth-child(4){ width:200px; }
-
-
-    .rankings-table tbody tr{
-      background: linear-gradient(135deg, rgba(30, 60, 114, 0.04), rgba(30, 60, 114, 0.08));
-      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-      animation: fadeInRow 0.6s;
+    .grid-row{
+      display: grid;
+      grid-template-columns: var(--col-rank) 1fr var(--col-club) var(--col-score);
+      align-items: center;
+      gap: 0;
+      margin: 0 0 12px 0;
+      padding: 0;
+      background: linear-gradient(135deg, rgba(79,124,255,0.06), rgba(124,58,237,0.04));
+      border-radius: 15px;
       position: relative;
+      transition: all 0.28s ease;
+      animation: fadeInRow 0.6s;
+      border: 1px solid rgba(15,26,51,0.08);
     }
 
-    .rankings-table tbody tr::before{
+    .grid-row::before{
       content: '';
       position: absolute;
       top: 0;
       left: 0;
       right: 0;
       bottom: 0;
-      background: linear-gradient(90deg, transparent, rgba(255,215,0,0.1), transparent);
+      background: linear-gradient(90deg, transparent, rgba(79,124,255,0.10), rgba(124,58,237,0.08), transparent);
       opacity: 0;
-      transition: opacity 0.4s;
+      transition: opacity 0.28s ease;
       border-radius: 15px;
       pointer-events: none;
     }
 
-    .rankings-table tbody tr:hover{
-      background: linear-gradient(135deg, rgba(30, 60, 114, 0.12), rgba(30, 60, 114, 0.18));
-      transform: translateX(8px) scale(1.01);
-      box-shadow: 
-        0 8px 25px rgba(30,60,114,0.2),
-        0 0 0 2px rgba(255,215,0,0.3);
+    .grid-row:hover{
+      background: linear-gradient(135deg, rgba(79,124,255,0.10), rgba(124,58,237,0.08));
+      transform: translateX(6px) scale(1.01);
+      box-shadow:
+        0 10px 26px rgba(0,0,0,0.14),
+        0 0 0 2px rgba(79,124,255,0.16);
     }
+    .grid-row:hover::before{ opacity: 1; }
 
-    .rankings-table tbody tr:hover::before{
-      opacity: 1;
-    }
-
-    .rankings-table tbody td{
+    .cell{
       padding: 18px;
-      color: #333;
-      font-size: 1.15em;
-      vertical-align: middle;
+      color: #111827;
+      font-size: 1.1em;
+      z-index: 1;
     }
 
-    .rankings-table tbody td:first-child{
+    .cell.rank{
       text-align: center;
-      font-weight: 900;
-      font-size: 1.8em;
-      color: #1e3c72;
-      border-radius: 15px 0 0 15px;
+      font-weight: 950;
+      font-size: 1.75em;
+      color: var(--ink);
     }
 
-    .rankings-table tbody td:nth-child(2){
-      text-align: left;
-    }
+    .cell.tireur{ padding-left: 26px; }
 
-    .rankings-table tbody td:nth-child(3){
-      text-align: center;
-    }
+    .cell.club{ text-align: center; }
 
-    .rankings-table tbody td:nth-child(4){
-      text-align: center;
-      border-radius: 0 15px 15px 0;
-    }
+    .cell.score{ text-align: center; }
 
-    /* 🏆 PODIUM EFFECTS - Top 3 */
-    .rank-1 td:first-child { 
-      color: #ffd700;
-      text-shadow: 
-        0 0 15px rgba(255,215,0,0.6),
-        2px 2px 4px rgba(0,0,0,0.3);
-      font-size: 2.2em !important;
+    /* Podium look sur le rang */
+    .grid-row.rank-1 .cell.rank{
+      color: var(--gold);
+      text-shadow: 0 0 14px rgba(251,191,36,0.55), 2px 2px 4px rgba(0,0,0,0.25);
+      font-size: 2.1em;
     }
-    .rank-1{
-      background: linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,215,0,0.08)) !important;
-      box-shadow: 
-        0 0 0 2px rgba(255,215,0,0.4),
-        0 8px 25px rgba(255,215,0,0.2) !important;
+    .grid-row.rank-2 .cell.rank{
+      color: var(--silver);
+      text-shadow: 0 0 12px rgba(203,213,225,0.55), 2px 2px 4px rgba(0,0,0,0.22);
+      font-size: 1.95em;
     }
-
-    .rank-2 td:first-child { 
-      color: #c0c0c0;
-      text-shadow: 
-        0 0 12px rgba(192,192,192,0.6),
-        2px 2px 4px rgba(0,0,0,0.3);
-      font-size: 2em !important;
-    }
-    .rank-2{
-      background: linear-gradient(135deg, rgba(192,192,192,0.12), rgba(192,192,192,0.06)) !important;
-      box-shadow: 
-        0 0 0 2px rgba(192,192,192,0.3),
-        0 6px 20px rgba(192,192,192,0.15) !important;
-    }
-
-    .rank-3 td:first-child { 
-      color: #cd7f32;
-      text-shadow: 
-        0 0 10px rgba(205,127,50,0.6),
-        2px 2px 4px rgba(0,0,0,0.3);
-      font-size: 1.9em !important;
-    }
-    .rank-3{
-      background: linear-gradient(135deg, rgba(205,127,50,0.1), rgba(205,127,50,0.05)) !important;
-      box-shadow: 
-        0 0 0 2px rgba(205,127,50,0.3),
-        0 6px 20px rgba(205,127,50,0.12) !important;
+    .grid-row.rank-3 .cell.rank{
+      color: var(--bronze);
+      text-shadow: 0 0 12px rgba(251,113,133,0.45), 2px 2px 4px rgba(0,0,0,0.20);
+      font-size: 1.9em;
     }
 
     .shooter-name{
-      font-weight: 700;
-      font-size: 1.35em;
-      color: #1e3c72;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      font-weight: 900;
+      font-size: 1.28em;
+      color: #0b1220;
     }
 
     .shooter-club{
-      color: #666;
+      color: #475569;
       font-size: 0.95em;
-      margin-top: 5px;
-      font-weight: 500;
+      margin-top: 6px;
+      font-weight: 650;
     }
 
     .category-badge{
       display: inline-block;
       padding: 6px 14px;
-      border-radius: 20px;
-      font-size: 0.88em;
-      font-weight: 700;
+      border-radius: 999px;
+      font-size: 0.86em;
+      font-weight: 850;
       margin-left: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-      border: 1px solid rgba(255,255,255,0.3);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.10);
+      border: 1px solid rgba(15,26,51,0.12);
+      color: #0b1220;
     }
 
-    /* Couleurs pour les catégories jeunes */
-    .category-Poussin-Garçon { background: linear-gradient(135deg, #ffeaa7, #fdcb6e); color: #d63031; }
-    .category-Poussin-Fille { background: linear-gradient(135deg, #ffccf9, #fd79a8); color: #e84393; }
-    .category-Benjamin-Garçon { background: linear-gradient(135deg, #a29bfe, #6c5ce7); color: #fff; }
-    .category-Benjamin-Fille { background: linear-gradient(135deg, #fd79a8, #e84393); color: #fff; }
-    .category-Minime-Garçon { background: linear-gradient(135deg, #74b9ff, #0984e3); color: #fff; }
-    .category-Minime-Fille { background: linear-gradient(135deg, #fab1a0, #e17055); color: #fff; }
-    .category-Cadet-Garçon { background: linear-gradient(135deg, #55efc4, #00b894); color: #fff; }
-    .category-Cadet-Fille { background: linear-gradient(135deg, #fdcb6e, #f39c12); color: #fff; }
-    .category-Junior-Garçon { background: linear-gradient(135deg, #81ecec, #00cec9); color: #fff; }
-    .category-Junior-Fille { background: linear-gradient(135deg, #ffeaa7, #fdcb6e); color: #d63031; }
+    /* Catégories (conservées mais plus "sport" / contrastées) */
+    .category-Poussin-Garçon { background: linear-gradient(135deg, #93c5fd, #60a5fa); color:#0b1220; }
+    .category-Poussin-Fille  { background: linear-gradient(135deg, #fda4af, #fb7185); color:#0b1220; }
+    .category-Benjamin-Garçon{ background: linear-gradient(135deg, #a5b4fc, #818cf8); color:#0b1220; }
+    .category-Benjamin-Fille { background: linear-gradient(135deg, #f9a8d4, #f472b6); color:#0b1220; }
+    .category-Minime-Garçon  { background: linear-gradient(135deg, #67e8f9, #22d3ee); color:#0b1220; }
+    .category-Minime-Fille   { background: linear-gradient(135deg, #fecaca, #fda4af); color:#0b1220; }
+    .category-Cadet-Garçon   { background: linear-gradient(135deg, #86efac, #22c55e); color:#0b1220; }
+    .category-Cadet-Fille    { background: linear-gradient(135deg, #fde68a, #fbbf24); color:#0b1220; }
+    .category-Junior-Garçon  { background: linear-gradient(135deg, #a7f3d0, #34d399); color:#0b1220; }
+    .category-Junior-Fille   { background: linear-gradient(135deg, #fbcfe8, #f472b6); color:#0b1220; }
 
-    /* Couleurs pour les catégories adultes */
-    .category-Senior { background: linear-gradient(135deg, #74b9ff, #0984e3); color: #fff; }
-    .category-Dame { background: linear-gradient(135deg, #fd79a8, #d63031); color: #fff; }
-    .category-Senior-2 { background: linear-gradient(135deg, #a29bfe, #6c5ce7); color: #fff; }
-    .category-Senior-3 { background: linear-gradient(135deg, #dfe6e9, #b2bec3); color: #2d3436; }
-    .category-Dame-2 { background: linear-gradient(135deg, #fab1a0, #e17055); color: #fff; }
-    .category-Dame-3 { background: linear-gradient(135deg, #ffccf9, #e84393); color: #fff; }
+    .category-Senior   { background: linear-gradient(135deg, #c7d2fe, #93c5fd); color:#0b1220; }
+    .category-Dame     { background: linear-gradient(135deg, #fda4af, #fb7185); color:#0b1220; }
+    .category-Senior-2 { background: linear-gradient(135deg, #ddd6fe, #a5b4fc); color:#0b1220; }
+    .category-Senior-3 { background: linear-gradient(135deg, #e2e8f0, #cbd5e1); color:#0b1220; }
+    .category-Dame-2   { background: linear-gradient(135deg, #fecaca, #fca5a5); color:#0b1220; }
+    .category-Dame-3   { background: linear-gradient(135deg, #fbcfe8, #f9a8d4); color:#0b1220; }
 
     .score-display{
-      font-size: 2.2em;
-      font-weight: 900;
-      color: #1e3c72;
-      text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      font-size: 2.15em;
+      font-weight: 950;
+      color: var(--ink);
+      text-shadow: 0 2px 4px rgba(0,0,0,0.10);
     }
 
     .score-max{
-      font-size: 1.3em;
-      color: #999;
-      font-weight: 600;
+      font-size: 1.2em;
+      color: #64748b;
+      font-weight: 750;
     }
 
     .empty-state{
       text-align: center;
       padding: 100px 20px;
-      color: #999;
+      color: #64748b;
     }
 
     .empty-state svg{
       width: 180px;
       height: 180px;
       margin-bottom: 25px;
-      opacity: 0.25;
-      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
+      opacity: 0.20;
+      filter: drop-shadow(0 6px 14px rgba(0,0,0,0.12));
     }
 
     .empty-state h2{
       font-size: 2.2em;
       margin-bottom: 12px;
-      color: #666;
+      color: #475569;
+      font-weight: 900;
     }
 
     .footer{
       text-align: center;
       margin-top: 40px;
       padding: 25px;
-      color: rgba(255,255,255,0.85);
+      color: rgba(234,240,255,0.9);
       font-size: 1em;
-      background: rgba(0,0,0,0.2);
+      background: rgba(255,255,255,0.08);
       border-radius: 15px;
       margin-left: 30px;
       margin-right: 30px;
       margin-bottom: 30px;
       backdrop-filter: blur(10px);
-      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.14);
+      box-shadow: 0 8px 26px rgba(0,0,0,0.22);
     }
 
     .auto-rotate-indicator{
       text-align: center;
       margin-top: 25px;
-      color: rgba(255,255,255,0.9);
+      color: rgba(234,240,255,0.92);
       font-size: 1em;
-      font-weight: 600;
+      font-weight: 800;
       padding: 12px 20px;
-      background: rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.10);
       border-radius: 25px;
       margin-left: 30px;
       margin-right: 30px;
       backdrop-filter: blur(10px);
-      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      border: 1px solid rgba(255,255,255,0.14);
+      box-shadow: 0 8px 26px rgba(0,0,0,0.18);
     }
 
     @keyframes fadeIn{
@@ -547,204 +528,58 @@
     }
 
     @media (max-width: 768px){
-      .header h1 { font-size: 2.8em; }
-      .header .competition-name { font-size: 1.6em; }
+      .header h1 { font-size: 2.6em; }
+      .header .competition-name { font-size: 1.35em; }
       .ranking-title { font-size: 2em; }
       .view-tabs { flex-wrap: wrap; }
       .view-tab { font-size: 0.9em; padding: 10px 18px; }
-      .rankings-table { font-size: 0.95em; }
       .ranking-container { padding: 25px; margin: 20px; }
+
+      /* on réduit un peu les colonnes en mobile */
+      .ranking-grid{
+        --col-rank: 70px;
+        --col-club: 160px;
+        --col-score: 160px;
+      }
     }
 
-    /* Mode TV : on masque les onglets de catégories */
-    .view-selector{ display:none !important; }
-  
     /* =========================
-       ✅ ALIGNEMENT PAR GRILLE (anti-décalage)
-       Le bandeau et les lignes utilisent EXACTEMENT la même grille.
+       MODE ADAPTATIF AUTO
        ========================= */
-    .ranking-grid{
-      --col-rank: 100px;
-      --col-club: 260px;
-      --col-score: 220px;
-      --sbw: 0px; /* scrollbar width (JS) */
-    }
+    body.mobile-mode .tv-footer { display: none; }
 
-    .grid-head{
-      display: grid;
-      grid-template-columns: var(--col-rank) 1fr var(--col-club) var(--col-score);
-      gap: 0;
-      align-items: center;
-      width: calc(100% - var(--sbw));
-      margin-bottom: 12px;
-      border-radius: 18px;
-      overflow: hidden;
-      box-shadow: 0 8px 25px rgba(30,60,114,0.25);
-    }
-
-    .grid-head .hcell{
-      background: linear-gradient(135deg, #1e3c72, #2a5298);
-      color: #fff;
-      padding: 18px 18px;
-      font-size: 1.3em;
-      font-weight: 800;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-      white-space: nowrap;
-      display:flex;
-      align-items:center;
-    }
-    .grid-head .hcell:nth-child(1){ justify-content:center; }
-    .grid-head .hcell:nth-child(2){ justify-content:flex-start; padding-left: 26px; }
-    .grid-head .hcell:nth-child(3){ justify-content:center; }
-    .grid-head .hcell:nth-child(4){ justify-content:center; }
-
-    .grid-scroll{
-      max-height: 520px;
-      overflow-y: auto;
-      scroll-behavior: smooth;
-      scrollbar-gutter: stable;
-    }
-
-    .grid-scroll::-webkit-scrollbar{ width: 12px; }
-    .grid-scroll::-webkit-scrollbar-thumb{
-      background: linear-gradient(135deg, rgba(30,60,114,0.5), rgba(30,60,114,0.7));
-      border-radius: 10px;
-      border: 2px solid transparent;
-      background-clip: padding-box;
-    }
-    .grid-scroll::-webkit-scrollbar-thumb:hover{
-      background: linear-gradient(135deg, rgba(30,60,114,0.7), rgba(30,60,114,0.9));
-      background-clip: padding-box;
-    }
-    .grid-scroll::-webkit-scrollbar-track{
-      background: rgba(30,60,114,0.08);
-      border-radius: 10px;
-      margin: 5px;
-    }
-
-    .grid-row{
-      display: grid;
-      grid-template-columns: var(--col-rank) 1fr var(--col-club) var(--col-score);
-      align-items: center;
-      gap: 0;
-      margin: 0 0 12px 0;
-      padding: 0;
-      background: linear-gradient(135deg, rgba(30, 60, 114, 0.04), rgba(30, 60, 114, 0.08));
-      border-radius: 15px;
-      position: relative;
-      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-      animation: fadeInRow 0.6s;
-    }
-
-    .grid-row::before{
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: linear-gradient(90deg, transparent, rgba(255,215,0,0.1), transparent);
-      opacity: 0;
-      transition: opacity 0.4s;
-      border-radius: 15px;
-      pointer-events: none;
-    }
-
-    .grid-row:hover{
-      background: linear-gradient(135deg, rgba(30, 60, 114, 0.12), rgba(30, 60, 114, 0.18));
-      transform: translateX(8px) scale(1.01);
-      box-shadow:
-        0 8px 25px rgba(30,60,114,0.2),
-        0 0 0 2px rgba(255,215,0,0.3);
-    }
-    .grid-row:hover::before{ opacity: 1; }
-
-    .cell{
-      padding: 18px;
-      color: #333;
-      font-size: 1.15em;
-      z-index: 1;
-    }
-
-    .cell.rank{
+    body.mobile-mode .ranking-title{
+      font-size: 1.6rem;
       text-align: center;
-      font-weight: 900;
-      font-size: 1.8em;
-      color: #1e3c72;
     }
 
-    .cell.tireur{ padding-left: 26px; }
-
-    .cell.club{ text-align: center; }
-
-    .cell.score{ text-align: center; }
-
-    /* ✅ Podium look sur le rang (juste la cellule rank) */
-    .grid-row.rank-1 .cell.rank{
-      color: #ffd700;
-      text-shadow: 0 0 15px rgba(255,215,0,0.6), 2px 2px 4px rgba(0,0,0,0.3);
-      font-size: 2.2em;
+    body.mobile-mode .grid-row{
+      grid-template-columns: 60px 1fr 80px;
+      padding: 12px;
     }
-    .grid-row.rank-2 .cell.rank{
-      color: #c0c0c0;
-      text-shadow: 0 0 12px rgba(192,192,192,0.6), 2px 2px 4px rgba(0,0,0,0.3);
-      font-size: 2em;
+
+    body.mobile-mode .cell.rank{ font-size: 1.4rem; }
+
+    body.mobile-mode .cell.name{ font-size: 1.1rem; }
+
+    body.mobile-mode .cell.score{
+      font-size: 1.3rem;
+      font-weight: bold;
     }
-    .grid-row.rank-3 .cell.rank{
-      color: #cd7f32;
-      text-shadow: 0 0 10px rgba(205,127,50,0.6), 2px 2px 4px rgba(0,0,0,0.3);
-      font-size: 1.9em;
+
+    body.mobile-mode .grid-head{
+      grid-template-columns: 60px 1fr 80px;
+      font-size: 0.9rem;
     }
-/* =========================
-   MODE ADAPTATIF AUTO
-   ========================= */
 
-body.mobile-mode .tv-footer {
-  display: none;
-}
+    /* ✅ correction : body.mobile-mode body -> body.mobile-mode */
+    body.mobile-mode { padding: 10px; }
 
-body.mobile-mode .ranking-title {
-  font-size: 1.6rem;
-  text-align: center;
-}
-
-body.mobile-mode .grid-row {
-  grid-template-columns: 60px 1fr 80px;
-  padding: 12px;
-}
-
-body.mobile-mode .cell.rank {
-  font-size: 1.4rem;
-}
-
-body.mobile-mode .cell.name {
-  font-size: 1.1rem;
-}
-
-body.mobile-mode .cell.score {
-  font-size: 1.3rem;
-  font-weight: bold;
-}
-
-body.mobile-mode .grid-head {
-  grid-template-columns: 60px 1fr 80px;
-  font-size: 0.9rem;
-}
-
-body.mobile-mode body {
-  padding: 10px;
-}
-
-body.tv-mode .ranking-title {
-  font-size: 2.5rem;
-}
-
-body.tv-mode .cell.score {
-  font-size: 2rem;
-}
+    body.tv-mode .ranking-title{ font-size: 2.5rem; }
+    body.tv-mode .cell.score{ font-size: 2rem; }
   </style>
 </head>
+
 <script>
 (function() {
   const width = window.innerWidth;
@@ -756,6 +591,7 @@ body.tv-mode .cell.score {
   }
 })();
 </script>
+
 <body>
   <div class="container">
     <div class="header">
@@ -772,7 +608,7 @@ body.tv-mode .cell.score {
         <button class="view-tab" onclick="changeView('Poussin Garçon')">Poussin G</button>
         <button class="view-tab" onclick="changeView('Poussin Fille')">Poussin F</button>
         <button class="view-tab" onclick="changeView('Benjamin Garçon')">Benjamin G</button>
-        <button class="view-tab" onclick="changeView('Benjamin Fille')">Benjamin F</button>
+        <button class="view-tab" onclick="changeView('Benjamin Fille')">Benjamin Fille</button>
         <button class="view-tab" onclick="changeView('Minime Garçon')">Minime G</button>
         <button class="view-tab" onclick="changeView('Minime Fille')">Minime F</button>
         <button class="view-tab" onclick="changeView('Cadet Garçon')">Cadet G</button>
@@ -825,7 +661,6 @@ body.tv-mode .cell.score {
       outer.remove();
     }
 
-    // On applique dès que possible
     document.addEventListener('DOMContentLoaded', setScrollbarWidthVar);
     window.addEventListener('resize', setScrollbarWidthVar);
 
@@ -850,13 +685,12 @@ body.tv-mode .cell.score {
     let competitionConfig = {};
 
     // Vue courante
-    // { mode:'disc_general', discipline:'...' } | { mode:'combo', discipline:'...', category:'...' } | { mode:'category', category:'...' }
     let currentView = { mode:'disc_general', discipline:'' };
 
     // Mode TV : rotation auto Discipline -> Catégorie + défilement
     let autoRotateEnabled = true;
-    const perViewSeconds = 12;        // ✅ demandé : 12s
-    const scrollPaddingSeconds = 2;   // pause haut/bas
+    const perViewSeconds = 12;
+    const scrollPaddingSeconds = 2;
     let rotateTimer = null;
     let scrollTimer = null;
     let rotateViews = [];
@@ -864,49 +698,45 @@ body.tv-mode .cell.score {
 
     function normalizeKey(s){ return (s || '').toString().trim(); }
 
-   function buildRotateViews() {
-  const map = new Map(); // discipline -> Set(categories)
+    function buildRotateViews() {
+      const map = new Map(); // discipline -> Set(categories)
 
-  allShooters.forEach(s => {
-    const d = normalizeKey(s.discipline);
-    const c = normalizeKey(s.category);
-    if (!d) return;
-    if (!map.has(d)) map.set(d, new Set());
-    if (c) map.get(d).add(c);
-  });
+      allShooters.forEach(s => {
+        const d = normalizeKey(s.discipline);
+        const c = normalizeKey(s.category);
+        if (!d) return;
+        if (!map.has(d)) map.set(d, new Set());
+        if (c) map.get(d).add(c);
+      });
 
-  const disciplines = Array.from(map.keys()).sort((a,b)=>a.localeCompare(b,'fr',{sensitivity:'base'}));
-  const views = [];
+      const disciplines = Array.from(map.keys()).sort((a,b)=>a.localeCompare(b,'fr',{sensitivity:'base'}));
+      const views = [];
 
-  disciplines.forEach(d => {
-    const cats = Array.from(map.get(d) || []).sort((a,b)=>a.localeCompare(b,'fr',{sensitivity:'base'}));
+      disciplines.forEach(d => {
+        const cats = Array.from(map.get(d) || []).sort((a,b)=>a.localeCompare(b,'fr',{sensitivity:'base'}));
 
-    if (!cats.length) {
-      views.push({ mode:'disc_only', discipline:d });   // discipline sans catégories
-    } else {
-      cats.forEach(c => views.push({ mode:'combo', discipline:d, category:c }));
+        if (!cats.length) {
+          views.push({ mode:'disc_only', discipline:d });
+        } else {
+          cats.forEach(c => views.push({ mode:'combo', discipline:d, category:c }));
+        }
+      });
+
+      if (!views.length) views.push({ mode:'disc_only', discipline:'Résultats' });
+      return views;
     }
-  });
 
-  if (!views.length) views.push({ mode:'disc_only', discipline:'Résultats' });
-  return views;
-}
-
-
-   function viewLabel(view){
-  if (view.mode === 'combo') return `${view.discipline} • ${view.category}`;
-  if (view.mode === 'disc_only') return `${view.discipline}`;
-  if (view.mode === 'category') return `Classement ${view.category}`;
-  return 'Classement';
-}
-
+    function viewLabel(view){
+      if (view.mode === 'combo') return `${view.discipline} • ${view.category}`;
+      if (view.mode === 'disc_only') return `${view.discipline}`;
+      if (view.mode === 'category') return `Classement ${view.category}`;
+      return 'Classement';
+    }
 
     function setActiveTab(view){
-      // Onglets cachés en mode TV, on laisse la logique au cas où
       document.querySelectorAll('.view-tab').forEach(tab => tab.classList.remove('active'));
       const tabs = Array.from(document.querySelectorAll('.view-tab'));
 
-      // si "general" (onglet) -> on considère "disc_general"
       if (view.mode === 'disc_general') {
         const t = tabs.find(x => x.textContent.trim() === 'Général');
         if (t) t.classList.add('active');
@@ -924,12 +754,10 @@ body.tv-mode .cell.score {
     try{
       firebase.initializeApp(firebaseConfig);
       database = firebase.database();
-      
-      // ✅ Chemins dynamiques basés sur COMPETITION_ID
+
       shootersRef = database.ref(`${COMPETITION_ID}/shooters`);
       configRef = database.ref(`${COMPETITION_ID}/config`);
 
-      // Config compétition
       configRef.on('value', (snapshot) => {
         competitionConfig = snapshot.val() || {};
         document.getElementById('competitionName').textContent = competitionConfig.name || 'Compétition de Tir';
@@ -944,7 +772,6 @@ body.tv-mode .cell.score {
         }
       });
 
-      // Données tireurs
       shootersRef.on('value', (snapshot) => {
         const shootersData = snapshot.val();
         if (shootersData) {
@@ -958,7 +785,6 @@ body.tv-mode .cell.score {
         rotateViews = buildRotateViews();
         if (currentRotateIndex >= rotateViews.length) currentRotateIndex = 0;
 
-        // Si currentView est vide, on prend la première vue rotation (donc discipline)
         if (!currentView || !currentView.mode || (currentView.mode === 'disc_general' && !normalizeKey(currentView.discipline))) {
           currentView = rotateViews[0] || { mode:'disc_general', discipline:'Résultats' };
         }
@@ -968,7 +794,6 @@ body.tv-mode .cell.score {
 
         if (autoRotateEnabled) startAutoRotate();
       });
-
 
     } catch (error) {
       console.error('Erreur Firebase:', error);
@@ -981,10 +806,8 @@ body.tv-mode .cell.score {
       `;
     }
 
-    // Clic onglets (si réactivés un jour)
     function changeView(view){
       if (view === 'general') {
-        // jamais de scratch global : on va sur la première discipline
         const firstDisc = normalizeKey(allShooters[0]?.discipline) || 'Résultats';
         currentView = { mode:'disc_general', discipline:firstDisc };
       } else {
@@ -1063,7 +886,7 @@ body.tv-mode .cell.score {
       rotateTimer = setInterval(() => {
         if (!autoRotateEnabled) return;
         const scroller = document.getElementById('tableScroll');
-        if (scroller && scroller.scrollHeight > scroller.clientHeight) return; // laisse le scroll gérer
+        if (scroller && scroller.scrollHeight > scroller.clientHeight) return;
         goNextView();
       }, perViewSeconds * 1000);
 
@@ -1099,35 +922,33 @@ body.tv-mode .cell.score {
         return;
       }
 
-      // si disc_general mais discipline vide => première discipline dispo
       if (view.mode === 'disc_general' && !normalizeKey(view.discipline)) {
         const firstDisc = normalizeKey(allShooters[0]?.discipline) || 'Résultats';
         view = { mode:'disc_general', discipline:firstDisc };
       }
 
       let filteredShooters = allShooters;
-let title = '';
+      let title = '';
 
-if (view.mode === 'combo') {
-  filteredShooters = allShooters.filter(s =>
-    normalizeKey(s.discipline) === normalizeKey(view.discipline) &&
-    normalizeKey(s.category) === normalizeKey(view.category)
-  );
-  title = `${view.discipline} • ${view.category}`;
+      if (view.mode === 'combo') {
+        filteredShooters = allShooters.filter(s =>
+          normalizeKey(s.discipline) === normalizeKey(view.discipline) &&
+          normalizeKey(s.category) === normalizeKey(view.category)
+        );
+        title = `${view.discipline} • ${view.category}`;
 
-} else if (view.mode === 'disc_only') {
-  filteredShooters = allShooters.filter(s =>
-    normalizeKey(s.discipline) === normalizeKey(view.discipline)
-  );
-  title = `${view.discipline}`;
+      } else if (view.mode === 'disc_only') {
+        filteredShooters = allShooters.filter(s =>
+          normalizeKey(s.discipline) === normalizeKey(view.discipline)
+        );
+        title = `${view.discipline}`;
 
-} else if (view.mode === 'category') {
-  filteredShooters = allShooters.filter(s =>
-    normalizeKey(s.category) === normalizeKey(view.category)
-  );
-  title = `Classement ${view.category}`;
-}
-
+      } else if (view.mode === 'category') {
+        filteredShooters = allShooters.filter(s =>
+          normalizeKey(s.category) === normalizeKey(view.category)
+        );
+        title = `Classement ${view.category}`;
+      }
 
       if (!filteredShooters.length) {
         container.innerHTML = `
@@ -1138,10 +959,9 @@ if (view.mode === 'combo') {
         return;
       }
 
-      // ✅ PAS de podium / médailles
       let html = `<div class="ranking-title">${title}</div>`;
 
-            html += `
+      html += `
         <div class="ranking-grid" id="rankingGrid">
           <div class="grid-head" id="gridHead">
             <div class="hcell">#</div>
@@ -1157,10 +977,8 @@ if (view.mode === 'combo') {
         const rankClass = index < 3 ? `rank-${index + 1}` : '';
         const categoryClass = 'category-' + (shooter.category || '').replace(/ /g, '-');
 
-        // ✅ logique badges correcte sans "general" scratch
-       const showCategoryBadge = (view.mode === 'disc_only');  // si discipline seule, montrer la catégorie
-const showDisciplineBadge = (view.mode === 'category'); // si vue catégorie, montrer la discipline
-
+        const showCategoryBadge = (view.mode === 'disc_only');
+        const showDisciplineBadge = (view.mode === 'category');
 
         html += `
           <div class="grid-row ${rankClass}">
@@ -1168,7 +986,7 @@ const showDisciplineBadge = (view.mode === 'category'); // si vue catégorie, mo
             <div class="cell tireur">
               <div class="shooter-name">${shooter.firstName || ''} ${shooter.lastName || ''}</div>
               ${showCategoryBadge ? `<span class="${categoryClass} category-badge">${shooter.category || ''}</span>` : ''}
-              ${showDisciplineBadge ? `<span class="category-badge" style="background:linear-gradient(135deg,#e0e7ff,#c7d2fe);color:#3730a3;">${shooter.discipline || ''}</span>` : ''}
+              ${showDisciplineBadge ? `<span class="category-badge" style="background:linear-gradient(135deg, rgba(79,124,255,0.18), rgba(124,58,237,0.14)); color:#0b1220; border:1px solid rgba(15,26,51,0.12);">${shooter.discipline || ''}</span>` : ''}
             </div>
             <div class="cell club"><div class="shooter-club">${shooter.club || ''}</div></div>
             <div class="cell score">
@@ -1182,10 +1000,9 @@ const showDisciplineBadge = (view.mode === 'category'); // si vue catégorie, mo
       html += `
           </div>
         </div>
-      `;container.innerHTML = html;
+      `;
+      container.innerHTML = html;
 
-
-      // ✅ Mesure largeur scrollbar pour aligner le bandeau (Windows/TV) et Mac (overlay)
       const scroller = document.getElementById('tableScroll');
       const grid = document.getElementById('rankingGrid');
       if (scroller && grid){
