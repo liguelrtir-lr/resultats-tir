@@ -634,11 +634,11 @@
 
   <script>
     // ✅ DÉTECTION DE LA COMPÉTITION VIA URL
-    function getCompetitionId() {
-      const params = new URLSearchParams(window.location.search);
-      return params.get('comp') || 'EDT'; // Par défaut : EDT
-    }
-
+   function getCompetitionId() {
+  const params = new URLSearchParams(window.location.search);
+  const comp = (params.get('comp') || 'default').trim();
+  return `EDT/${comp}`;
+}
     const COMPETITION_ID = getCompetitionId();
 
     // ✅ Mesure largeur scrollbar pour aligner bandeau / lignes (Mac/Windows)
