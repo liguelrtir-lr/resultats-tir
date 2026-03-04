@@ -8,6 +8,7 @@
   <!-- Firebase (compat) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
@@ -617,6 +618,7 @@
      ********************/
     try{
       firebase.initializeApp(firebaseConfig);
+      firebase.auth().signInAnonymously().catch(e => console.warn('Auth anonyme échouée:', e));
       const database = firebase.database();
 
       const basePath = `competitions/${COMPETITION_ID}`;

@@ -8,6 +8,7 @@
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
@@ -867,6 +868,7 @@
     // Connexion Firebase
     try{
       firebase.initializeApp(firebaseConfig);
+      firebase.auth().signInAnonymously().catch(e => console.warn('Auth anonyme échouée:', e));
       database = firebase.database();
       
       // ✅ Chemins dynamiques basés sur COMPETITION_ID
