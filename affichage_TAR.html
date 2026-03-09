@@ -19,35 +19,34 @@
       background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
       color:#fff;
       overflow-x:hidden;
+      min-height:100vh;
+      display:flex;
+      flex-direction:column;
     }
 
-    .container{max-width:100%;margin:0 auto}
+    .container{max-width:100%;margin:0 auto;flex:1;display:flex;flex-direction:column}
 
     /* Header */
     .header{
       position:relative;
       text-align:center;
-      padding:35px 30px;
-      background-image:url('resultats.jpg');
-      background-size:cover;
-      background-position:center;
-      background-repeat:no-repeat;
+      padding:18px 30px;
+      background: linear-gradient(135deg, #4f7cff 0%, #7c3aed 50%, #4f7cff 100%);
       animation:fadeIn 1s;
       overflow:hidden;
     }
     .header::before{
       content:'';
       position:absolute;inset:0;
-      background:linear-gradient(135deg, rgba(30, 60, 114, 0.85) 0%, rgba(42, 82, 152, 0.75) 100%);
+      background:radial-gradient(800px 120px at 50% -20%, rgba(255,255,255,0.22), transparent 70%);
       z-index:1;
     }
     .header::after{
       content:'';
       position:absolute;
-      top:-50%;left:-50%;
-      width:200%;height:200%;
-      background:linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
-      animation:shine 8s infinite;
+      bottom:0;left:0;right:0;top:auto;
+      width:auto;height:3px;
+      background:linear-gradient(90deg,transparent,rgba(255,255,255,0.6),transparent);
       z-index:2;
     }
     @keyframes shine{
@@ -57,7 +56,7 @@
     .header > *{position:relative;z-index:3}
 
     .header h1{
-      font-size:3.2em;
+      font-size:2em;
       margin-bottom:10px;
       letter-spacing:2px;
       font-weight:900;
@@ -73,7 +72,7 @@
     }
 
     .header .competition-name{
-      font-size:1.6em;
+      font-size:1.1em;
       color:#ffd700;
       text-shadow:2px 2px 8px rgba(0,0,0,0.8),0 0 15px rgba(255,215,0,0.5);
       margin-bottom:8px;
@@ -81,19 +80,19 @@
       letter-spacing:1px;
     }
     .header .date{
-      font-size:1.1em;
+      font-size:0.85em;
       color:#e8f4f8;
       text-shadow:2px 2px 6px rgba(0,0,0,0.7);
       font-weight:500;
     }
     .header .live-indicator{
       display:inline-block;
-      padding:8px 20px;
+      padding:5px 14px;
       background:linear-gradient(135deg, rgba(220,20,60,0.95), rgba(255,0,0,0.95));
-      border-radius:30px;
-      margin-top:12px;
+      border-radius:20px;
+      margin-top:8px;
       font-weight:800;
-      font-size:.95em;
+      font-size:.78em;
       animation:pulse 2s infinite;
       box-shadow:0 0 20px rgba(255,0,0,0.6),0 0 40px rgba(255,0,0,0.4),0 5px 15px rgba(0,0,0,0.5);
       border:2px solid rgba(255,255,255,0.3);
@@ -102,19 +101,19 @@
     /* Contenu */
     .ranking-container{
       background:linear-gradient(135deg, rgba(255,255,255,0.98), rgba(248,250,252,0.98));
-      border-radius:30px;
-      padding:40px;
+      border-radius:20px;
+      padding:22px;
       box-shadow:0 25px 80px rgba(0,0,0,0.4),0 0 0 1px rgba(255,255,255,0.1);
       animation:slideIn .5s;
-      min-height:600px;
-      margin:30px;
+      flex:1;
+      margin:12px 16px 0 16px;
       backdrop-filter:blur(10px);
       border:1px solid rgba(255,255,255,0.2);
       color:#111;
     }
 
     .ranking-title{
-      font-size:3em;
+      font-size:1.8em;
       color:#1e3c72;
       text-align:center;
       margin-bottom:35px;
@@ -135,9 +134,9 @@
 
     /* Grid anti-décalage */
     .ranking-grid{
-      --col-rank: 100px;
-      --col-club: 260px;
-      --col-score: 220px;
+      --col-rank: 65px;
+      --col-club: 180px;
+      --col-score: 150px;
       --sbw: 0px;
     }
 
@@ -155,7 +154,7 @@
       background:linear-gradient(135deg,#1e3c72,#2a5298);
       color:#fff;
       padding:18px;
-      font-size:1.3em;
+      font-size:0.88em;
       font-weight:900;
       letter-spacing:.5px;
       text-transform:uppercase;
@@ -168,7 +167,7 @@
     .grid-head .hcell:nth-child(4){justify-content:center}
 
     .grid-scroll{
-      max-height:520px;
+      flex:1;
       overflow-y:auto;
       scroll-behavior:smooth;
       scrollbar-gutter:stable;
@@ -232,7 +231,7 @@
     /* Nom + badges */
     .shooter-name{
       font-weight:800;
-      font-size:1.35em;
+      font-size:0.95em;
       color:#1e3c72;
       text-shadow:0 1px 2px rgba(0,0,0,0.1);
     }
@@ -258,13 +257,13 @@
     .category-TAR{ background:linear-gradient(135deg, #e0e7ff, #c7d2fe); color:#3730a3; }
 
     .score-display{
-      font-size:2.2em;
+      font-size:1.5em;
       font-weight:900;
       color:#1e3c72;
       text-shadow:0 2px 4px rgba(0,0,0,0.1);
     }
     .score-max{
-      font-size:1.3em;
+      font-size:0.9em;
       color:#999;
       font-weight:700;
     }
@@ -280,33 +279,22 @@
       opacity:0.25;
       filter:drop-shadow(0 4px 8px rgba(0,0,0,0.1));
     }
-    .empty-state h2{font-size:2.2em;margin-bottom:12px;color:#666}
+    .empty-state h2{font-size:1.5em;margin-bottom:12px;color:#666}
 
     .footer{
       text-align:center;
-      margin-top:40px;
-      padding:25px;
-      color:rgba(255,255,255,0.85);
-      font-size:1em;
-      background:rgba(0,0,0,0.2);
-      border-radius:15px;
-      margin:30px;
-      backdrop-filter:blur(10px);
-      box-shadow:0 4px 15px rgba(0,0,0,0.3);
+      padding:4px 16px 6px;
+      color:rgba(255,255,255,0.4);
+      font-size:0.72em;
     }
 
     .auto-rotate-indicator{
       text-align:center;
-      margin-top:25px;
-      color:rgba(255,255,255,0.9);
-      font-size:1em;
-      font-weight:700;
-      padding:12px 20px;
-      background:rgba(255,255,255,0.15);
-      border-radius:25px;
-      margin:0 30px;
-      backdrop-filter:blur(10px);
-      box-shadow:0 4px 15px rgba(0,0,0,0.2);
+      margin-top:0;
+      padding:3px 0;
+      color:rgba(255,255,255,0.4);
+      font-size:0.72em;
+      font-weight:500;
     }
 
     @keyframes fadeIn{from{opacity:0;transform:translateY(-30px)}to{opacity:1;transform:translateY(0)}}

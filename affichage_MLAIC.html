@@ -20,23 +20,26 @@
       background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
       color: white;
       overflow-x: hidden;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
 
     .container{
       padding: 0;
       max-width: 100%;
       margin: 0 auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
     }
 
     /* 🎨 HEADER AVEC IMAGE DE FOND */
     .header{
       position: relative;
       text-align: center;
-      padding: 35px 30px;
-      background-image: url('resultats.jpg');
-      background-size: cover;
-      background-position: center;
-      background-repeat: no-repeat;
+      padding: 18px 30px;
+      background: linear-gradient(135deg, #4f7cff 0%, #7c3aed 50%, #4f7cff 100%);
       animation: fadeIn 1s;
       overflow: hidden;
     }
@@ -49,7 +52,7 @@
       left: 0;
       right: 0;
       bottom: 0;
-      background: linear-gradient(135deg, rgba(30, 60, 114, 0.85) 0%, rgba(42, 82, 152, 0.75) 100%);
+      background: radial-gradient(800px 120px at 50% -20%, rgba(255,255,255,0.22), transparent 70%);
       z-index: 1;
     }
 
@@ -71,10 +74,7 @@
       z-index: 2;
     }
 
-    @keyframes shine{
-      0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
-      100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
-    }
+    
 
     .header > *{
       position: relative;
@@ -82,7 +82,7 @@
     }
 
     .header h1{
-      font-size: 3.2em;
+      font-size: 2em;
       margin-bottom: 10px;
       text-shadow: 
         0 0 20px rgba(255, 215, 0, 0.6),
@@ -114,7 +114,7 @@
     }
 
     .header .competition-name{
-      font-size: 1.6em;
+      font-size: 1.1em;
       color: #ffd700;
       text-shadow: 
         2px 2px 8px rgba(0,0,0,0.8),
@@ -125,7 +125,7 @@
     }
 
     .header .date{
-      font-size: 1.1em;
+      font-size: 0.85em;
       color: #e8f4f8;
       text-shadow: 2px 2px 6px rgba(0,0,0,0.7);
       font-weight: 500;
@@ -133,12 +133,12 @@
 
     .header .live-indicator{
       display: inline-block;
-      padding: 8px 20px;
+      padding: 5px 14px;
       background: linear-gradient(135deg, rgba(220, 20, 60, 0.95), rgba(255, 0, 0, 0.95));
-      border-radius: 30px;
-      margin-top: 12px;
+      border-radius: 20px;
+      margin-top: 8px;
       font-weight: bold;
-      font-size: 0.95em;
+      font-size: 0.78em;
       animation: pulse 2s infinite;
       box-shadow: 
         0 0 20px rgba(255, 0, 0, 0.6),
@@ -191,21 +191,21 @@
 
     .ranking-container{
       background: linear-gradient(135deg, rgba(255,255,255,0.98), rgba(248,250,252,0.98));
-      border-radius: 30px;
-      padding: 40px;
+      border-radius: 20px;
+      padding: 22px;
       box-shadow: 
         0 25px 80px rgba(0,0,0,0.4),
         0 0 0 1px rgba(255,255,255,0.1);
       animation: slideIn 0.5s;
-      min-height: 600px;
-      margin: 30px;
+      flex: 1;
+      margin: 12px 16px 0 16px;
       backdrop-filter: blur(10px);
       border: 1px solid rgba(255,255,255,0.2);
     }
 
     /* Zone scrollable pour le tableau (mode TV) */
     .table-scroll{
-      max-height: 520px;
+      flex: 1;
       overflow-y: auto;
       scroll-behavior: smooth;
       padding-right: 12px;
@@ -238,11 +238,11 @@
     .table-scroll .rankings-table{ border-spacing: 0 12px; margin-top: 0; width: calc(100% - var(--sbw)); }
 
 .ranking-title{
-      font-size: 3em;
+      font-size: 0.88em;
       color: #1e3c72;
       text-align: center;
-      margin-bottom: 35px;
-      padding-bottom: 20px;
+      margin-bottom: 18px;
+      padding-bottom: 12px;
       font-weight: 800;
       letter-spacing: 1px;
       position: relative;
@@ -275,9 +275,9 @@
     .rankings-table thead th{
       background: linear-gradient(135deg, #1e3c72, #2a5298);
       color: white;
-      padding: 18px;
+      padding: 11px 12px;
       text-align: left;
-      font-size: 1.3em;
+      font-size: 0.88em;
       font-weight: 700;
       letter-spacing: 0.5px;
       text-transform: uppercase;
@@ -332,7 +332,7 @@
       background: linear-gradient(90deg, transparent, rgba(255,215,0,0.1), transparent);
       opacity: 0;
       transition: opacity 0.4s;
-      border-radius: 15px;
+      border-radius: 10px;
       pointer-events: none;
     }
 
@@ -349,16 +349,16 @@
     }
 
     .rankings-table tbody td{
-      padding: 18px;
+      padding: 11px 10px;
       color: #333;
-      font-size: 1.15em;
+      font-size: 0.92em;
       vertical-align: middle;
     }
 
     .rankings-table tbody td:first-child{
       text-align: center;
       font-weight: 900;
-      font-size: 1.8em;
+      font-size: 1.3em;
       color: #1e3c72;
       border-radius: 15px 0 0 15px;
     }
@@ -382,7 +382,7 @@
       text-shadow: 
         0 0 15px rgba(255,215,0,0.6),
         2px 2px 4px rgba(0,0,0,0.3);
-      font-size: 2.2em !important;
+      font-size: 1.6em !important;
     }
     .rank-1{
       background: linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,215,0,0.08)) !important;
@@ -396,7 +396,7 @@
       text-shadow: 
         0 0 12px rgba(192,192,192,0.6),
         2px 2px 4px rgba(0,0,0,0.3);
-      font-size: 2em !important;
+      font-size: 1.45em !important;
     }
     .rank-2{
       background: linear-gradient(135deg, rgba(192,192,192,0.12), rgba(192,192,192,0.06)) !important;
@@ -410,7 +410,7 @@
       text-shadow: 
         0 0 10px rgba(205,127,50,0.6),
         2px 2px 4px rgba(0,0,0,0.3);
-      font-size: 1.9em !important;
+      font-size: 1.4em !important;
     }
     .rank-3{
       background: linear-gradient(135deg, rgba(205,127,50,0.1), rgba(205,127,50,0.05)) !important;
@@ -421,7 +421,7 @@
 
     .shooter-name{
       font-weight: 700;
-      font-size: 1.35em;
+      font-size: 0.95em;
       color: #1e3c72;
       text-shadow: 0 1px 2px rgba(0,0,0,0.1);
     }
@@ -465,14 +465,14 @@
     .category-Dame-3 { background: linear-gradient(135deg, #ffccf9, #e84393); color: #fff; }
 
     .score-display{
-      font-size: 2.2em;
+      font-size: 1.5em;
       font-weight: 900;
       color: #1e3c72;
       text-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
 
     .score-max{
-      font-size: 1.3em;
+      font-size: 0.9em;
       color: #999;
       font-weight: 600;
     }
@@ -492,39 +492,25 @@
     }
 
     .empty-state h2{
-      font-size: 2.2em;
+      font-size: 1.5em;
       margin-bottom: 12px;
       color: #666;
     }
 
     .footer{
       text-align: center;
-      margin-top: 40px;
-      padding: 25px;
-      color: rgba(255,255,255,0.85);
-      font-size: 1em;
-      background: rgba(0,0,0,0.2);
-      border-radius: 15px;
-      margin-left: 30px;
-      margin-right: 30px;
-      margin-bottom: 30px;
-      backdrop-filter: blur(10px);
-      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      padding: 4px 16px 6px;
+      color: rgba(255,255,255,0.4);
+      font-size: 0.72em;
     }
 
     .auto-rotate-indicator{
       text-align: center;
-      margin-top: 25px;
-      color: rgba(255,255,255,0.9);
-      font-size: 1em;
-      font-weight: 600;
-      padding: 12px 20px;
-      background: rgba(255,255,255,0.15);
-      border-radius: 25px;
-      margin-left: 30px;
-      margin-right: 30px;
-      backdrop-filter: blur(10px);
-      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      margin-top: 0;
+      padding: 3px 0;
+      color: rgba(255,255,255,0.4);
+      font-size: 0.72em;
+      font-weight: 500;
     }
 
     @keyframes fadeIn{
@@ -549,7 +535,7 @@
 
     @media (max-width: 768px){
       .header h1 { font-size: 2.8em; }
-      .header .competition-name { font-size: 1.6em; }
+      .header .competition-name { font-size: 1.1em; }
       .ranking-title { font-size: 2em; }
       .view-tabs { flex-wrap: wrap; }
       .view-tab { font-size: 0.9em; padding: 10px 18px; }
@@ -565,9 +551,9 @@
        Le bandeau et les lignes utilisent EXACTEMENT la même grille.
        ========================= */
     .ranking-grid{
-      --col-rank: 100px;
-      --col-club: 260px;
-      --col-score: 220px;
+      --col-rank: 65px;
+      --col-club: 180px;
+      --col-score: 150px;
       --sbw: 0px; /* scrollbar width (JS) */
     }
 
@@ -577,8 +563,8 @@
       gap: 0;
       align-items: center;
       width: calc(100% - var(--sbw));
-      margin-bottom: 12px;
-      border-radius: 18px;
+      margin-bottom: 8px;
+      border-radius: 12px;
       overflow: hidden;
       box-shadow: 0 8px 25px rgba(30,60,114,0.25);
     }
@@ -586,7 +572,7 @@
     .grid-head .hcell{
       background: linear-gradient(135deg, #1e3c72, #2a5298);
       color: #fff;
-      padding: 18px 18px;
+      padding: 11px 12px;
       font-size: 1.3em;
       font-weight: 800;
       letter-spacing: 0.5px;
@@ -596,7 +582,7 @@
       align-items:center;
     }
     .grid-head .hcell:nth-child(1){ justify-content:center; }
-    .grid-head .hcell:nth-child(2){ justify-content:flex-start; padding-left: 26px; }
+    .grid-head .hcell:nth-child(2){ justify-content:flex-start; padding-left: 16px; }
     .grid-head .hcell:nth-child(3){ justify-content:center; }
     .grid-head .hcell:nth-child(4){ justify-content:center; }
 
@@ -629,7 +615,7 @@
       grid-template-columns: var(--col-rank) 1fr var(--col-club) var(--col-score);
       align-items: center;
       gap: 0;
-      margin: 0 0 12px 0;
+      margin: 0 0 7px 0;
       padding: 0;
       background: linear-gradient(135deg, rgba(30, 60, 114, 0.04), rgba(30, 60, 114, 0.08));
       border-radius: 15px;
@@ -662,7 +648,7 @@
     .grid-row:hover::before{ opacity: 1; }
 
     .cell{
-      padding: 18px;
+      padding: 11px 12px;
       color: #333;
       font-size: 1.15em;
       z-index: 1;
@@ -695,7 +681,7 @@
     .grid-row.rank-3 .cell.rank{
       color: #cd7f32;
       text-shadow: 0 0 10px rgba(205,127,50,0.6), 2px 2px 4px rgba(0,0,0,0.3);
-      font-size: 1.9em;
+      font-size: 1.4em;
     }
 
   </style>
