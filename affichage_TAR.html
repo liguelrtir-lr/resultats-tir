@@ -60,21 +60,20 @@
       margin-bottom:10px;
       letter-spacing:2px;
       font-weight:900;
-      background:linear-gradient(to right,#fff,#ffd700,#fff);
+      background: linear-gradient(to right, #ffffff, #4f7cff, #a855f7, #ffffff);
       -webkit-background-clip:text;
       -webkit-text-fill-color:transparent;
       background-clip:text;
       animation:textGlow 3s ease-in-out infinite;
     }
     @keyframes textGlow{
-      0%,100%{text-shadow:0 0 20px rgba(255,215,0,0.6),0 0 40px rgba(255,215,0,0.4),3px 3px 15px rgba(0,0,0,0.8)}
-      50%{text-shadow:0 0 30px rgba(255,215,0,0.8),0 0 60px rgba(255,215,0,0.6),3px 3px 15px rgba(0,0,0,0.8)}
+      0%,100%{filter:drop-shadow(0 0 10px rgba(79,124,255,0.35))}
+      50%{filter:drop-shadow(0 0 14px rgba(79,124,255,0.5))}
     }
 
     .header .competition-name{
       font-size:1.1em;
-      color:#ffd700;
-      text-shadow:2px 2px 8px rgba(0,0,0,0.8),0 0 15px rgba(255,215,0,0.5);
+      color: #ffffff;
       margin-bottom:8px;
       font-weight:700;
       letter-spacing:1px;
@@ -128,7 +127,7 @@
       bottom:0;left:50%;
       transform:translateX(-50%);
       width:200px;height:4px;
-      background:linear-gradient(90deg, transparent, #ffd700, transparent);
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
       border-radius:2px;
     }
 
