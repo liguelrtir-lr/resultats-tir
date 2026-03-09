@@ -68,19 +68,17 @@
       position: relative;
       text-align: center;
       padding: 18px 30px;
-      background: linear-gradient(135deg, #1e3a6e 0%, #2d1b6e 50%, #1a2f5e 100%);
+      background: linear-gradient(135deg, #4f7cff 0%, #7c3aed 50%, #4f7cff 100%);
       overflow: hidden;
       animation: fadeIn 1s;
     }
 
-    /* Lignes décoratives */
+    /* Reflet lumineux */
     .header::before{
       content: '';
       position: absolute;
       inset: 0;
-      background:
-        radial-gradient(600px 200px at 20% 50%, rgba(79,124,255,0.25), transparent 60%),
-        radial-gradient(400px 200px at 80% 50%, rgba(124,58,237,0.20), transparent 60%);
+      background: radial-gradient(800px 120px at 50% -20%, rgba(255,255,255,0.25), transparent 70%);
       z-index: 1;
     }
 
@@ -90,7 +88,7 @@
       position: absolute;
       bottom: 0; left: 0; right: 0;
       height: 3px;
-      background: linear-gradient(90deg, transparent, var(--primary), var(--accent), var(--primary), transparent);
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
       z-index: 2;
     }
 
@@ -104,11 +102,8 @@
       margin-bottom: 6px;
       font-weight: 950;
       letter-spacing: 2px;
-      background: linear-gradient(to right, #ffffff, var(--primary), var(--accent), #ffffff);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      animation: textGlow 3s ease-in-out infinite;
+      color: white;
+      text-shadow: 0 2px 12px rgba(0,0,0,0.4), 0 1px 3px rgba(0,0,0,0.3);
     }
 
     @keyframes textGlow{
