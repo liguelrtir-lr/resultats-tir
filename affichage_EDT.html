@@ -9,6 +9,9 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <!-- jsPDF pour export PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
@@ -102,10 +105,15 @@
       margin-bottom: 6px;
       font-weight: 950;
       letter-spacing: 2px;
-      color: #ffffff;
+      color: white;
+      text-shadow: 0 2px 12px rgba(0,0,0,0.4), 0 1px 3px rgba(0,0,0,0.3);
     }
 
-    
+    @keyframes textGlow{
+      0%, 100% {
+        filter: drop-shadow(0 0 10px rgba(79,124,255,0.35))
+                drop-shadow(0 0 18px rgba(124,58,237,0.25));
+      }
       50% {
         filter: drop-shadow(0 0 14px rgba(79,124,255,0.5))
                 drop-shadow(0 0 26px rgba(124,58,237,0.35));
@@ -529,6 +537,58 @@
 
     body.tv-mode .ranking-title{ font-size: 2.5rem; }
     body.tv-mode .cell.score{ font-size: 2rem; }
+
+    /* ── HORLOGE ── */
+    .header-clock {
+      font-size: 1.5em;
+      font-weight: 900;
+      color: rgba(255,255,255,0.92);
+      letter-spacing: 3px;
+      font-variant-numeric: tabular-nums;
+      margin-top: 6px;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+
+    /* ── BOUTONS FLOTTANTS ── */
+    .fab-group {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 200;
+    }
+
+    .fab {
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      font-size: 1.3em;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.35);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .fab:hover { transform: scale(1.1); box-shadow: 0 6px 24px rgba(0,0,0,0.45); }
+
+    .fab-pdf { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+    .fab-csv { background: linear-gradient(135deg, #22c55e, #16a34a); color: white; }
+
+    /* ── TOAST ── */
+    .toast {
+      position: fixed; bottom: 90px; right: 24px;
+      background: #1e293b; color: white;
+      padding: 12px 20px; border-radius: 10px;
+      font-size: 0.88em; z-index: 300;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      animation: slideInToast 0.3s ease;
+      pointer-events: none;
+    }
+    @keyframes slideInToast {
+      from { opacity:0; transform: translateY(20px); }
+      to   { opacity:1; transform: translateY(0); }
+    }
   </style>
 </head>
 
@@ -551,6 +611,7 @@
       <div class="competition-name" id="competitionName">Chargement...</div>
       <div class="date" id="competitionDate"></div>
       <div class="live-indicator">🔴 EN DIRECT</div>
+      <div class="header-clock" id="headerClock">--:--:--</div>
     </div>
 
     <!-- (Onglets cachés en mode TV, laissés en place si tu veux les réactiver plus tard) -->
@@ -584,8 +645,13 @@
     </div>
   </div>
 
+  <!-- Boutons flottants -->
+  <div class="fab-group">
+    <button class="fab fab-pdf" onclick="exportPDF()" title="Exporter PDF final">📄</button>
+    <button class="fab fab-csv" onclick="exportCSV()" title="Exporter CSV">📊</button>
+  </div>
+
   <script>
-    // ✅ DÉTECTION DE LA COMPÉTITION VIA URL
    function getCompetitionId() {
   const params = new URLSearchParams(window.location.search);
   const comp = (params.get('comp') || 'default').trim();
@@ -641,7 +707,7 @@
 
     // Mode TV : rotation auto Discipline -> Catégorie + défilement
     let autoRotateEnabled = true;
-    const perViewSeconds = 8;         // ✅ demandé : 8s
+    const perViewSeconds = 12;
     const scrollPaddingSeconds = 2;
     let rotateTimer = null;
     let scrollTimer = null;
@@ -970,6 +1036,164 @@
     function updateLastUpdate(){
       const now = new Date();
       document.getElementById('lastUpdate').textContent = now.toLocaleTimeString('fr-FR');
+    }
+
+    // ── HORLOGE ────────────────────────────────────────────────────
+    function updateClock() {
+      const now = new Date();
+      const h = String(now.getHours()).padStart(2,'0');
+      const m = String(now.getMinutes()).padStart(2,'0');
+      const s = String(now.getSeconds()).padStart(2,'0');
+      const el = document.getElementById('headerClock');
+      if (el) el.textContent = `${h}:${m}:${s}`;
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    // ── EXPORT PDF ─────────────────────────────────────────────────
+    function exportPDF() {
+      if (!allShooters.length) { showToastMsg('⚠️ Aucun tireur à exporter'); return; }
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+      const compName = competitionConfig.name || 'Compétition EDT';
+      const compDate = competitionConfig.date
+        ? new Date(competitionConfig.date + 'T00:00:00').toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' })
+        : new Date().toLocaleDateString('fr-FR');
+
+      // Grouper par discipline puis catégorie
+      const groups = new Map();
+      allShooters.forEach(s => {
+        const d = (s.discipline || 'Sans discipline').trim();
+        const c = (s.category || 'Sans catégorie').trim();
+        const key = `${d}||${c}`;
+        if (!groups.has(key)) groups.set(key, { discipline: d, category: c, shooters: [] });
+        groups.get(key).shooters.push(s);
+      });
+
+      // Trier les groupes : d'abord par discipline, puis catégorie
+      const sortedGroups = Array.from(groups.values()).sort((a, b) => {
+        const dc = a.discipline.localeCompare(b.discipline, 'fr');
+        return dc !== 0 ? dc : a.category.localeCompare(b.category, 'fr');
+      });
+
+      let isFirstPage = true;
+
+      sortedGroups.forEach(group => {
+        if (!isFirstPage) doc.addPage();
+        isFirstPage = false;
+
+        // En-tête page
+        doc.setFillColor(79, 124, 255);
+        doc.rect(0, 0, 210, 28, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(16);
+        doc.text(compName, 10, 10);
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(compDate, 10, 17);
+        doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`, 10, 23);
+
+        // Titre classement
+        doc.setTextColor(30, 41, 59);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.text(`${group.discipline} — ${group.category}`, 10, 38);
+
+        // Trier par score décroissant
+        const sorted = [...group.shooters].sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0));
+
+        const rows = sorted.map((s, i) => [
+          i + 1,
+          `${s.firstName || ''} ${s.lastName || ''}`.trim(),
+          s.club || '',
+          `${s.score} / ${s.maxScore}`
+        ]);
+
+        doc.autoTable({
+          startY: 43,
+          head: [['#', 'Tireur', 'Club', 'Score']],
+          body: rows,
+          styles: { fontSize: 10, cellPadding: 3 },
+          headStyles: { fillColor: [79, 124, 255], textColor: 255, fontStyle: 'bold' },
+          alternateRowStyles: { fillColor: [244, 247, 255] },
+          columnStyles: {
+            0: { cellWidth: 12, halign: 'center', fontStyle: 'bold' },
+            3: { cellWidth: 35, halign: 'center', fontStyle: 'bold' }
+          },
+          didDrawRow: (data) => {
+            if (data.row.index < 3) {
+              const colors = [[251,191,36],[203,213,225],[251,113,133]];
+              const c = colors[data.row.index];
+              doc.setFillColor(...c);
+              doc.rect(data.row.cells[0].x, data.row.cells[0].y, 3, data.row.height, 'F');
+            }
+          }
+        });
+
+        // Mention "N tireurs"
+        const finalY = doc.lastAutoTable.finalY + 5;
+        doc.setFontSize(9);
+        doc.setTextColor(100, 116, 139);
+        doc.setFont('helvetica', 'italic');
+        doc.text(`${sorted.length} tireur(s) classé(s)`, 10, finalY);
+      });
+
+      const fileName = `Resultats_EDT_${(competitionConfig.name || 'comp').replace(/[^a-z0-9]/gi,'_')}_${new Date().toLocaleDateString('fr-FR').replace(/\//g,'-')}.pdf`;
+      doc.save(fileName);
+      showToastMsg('✅ PDF généré !');
+    }
+
+    // ── EXPORT CSV ─────────────────────────────────────────────────
+    function exportCSV() {
+      if (!allShooters.length) { showToastMsg('⚠️ Aucun tireur à exporter'); return; }
+
+      const sorted = [...allShooters].sort((a, b) => {
+        const dc = (a.discipline || '').localeCompare(b.discipline || '', 'fr');
+        if (dc !== 0) return dc;
+        const cc = (a.category || '').localeCompare(b.category || '', 'fr');
+        if (cc !== 0) return cc;
+        return (Number(b.score) || 0) - (Number(a.score) || 0);
+      });
+
+      const lines = ['Rang;Nom;Prénom;Club;Catégorie;Discipline;Score;Score Max'];
+      let lastKey = null;
+      let rank = 1;
+      sorted.forEach(s => {
+        const key = `${s.discipline}||${s.category}`;
+        if (key !== lastKey) { rank = 1; lastKey = key; }
+        lines.push([
+          rank++,
+          s.lastName || '',
+          s.firstName || '',
+          s.club || '',
+          s.category || '',
+          s.discipline || '',
+          s.score ?? '',
+          s.maxScore ?? ''
+        ].join(';'));
+      });
+
+      const bom = '\uFEFF';
+      const blob = new Blob([bom + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Resultats_EDT_${(competitionConfig.name || 'comp').replace(/[^a-z0-9]/gi,'_')}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToastMsg('✅ CSV exporté !');
+    }
+
+    // ── TOAST ──────────────────────────────────────────────────────
+    function showToastMsg(msg) {
+      const t = document.createElement('div');
+      t.className = 'toast';
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), 3000);
     }
 
     // Plein écran au double-clic
