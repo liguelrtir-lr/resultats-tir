@@ -2,52 +2,48 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>LIVE — Ligue LR</title>
+    <title>Centre de Contrôle — Résultats Tir</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bg: #ffffff;
-            --accent: #007bff;
-            --gold: #fff9db; --gold-b: #fcc419;
-            --silver: #f1f3f5; --silver-b: #adb5bd;
-            --bronze: #fff4e6; --bronze-b: #fd7e14;
-        }
-        body { font-family: 'Roboto', sans-serif; background: var(--bg); color: #212529; margin: 0; overflow: hidden; }
+        body { font-family: sans-serif; background: #1a2a30; color: white; text-align: center; padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; max-width: 800px; margin: 0 auto 30px; }
+        h1 { margin: 0; font-size: 1.8rem; }
         
-        /* HEADER FIN */
-        .header { background: #f8f9fa; padding: 12px; text-align: center; border-bottom: 2px solid var(--accent); box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        h1 { font-family: 'Oswald', sans-serif; margin: 0; font-size: 2rem; text-transform: uppercase; color: var(--accent); letter-spacing: 1px; }
+        .btn-create { 
+            background: #28a745; color: white; border: none; padding: 10px 20px; 
+            border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 1rem;
+        }
 
-        .scroll-container { height: calc(100vh - 75px); overflow-y: hidden; padding: 0 25px; }
-
-        /* CATEGORIE FIXE (STICKY) */
-        .cat-header { position: sticky; top: 0; background: var(--bg); padding: 12px 0; z-index: 50; }
-        .cat-title { background: #e9ecef; color: var(--accent); padding: 10px 20px; border-radius: 4px; font-family: 'Oswald', sans-serif; font-size: 1.6rem; border-left: 6px solid var(--accent); text-align: left; }
-
-        table { width: 100%; border-collapse: separate; border-spacing: 0 4px; margin-bottom: 40px; }
-        td { padding: 12px; font-size: 1.3rem; border-top: 1px solid #eee; border-bottom: 1px solid #eee; }
-
-        /* MÉDAILLES LUMINEUSES */
-        .m1 { background: var(--gold) !important; border-color: var(--gold-b) !important; font-weight: bold; }
-        .m1 .rank, .m1 .score { color: #d4a017; }
-
-        .m2 { background: var(--silver) !important; border-color: var(--silver-b) !important; }
-        .m2 .rank, .m2 .score { color: #7f8c8d; }
-
-        .m3 { background: var(--bronze) !important; border-color: var(--bronze-b) !important; }
-        .m3 .rank, .m3 .score { color: #a0522d; }
-
-        .rank { width: 60px; text-align: center; font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 1.4rem; color: #ccc; }
-        .score { text-align: right; font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 1.8rem; color: var(--accent); padding-right: 25px; }
-        .club { color: #888; font-size: 0.95rem; text-transform: uppercase; margin-top: 2px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; max-width: 1000px; margin: 0 auto; }
+        
+        .card { 
+            background: #243b45; padding: 20px; border-radius: 12px; border: 1px solid #34495e; 
+            text-align: left; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .card h2 { margin: 0 0 5px 0; color: #0fb8c9; }
+        .card .id { font-size: 0.8rem; color: #94a3b8; margin-bottom: 15px; }
+        .card .count { color: #2ecc71; font-weight: bold; margin-bottom: 20px; }
+        
+        .btn { 
+            display: block; width: 100%; padding: 10px; margin: 8px 0; border: none; 
+            border-radius: 6px; cursor: pointer; text-decoration: none; text-align: center;
+            font-weight: bold; font-size: 0.9rem; color: white;
+        }
+        .btn-saisie { background: #0fb8c9; }
+        .btn-tv { background: #34495e; }
+        .btn-del { background: #e74c3c; margin-top: 15px; opacity: 0.7; }
     </style>
 </head>
 <body>
 
-<div class="header"><h1 id="compTitle">RÉSULTATS LIVE</h1></div>
-<div class="scroll-container" id="scrollBox"><div id="content"></div></div>
+    <div class="header">
+        <h1>🎯 Centre de Contrôle</h1>
+        <button class="btn-create" onclick="createNewComp()">+ Nouveau Dossier</button>
+    </div>
+
+    <div id="compGrid" class="grid">
+        </div>
 
 <script>
     const firebaseConfig = {
@@ -61,71 +57,56 @@
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-    const params = new URLSearchParams(window.location.search);
-    let compId = params.get('comp');
 
-    if (compId) {
-        // Lecture directe de la racine (plus de "competitions/")
-        db.ref(compId).on('value', (snap) => {
-            const data = snap.val();
-            if (!data) return;
+    // CHARGEMENT DES COMPÉTITIONS
+    db.ref().on('value', (snap) => {
+        const data = snap.val();
+        const grid = document.getElementById('compGrid');
+        grid.innerHTML = '';
 
-            document.getElementById('compTitle').textContent = data.config ? data.config.name : compId;
+        if (!data) return;
+
+        Object.keys(data).forEach(id => {
+            if (id === 'competitions') return; // On ignore l'ancien dossier
             
-            // Extraction des tireurs (shooters ou vrac)
-            let raw = data.shooters || data;
-            let list = Object.values(raw).filter(s => s && typeof s === 'object' && s.lastName);
+            const comp = data[id];
+            const shooters = comp.shooters || comp;
+            const count = Object.values(shooters).filter(s => s && s.lastName).length;
+            const name = comp.config ? comp.config.name : id;
 
-            if (list.length > 0) {
-                render(list);
-            }
+            grid.innerHTML += `
+                <div class="card">
+                    <h2>${name}</h2>
+                    <div class="id">ID: ${id}</div>
+                    <div class="count">${count} tireur(s) détecté(s)</div>
+                    <a href="saisie.html?comp=${id}" class="btn btn-saisie">Saisie</a>
+                    <a href="affichage_multicomp.html?comp=${id}" class="btn btn-tv">Affichage TV</a>
+                    <button onclick="deleteComp('${id}')" class="btn btn-del">Supprimer</button>
+                </div>
+            `;
+        });
+    });
+
+    // FONCTION POUR CRÉER UNE NOUVELLE COMPÉTITION
+    function createNewComp() {
+        const name = prompt("Nom de la compétition (ex: REGIONAUX MLAIC) :");
+        if (!name) return;
+        const id = prompt("ID Unique (ex: MLAIC_2026) - SANS ESPACES :").replace(/\s/g, '_');
+        if (!id) return;
+
+        db.ref(id + '/config').set({
+            name: name,
+            date: new Date().toISOString()
+        }).then(() => {
+            alert("Compétition créée ! Vous pouvez maintenant saisir des tireurs.");
         });
     }
 
-    function render(shooters) {
-        const content = document.getElementById('content');
-        content.innerHTML = '';
-        const groups = {};
-
-        // Tri par discipline
-        shooters.forEach(s => {
-            let cat = s.discipline || s.category || "DIVERS";
-            if (!groups[cat]) groups[cat] = [];
-            groups[cat].push(s);
-        });
-
-        // Affichage
-        Object.keys(groups).sort().forEach(catName => {
-            const sorted = groups[catName].sort((a,b) => (Number(b.score) || 0) - (Number(a.score) || 0));
-            let html = `<div class="cat-header"><div class="cat-title">${catName}</div></div><table><tbody>`;
-            
-            sorted.forEach((s, i) => {
-                const rank = i + 1;
-                const m = rank === 1 ? "m1" : rank === 2 ? "m2" : rank === 3 ? "m3" : "";
-                html += `<tr class="${m}">
-                    <td class="rank">${rank}</td>
-                    <td>
-                        <div style="font-weight:700;">${s.firstName} ${s.lastName.toUpperCase()}</div>
-                        <div class="club">${s.club || '-'}</div>
-                    </td>
-                    <td class="score">${s.score || 0}</td>
-                </tr>`;
-            });
-            html += `</tbody></table>`;
-            content.innerHTML += html;
-        });
-        startAutoScroll();
-    }
-
-    function startAutoScroll() {
-        const box = document.getElementById('scrollBox');
-        if (window.itv) clearInterval(window.itv);
-        window.itv = setInterval(() => {
-            box.scrollTop += 1;
-            if (box.scrollTop + box.clientHeight >= box.scrollHeight - 1) {
-                setTimeout(() => { box.scrollTop = 0; }, 4000);
-            }
-        }, 40);
+    // FONCTION SUPPRIMER
+    function deleteComp(id) {
+        if (confirm("Voulez-vous vraiment supprimer " + id + " ?")) {
+            db.ref(id).remove();
+        }
     }
 </script>
 </body>
