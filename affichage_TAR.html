@@ -2,286 +2,205 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🎯 Résultats provisoires - TAR</title>
-
+  <title>🎯 Résultats TAR - Live</title>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  
   <style>
-    .header-clock{font-size:1.5em;font-weight:900;color:rgba(255,255,255,0.92);letter-spacing:3px;font-variant-numeric:tabular-nums;margin-top:6px;text-shadow:0 2px 10px rgba(0,0,0,0.3);}
-    .fab-group{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:12px;z-index:200;}
-    .fab{width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;font-size:1.3em;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 18px rgba(0,0,0,0.35);transition:transform 0.2s,box-shadow 0.2s;}
-    .fab:hover{transform:scale(1.1);box-shadow:0 6px 24px rgba(0,0,0,0.45);}
-    .fab-pdf{background:linear-gradient(135deg,#ef4444,#dc2626);color:white;}
-    .fab-csv{background:linear-gradient(135deg,#22c55e,#16a34a);color:white;}
-    .toast{position:fixed;bottom:90px;right:24px;background:#1e293b;color:white;padding:12px 20px;border-radius:10px;font-size:0.88em;z-index:300;box-shadow:0 4px 20px rgba(0,0,0,0.4);animation:slideInToast 0.3s ease;pointer-events:none;}
-    @keyframes slideInToast{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-    *{margin:0;padding:0;box-sizing:border-box}
-    :root{ --sbw: 12px; }
-    body{
-      font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
-      background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
-      color:#fff;
-      overflow-x:hidden;
-      min-height:100vh;
-      display:flex;
-      flex-direction:column;
-    }
-    .container{max-width:100%;margin:0 auto;flex:1;display:flex;flex-direction:column}
-    .header{
-      position:relative;
-      text-align:center;
-      padding:18px 30px;
-      background: linear-gradient(135deg, #4f7cff 0%, #7c3aed 50%, #4f7cff 100%);
-      animation:fadeIn 1s;
-      overflow:hidden;
-    }
-    .header::before{
-      content:'';
-      position:absolute;inset:0;
-      background:radial-gradient(800px 120px at 50% -20%, rgba(255,255,255,0.22), transparent 70%);
-      z-index:1;
-    }
-    .header::after{
-      content:'';
-      position:absolute;
-      bottom:0;left:0;right:0;top:auto;
-      width:auto;height:3px;
-      background:linear-gradient(90deg,transparent,rgba(255,255,255,0.6),transparent);
-      z-index:2;
-    }
-    .header > *{position:relative;z-index:3}
-    .header h1{font-size: 2em;margin-bottom: 6px;font-weight: 950;letter-spacing: 2px;color: #ffffff;}
-    .header .competition-name{font-size:1.1em;color: #ffffff;margin-bottom:8px;font-weight:700;letter-spacing:1px;}
-    .header .date{font-size:0.85em;color:#e8f4f8;text-shadow:2px 2px 6px rgba(0,0,0,0.7);font-weight:500;}
-    .header .live-indicator{
-      display:inline-block;
-      padding:5px 14px;
-      background:linear-gradient(135deg, rgba(220,20,60,0.95), rgba(255,0,0,0.95));
-      border-radius:20px;
-      margin-top:8px;
-      font-weight:800;
-      font-size:.78em;
-      animation:pulse 2s infinite;
-      box-shadow:0 0 20px rgba(255,0,0,0.6),0 0 40px rgba(255,0,0,0.4),0 5px 15px rgba(0,0,0,0.5);
-      border:2px solid rgba(255,255,255,0.3);
-    }
-    .ranking-container{
-      background:linear-gradient(135deg, rgba(255,255,255,0.98), rgba(248,250,252,0.98));
-      border-radius:20px;
-      padding:22px;
-      box-shadow:0 25px 80px rgba(0,0,0,0.4),0 0 0 1px rgba(255,255,255,0.1);
-      animation:slideIn .5s;
-      flex:1;
-      margin:12px 16px 0 16px;
-      backdrop-filter:blur(10px);
-      border:1px solid rgba(255,255,255,0.2);
-      color:#111;
+    body {
+      font-family: sans-serif;
+      background: #0f2027;
+      color: white;
+      margin: 0;
+      height: 100vh;
       display: flex;
       flex-direction: column;
+      overflow: hidden;
     }
-    .ranking-title{font-size:1.8em;color:#1e3c72;text-align:center;margin-bottom:35px;padding-bottom:20px;font-weight:800;letter-spacing:1px;position:relative;}
-    .ranking-title::after{content:'';position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:200px;height:4px;background: linear-gradient(90deg, transparent, #1e3c72, transparent);border-radius:2px;}
-    .ranking-grid{--col-rank: 65px; --col-club: 180px; --col-score: 150px; --sbw: 0px; display: flex; flex-direction: column; flex: 1; overflow: hidden;}
-    .grid-head{display:grid;grid-template-columns: var(--col-rank) 1fr var(--col-club) var(--col-score);align-items:center;width:calc(100% - var(--sbw));margin-bottom:12px;border-radius:18px;overflow:hidden;box-shadow:0 8px 25px rgba(30,60,114,0.25);}
-    .grid-head .hcell{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;padding:18px;font-size:0.88em;font-weight:900;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;display:flex;align-items:center;}
-    .grid-head .hcell:nth-child(1){justify-content:center}
-    .grid-head .hcell:nth-child(2){justify-content:flex-start;padding-left:26px}
-    .grid-head .hcell:nth-child(3){justify-content:center}
-    .grid-head .hcell:nth-child(4){justify-content:center}
-    .grid-scroll{flex:1;overflow-y:auto;scroll-behavior:smooth;scrollbar-gutter:stable;}
-    .grid-scroll::-webkit-scrollbar{width:12px}
-    .grid-scroll::-webkit-scrollbar-thumb{background:linear-gradient(135deg, rgba(30,60,114,0.5), rgba(30,60,114,0.7));border-radius:10px;border:2px solid transparent;background-clip:padding-box;}
-    .grid-scroll::-webkit-scrollbar-track{background:rgba(30,60,114,0.08);border-radius:10px;margin:5px;}
-    .grid-row{display:grid;grid-template-columns: var(--col-rank) 1fr var(--col-club) var(--col-score);align-items:center;margin:0 0 12px 0;background:linear-gradient(135deg, rgba(30,60,114,0.04), rgba(30,60,114,0.08));border-radius:15px;position:relative;transition:all .4s cubic-bezier(.4,0,.2,1);animation:fadeInRow .6s;}
-    .grid-row:hover{background:linear-gradient(135deg, rgba(30,60,114,0.12), rgba(30,60,114,0.18));transform:translateX(8px) scale(1.01);box-shadow:0 8px 25px rgba(30,60,114,0.2),0 0 0 2px rgba(255,215,0,0.3);}
-    .cell{padding:18px;color:#333;font-size:1.15em;z-index:1;}
-    .cell.rank{text-align:center;font-weight:900;font-size:1.8em;color:#1e3c72;}
-    .cell.tireur{padding-left:26px}
-    .cell.club{text-align:center}
-    .cell.score{text-align:center}
-    .shooter-name{font-weight:800;font-size:0.95em;color:#1e3c72;text-shadow:0 1px 2px rgba(0,0,0,0.1);}
-    .shooter-club{color:#666;font-size:0.95em;margin-top:5px;font-weight:600;}
-    .category-badge{display:inline-block;padding:6px 14px;border-radius:20px;font-size:0.88em;font-weight:800;margin-left:12px;box-shadow:0 2px 8px rgba(0,0,0,0.15);border:1px solid rgba(255,255,255,0.3);white-space:nowrap;}
-    .category-TAR{ background:linear-gradient(135deg, #e0e7ff, #c7d2fe); color:#3730a3; }
-    .score-display{font-size:1.5em;font-weight:900;color:#1e3c72;text-shadow:0 2px 4px rgba(0,0,0,0.1);}
-    .score-max{font-size:0.9em;color:#999;font-weight:700;}
-    .empty-state{text-align:center;padding:100px 20px;color:#777;}
-    .footer{text-align:center;padding:4px 16px 6px;color:rgba(255,255,255,0.4);font-size:0.72em;}
-    .auto-rotate-indicator{text-align:center;margin-top:0;padding:3px 0;color:rgba(255,255,255,0.4);font-size:0.72em;font-weight:500;}
-    @keyframes fadeIn{from{opacity:0;transform:translateY(-30px)}to{opacity:1;transform:translateY(0)}}
-    @keyframes slideIn{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:translateY(0)}}
-    @keyframes fadeInRow{from{opacity:0;transform:translateX(-30px)}to{opacity:1;transform:translateX(0)}}
-    @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.85;transform:scale(1.05)}}
+    .header { background: #1e3c72; padding: 15px; text-align: center; }
+    .ranking-container {
+      flex: 1;
+      background: white;
+      color: #111;
+      margin: 15px;
+      border-radius: 15px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .ranking-title { font-size: 1.5em; padding: 15px; text-align: center; color: #1e3c72; font-weight: bold; border-bottom: 2px solid #eee; }
+    .grid-head { display: grid; grid-template-columns: 60px 1fr 180px 120px; background: #eee; font-weight: bold; }
+    .grid-scroll { flex: 1; overflow-y: auto; scroll-behavior: smooth; }
+    .grid-row { display: grid; grid-template-columns: 60px 1fr 180px 120px; border-bottom: 1px solid #eee; align-items: center; }
+    .cell { padding: 12px; }
+    .rank { font-weight: bold; text-align: center; color: #1e3c72; }
+    .score { font-weight: bold; text-align: center; }
+    .footer { padding: 10px; font-size: 0.8em; text-align: center; opacity: 0.6; }
+    .indicator { color: #4f7cff; font-weight: bold; margin-bottom: 5px; }
   </style>
 </head>
 
 <body>
-  <div class="container">
-    <div class="header">
-      <h1>🎯 Résultats</h1>
-      <div class="competition-name" id="competitionName">Chargement...</div>
-      <div class="date" id="competitionDate"></div>
-      <div class="live-indicator">🔴 EN DIRECT</div>
-      <div class="header-clock" id="headerClock">--:--:--</div>
-    </div>
-
-    <div class="ranking-container" id="rankingContainer"></div>
-    <div class="auto-rotate-indicator" id="autoRotateIndicator"></div>
-
-    <div class="footer">
-      Mise à jour automatique en temps réel • Dernière mise à jour : <span id="lastUpdate">-</span>
-    </div>
+  <div class="header">
+    <h2 id="competitionName">Chargement...</h2>
+    <div id="clock">00:00:00</div>
   </div>
 
-  <div class="fab-group">
-    <button class="fab fab-pdf" onclick="exportPDF()" title="Exporter PDF">📄</button>
-    <button class="fab fab-csv" onclick="exportCSV()" title="Exporter CSV">📊</button>
+  <div class="ranking-container" id="rankingContainer"></div>
+  
+  <div class="footer">
+    <div class="indicator" id="autoRotateIndicator">Initialisation...</div>
+    Espace pour Pause • Double-clic pour Plein écran
   </div>
 
   <script>
-    const COMPETITION_ID = (new URLSearchParams(window.location.search).get('comp') || 'TAR').trim().replace(/[.#$\[\]\/]/g, '_');
-
+    const COMPETITION_ID = (new URLSearchParams(window.location.search).get('comp') || 'TAR');
+    
     const firebaseConfig = {
       apiKey: "AIzaSyAvfMRtRrhh_e-27xHlwIx9c5DIdUQm6HM",
       authDomain: "resultats-tir-ligue-lr.firebaseapp.com",
       databaseURL: "https://resultats-tir-ligue-lr-default-rtdb.europe-west1.firebasedatabase.app",
       projectId: "resultats-tir-ligue-lr",
       storageBucket: "resultats-tir-ligue-lr.firebasestorage.app",
-      messagingSenderId: "468808300974",
       appId: "1:468808300974:web:563a14cc4477c10b28303f"
     };
 
-    let allShooters = [], competitionConfig = {}, rotateViews = [], currentRotateIndex = 0, currentView = null;
-    let autoRotateEnabled = true, perViewSeconds = 8, scrollPaddingSeconds = 2;
-    let rotateTimer = null, scrollTimer = null;
+    let allShooters = [], rotateViews = [], currentIdx = 0;
+    let autoRotate = true, perViewSec = 8;
+    let mainTimer = null, scrollInterval = null;
 
-    function normalizeKey(s){ return (s || '').toString().trim(); }
-
-    function updateLastUpdate(){ document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('fr-FR'); }
-
-    function buildRotateViews(){
-      const map = new Map();
-      allShooters.forEach(s => {
-        const d = normalizeKey(s.discipline), c = normalizeKey(s.category);
-        if (!d) return;
-        if (!map.has(d)) map.set(d, new Set());
-        if (c) map.get(d).add(c);
-      });
-      const views = [];
-      Array.from(map.keys()).sort().forEach(d => {
-        const cats = Array.from(map.get(d)).sort();
-        if (!cats.length) views.push({ mode:'disc_only', discipline:d });
-        else cats.forEach(c => views.push({ mode:'combo', discipline:d, category:c }));
-      });
-      return views.length ? views : [{ mode:'disc_only', discipline:'Résultats' }];
-    }
-
-    function stopAutoScroll(){ if (scrollTimer){ clearInterval(scrollTimer); scrollTimer = null; } }
-
-    function startAutoScroll(){
-      stopAutoScroll();
-      const scroller = document.getElementById('tableScroll');
-      if (!scroller) return;
-      scroller.scrollTop = 0;
-
-      const maxScroll = scroller.scrollHeight - scroller.clientHeight;
-      if (maxScroll <= 0) return; // Rien à scroller
-
-      const travelMs = Math.max(1000, (perViewSeconds * 1000) - (2 * scrollPaddingSeconds * 1000));
-      const step = maxScroll / (travelMs / 30);
-
-      scrollTimer = setInterval(() => {
-        if (!autoRotateEnabled) return;
-        scroller.scrollTop += step;
-        if (scroller.scrollTop >= maxScroll - 1) {
-          stopAutoScroll();
-          setTimeout(() => { if (autoRotateEnabled) goNextView(); }, scrollPaddingSeconds * 1000);
-        }
-      }, 30);
-    }
-
-    function stopAutoRotate(){ if (rotateTimer){ clearInterval(rotateTimer); rotateTimer = null; } stopAutoScroll(); }
-
-    function goNextView(){
-      if (!rotateViews.length) return;
-      currentRotateIndex = (currentRotateIndex + 1) % rotateViews.length;
-      currentView = rotateViews[currentRotateIndex];
-      startAutoRotate();
-    }
-
-    function startAutoRotate(){
-      stopAutoRotate();
-      displayRanking(currentView || rotateViews[0]);
-      
-      const scroller = document.getElementById('tableScroll');
-      // SI SCROLL NECESSAIRE
-      if (scroller && scroller.scrollHeight > scroller.clientHeight) {
-        startAutoScroll();
-      } else {
-        // SI PAS DE SCROLL : On attend juste 8s
-        rotateTimer = setInterval(() => { if (autoRotateEnabled) goNextView(); }, perViewSeconds * 1000);
-      }
-      updateRotateIndicator();
-    }
-
-    function updateRotateIndicator(){
-      if (!autoRotateEnabled) { document.getElementById('autoRotateIndicator').textContent = '⏸ En pause'; return; }
-      const next = rotateViews[(currentRotateIndex + 1) % rotateViews.length];
-      document.getElementById('autoRotateIndicator').textContent = `↻ Prochaine vue : ${next.discipline} ${next.category || ''}`;
-    }
-
-    function displayRanking(view){
-      const container = document.getElementById('rankingContainer');
-      let filtered = allShooters.filter(s => {
-        if (view.mode === 'combo') return normalizeKey(s.discipline) === view.discipline && normalizeKey(s.category) === view.category;
-        return normalizeKey(s.discipline) === view.discipline;
-      }).sort((a,b)=> (Number(b.score)||0) - (Number(a.score)||0));
-
-      if (!filtered.length) { container.innerHTML = `<div class="empty-state"><h2>Aucun résultat</h2></div>`; return; }
-
-      let html = `<div class="ranking-title">${view.discipline} ${view.category || ''}</div>
-                  <div class="ranking-grid" id="rankingGrid">
-                    <div class="grid-head"><div class="hcell">#</div><div class="hcell">Tireur</div><div class="hcell">Club</div><div class="hcell">Score</div></div>
-                    <div class="grid-scroll" id="tableScroll">`;
-      
-      filtered.forEach((s, i) => {
-        html += `<div class="grid-row">
-                  <div class="cell rank">${i + 1}</div>
-                  <div class="cell tireur"><div class="shooter-name">${s.firstName} ${s.lastName}</div></div>
-                  <div class="cell club"><div class="shooter-club">${s.club}</div></div>
-                  <div class="cell score"><span class="score-display">${s.score}</span><span class="score-max">/${s.maxScore}</span></div>
-                </div>`;
-      });
-      container.innerHTML = html + `</div></div>`;
-      updateLastUpdate();
-    }
-
+    // 1. Initialisation Firebase
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-    db.ref(`competitions/${COMPETITION_ID}/config`).on('value', snap => {
-      competitionConfig = snap.val() || {};
-      document.getElementById('competitionName').textContent = competitionConfig.name || 'Compétition';
-    });
-    db.ref(`competitions/${COMPETITION_ID}/shooters`).on('value', snap => {
-      allShooters = Object.values(snap.val() || {});
-      rotateViews = buildRotateViews();
-      if (!currentView) currentView = rotateViews[0];
-      startAutoRotate();
+
+    db.ref(`competitions/${COMPETITION_ID}/config/name`).on('value', s => {
+      document.getElementById('competitionName').textContent = s.val() || 'Compétition';
     });
 
-    function updateClock(){ const n=new Date(); document.getElementById('headerClock').textContent=n.toLocaleTimeString('fr-FR'); }
-    setInterval(updateClock, 1000);
+    db.ref(`competitions/${COMPETITION_ID}/shooters`).on('value', s => {
+      const data = s.val() || {};
+      allShooters = Object.values(data);
+      preparerVues();
+      lancerCycle();
+    });
 
-    document.addEventListener('keydown', e => { if(e.code==='Space'){ e.preventDefault(); autoRotateEnabled=!autoRotateEnabled; startAutoRotate(); }});
+    // 2. Préparation des catégories
+    function preparerVues() {
+      const v = new Map();
+      allShooters.forEach(s => {
+        const d = (s.discipline || 'Sans nom').trim();
+        const c = (s.category || '').trim();
+        if (!v.has(d)) v.set(d, new Set());
+        if (c) v.get(d).add(c);
+      });
+      
+      rotateViews = [];
+      Array.from(v.keys()).sort().forEach(d => {
+        const cats = Array.from(v.get(d)).sort();
+        if (cats.length === 0) rotateViews.push({ d, c: '' });
+        else cats.forEach(c => rotateViews.push({ d, c }));
+      });
+    }
+
+    // 3. Gestion du Cycle
+    function lancerCycle() {
+      clearAllTimers();
+      if (!rotateViews.length) return;
+
+      const vue = rotateViews[currentIdx];
+      afficherTableau(vue);
+
+      // On laisse un petit délai pour que le DOM se dessine avant de calculer le scroll
+      setTimeout(() => {
+        const scroller = document.getElementById('tableScroll');
+        const estLong = scroller && scroller.scrollHeight > scroller.clientHeight;
+
+        if (estLong && autoRotate) {
+          demarrerScrollAuto(scroller);
+        } else {
+          mainTimer = setTimeout(passerSuivant, perViewSec * 1000);
+        }
+        majIndicateur();
+      }, 500);
+    }
+
+    function demarrerScrollAuto(scroller) {
+      const max = scroller.scrollHeight - scroller.clientHeight;
+      // Vitesse : on veut parcourir le reste du temps (environ 6s)
+      const vitesse = max / ( (perViewSec - 2) * 30 ); 
+      
+      scrollInterval = setInterval(() => {
+        if (!autoRotate) return;
+        scroller.scrollTop += vitesse;
+        
+        if (scroller.scrollTop >= max - 1) {
+          clearInterval(scrollInterval);
+          // Pause en bas de 2s avant de changer
+          mainTimer = setTimeout(passerSuivant, 2000);
+        }
+      }, 33);
+    }
+
+    function passerSuivant() {
+      if (!autoRotate) return;
+      currentIdx = (currentIdx + 1) % rotateViews.length;
+      lancerCycle();
+    }
+
+    function clearAllTimers() {
+      clearTimeout(mainTimer);
+      clearInterval(scrollInterval);
+    }
+
+    // 4. Affichage pur
+    function afficherTableau(vue) {
+      const container = document.getElementById('rankingContainer');
+      const tireurs = allShooters
+        .filter(s => s.discipline === vue.d && (vue.c === '' || s.category === vue.c))
+        .sort((a,b) => (Number(b.score)||0) - (Number(a.score)||0));
+
+      let html = `
+        <div class="ranking-title">${vue.d} ${vue.c ? ' - ' + vue.c : ''}</div>
+        <div class="grid-head">
+          <div class="cell">#</div><div class="cell">Nom / Prénom</div><div class="cell">Club</div><div class="cell">Score</div>
+        </div>
+        <div class="grid-scroll" id="tableScroll">
+      `;
+
+      tireurs.forEach((s, i) => {
+        html += `
+          <div class="grid-row">
+            <div class="cell rank">${i+1}</div>
+            <div class="cell"><b>${s.lastName || ''}</b> ${s.firstName || ''}</div>
+            <div class="cell">${s.club || '-'}</div>
+            <div class="cell score">${s.score || 0} <small>/${s.maxScore || 0}</small></div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html + `</div>`;
+    }
+
+    function majIndicateur() {
+      const el = document.getElementById('autoRotateIndicator');
+      if (!autoRotate) { el.textContent = "⏸ MODE TV EN PAUSE"; return; }
+      const next = rotateViews[(currentIdx + 1) % rotateViews.length];
+      el.textContent = `↻ PROCHAIN : ${next ? next.d + ' ' + next.c : '...'}`;
+    }
+
+    // Horloge & Clavier
+    setInterval(() => { document.getElementById('clock').textContent = new Date().toLocaleTimeString(); }, 1000);
     
-    // EXPORTS
-    function exportPDF(){ showToastMsg('Génération PDF...'); /* Logique PDF existante */ }
-    function exportCSV(){ showToastMsg('Export CSV...'); /* Logique CSV existante */ }
-    function showToastMsg(m){ const t=document.createElement('div'); t.className='toast'; t.textContent=m; document.body.appendChild(t); setTimeout(()=>t.remove(),2000); }
+    document.addEventListener('keydown', e => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        autoRotate = !autoRotate;
+        if (autoRotate) lancerCycle();
+        else majIndicateur();
+      }
+    });
   </script>
 </body>
 </html>
