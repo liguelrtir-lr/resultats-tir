@@ -7,109 +7,35 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bg: #050b0d;
-            --surface: #0e2228;
-            --accent: #0fb8c9;
-            --gold: #ffd700;
-            --silver: #c0c0c0;
-            --bronze: #cd7f32;
-        }
-        body {
-            font-family: 'Rajdhani', sans-serif;
-            background: var(--bg);
-            color: white;
-            margin: 0;
-            padding: 0;
-            overflow: hidden; /* Désactive la barre de défilement manuelle pour la TV */
-        }
-        .header {
-            background: linear-gradient(to bottom, #153039, var(--bg));
-            padding: 20px;
-            text-align: center;
-            border-bottom: 2px solid var(--accent);
-            position: sticky;
-            top: 0;
-            z-index: 10;
-        }
-        h1 {
-            font-family: 'Orbitron', sans-serif;
-            margin: 0;
-            font-size: 2.5rem;
-            text-transform: uppercase;
-            letter-spacing: 4px;
-            color: var(--accent);
-            text-shadow: 0 0 15px rgba(15, 184, 201, 0.5);
-        }
-        #status { font-size: 1.2rem; margin-top: 5px; opacity: 0.8; }
-
-        .scroll-container {
-            height: calc(100vh - 120px);
-            overflow-y: hidden; /* Le défilement est géré par JS */
-            padding: 0 20px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0 8px;
-            margin-top: 10px;
-        }
-        th {
-            font-family: 'Orbitron', sans-serif;
-            padding: 15px;
-            text-transform: uppercase;
-            color: var(--accent);
-            border-bottom: 1px solid var(--accent);
-            text-align: left;
-        }
-        tr {
-            background: var(--surface);
-            transition: 0.3s;
-            animation: fadeIn 0.5s ease-out forwards;
-        }
+        :root { --bg: #050b0d; --surface: #0e2228; --accent: #0fb8c9; --gold: #ffd700; --silver: #c0c0c0; --bronze: #cd7f32; }
+        body { font-family: 'Rajdhani', sans-serif; background: var(--bg); color: white; margin: 0; padding: 0; overflow: hidden; }
+        .header { background: linear-gradient(to bottom, #153039, var(--bg)); padding: 20px; text-align: center; border-bottom: 2px solid var(--accent); position: sticky; top: 0; z-index: 10; }
+        h1 { font-family: 'Orbitron', sans-serif; margin: 0; font-size: 2.5rem; text-transform: uppercase; color: var(--accent); }
+        .scroll-container { height: calc(100vh - 120px); overflow-y: hidden; padding: 0 20px; }
+        table { width: 100%; border-collapse: separate; border-spacing: 0 8px; margin-top: 10px; }
+        th { font-family: 'Orbitron', sans-serif; padding: 15px; color: var(--accent); border-bottom: 1px solid var(--accent); text-align: left; }
+        tr { background: var(--surface); animation: fadeIn 0.5s ease-out forwards; }
         td { padding: 15px; font-size: 1.5rem; font-weight: 500; }
-
-        /* MÉDAILLES */
         .rank { width: 60px; text-align: center; font-weight: 800; font-size: 1.8rem; }
         .rank-1 { color: var(--gold); text-shadow: 0 0 10px var(--gold); }
         .rank-2 { color: var(--silver); text-shadow: 0 0 10px var(--silver); }
         .rank-3 { color: var(--bronze); text-shadow: 0 0 10px var(--bronze); }
-        
-        .medal-icon { font-size: 1.8rem; margin-right: 5px; }
-
-        .score {
-            text-align: right;
-            color: var(--accent);
-            font-family: 'Orbitron', sans-serif;
-            font-weight: bold;
-            font-size: 2rem;
-            padding-right: 30px;
-        }
+        .score { text-align: right; color: var(--accent); font-family: 'Orbitron', sans-serif; font-weight: bold; font-size: 2rem; padding-right: 30px; }
         .club { color: #94a3b8; font-size: 1.1rem; text-transform: uppercase; }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1 id="compTitle">INITIALISATION...</h1>
-    <div id="status">Connexion au serveur live...</div>
+    <h1 id="compTitle">SCANNER LIVE...</h1>
+    <div id="status">Recherche des tireurs...</div>
 </div>
 
 <div class="scroll-container" id="scrollBox">
     <table>
         <thead>
-            <tr>
-                <th style="width: 80px;">Rang</th>
-                <th>Tireur</th>
-                <th>Club</th>
-                <th style="text-align: right;">Points</th>
-            </tr>
+            <tr><th>Rang</th><th>Tireur</th><th>Club</th><th style="text-align: right;">Points</th></tr>
         </thead>
         <tbody id="resBody"></tbody>
     </table>
@@ -131,37 +57,55 @@
     const compId = params.get('comp');
 
     if (compId) {
-        const paths = [compId, 'competitions/' + compId];
-        paths.forEach(path => {
-            db.ref(path).on('value', (snap) => {
-                const data = snap.val();
-                if (!data) return;
+        // ON ÉCOUTE TOUTE LA BASE POUR TROUVER LE COMP_ID OÙ QU'IL SOIT
+        db.ref().on('value', (snapshot) => {
+            const allData = snapshot.val();
+            if (!allData) return;
 
-                document.getElementById('compTitle').textContent = data.config ? data.config.name : compId;
+            let targetData = null;
+
+            // 1. On cherche à la racine
+            if (allData[compId]) {
+                targetData = allData[compId];
+            } 
+            // 2. On cherche dans 'competitions'
+            else if (allData.competitions && allData.competitions[compId]) {
+                targetData = allData.competitions[compId];
+            }
+
+            if (targetData) {
+                document.getElementById('compTitle').textContent = targetData.config ? targetData.config.name : compId;
                 
-                let rawList = data.shooters || data.shootters || data;
-                const list = Object.values(rawList)
-                    .filter(item => item && typeof item === 'object' && item.lastName)
+                // Détection intelligente des tireurs
+                let shootersObj = targetData.shooters || targetData.shootters || targetData;
+                
+                // Transformation en liste (en ignorant la clé 'config')
+                const list = Object.keys(shootersObj)
+                    .filter(k => k !== 'config')
+                    .map(k => shootersObj[k])
+                    .filter(s => s && s.lastName)
                     .sort((a, b) => (b.score || 0) - (a.score || 0));
 
-                if (list.length > 0) render(list);
-            });
+                if (list.length > 0) {
+                    render(list);
+                } else {
+                    document.getElementById('status').textContent = "Dossier trouvé, mais vide.";
+                }
+            } else {
+                document.getElementById('status').textContent = "ID " + compId + " introuvable dans la base.";
+            }
         });
     }
 
     function render(list) {
         const tbody = document.getElementById('resBody');
-        document.getElementById('status').textContent = list.length + " tireurs classés";
+        document.getElementById('status').textContent = list.length + " tireurs classés - Mise à jour en direct";
         tbody.innerHTML = '';
 
         list.forEach((s, i) => {
             const rank = i + 1;
-            let rankClass = "";
-            let medal = "";
-
-            if (rank === 1) { rankClass = "rank-1"; medal = "🥇 "; }
-            else if (rank === 2) { rankClass = "rank-2"; medal = "🥈 "; }
-            else if (rank === 3) { rankClass = "rank-3"; medal = "🥉 "; }
+            let rankClass = rank <= 3 ? "rank-" + rank : "";
+            let medal = rank === 1 ? "🥇 " : rank === 2 ? "🥈 " : rank === 3 ? "🥉 " : "";
 
             tbody.innerHTML += `
                 <tr>
@@ -175,26 +119,17 @@
         startAutoScroll();
     }
 
-    // SYSTÈME DE DÉFILEMENT AUTOMATIQUE
     let scrollInterval;
     function startAutoScroll() {
         if (scrollInterval) clearInterval(scrollInterval);
         const box = document.getElementById('scrollBox');
-        let scrollAmount = 0;
-        let direction = 1;
-
+        let speed = 1;
         scrollInterval = setInterval(() => {
-            box.scrollTop += direction;
-            // Si on atteint le bas, on attend un peu et on remonte
+            box.scrollTop += speed;
             if (box.scrollTop + box.clientHeight >= box.scrollHeight - 1) {
-                setTimeout(() => { direction = -5; }, 2000); // Remontée rapide
-            } 
-            // Si on est revenu en haut, on attend et on redescend
-            if (box.scrollTop <= 0) {
-                direction = 0;
-                setTimeout(() => { direction = 1; }, 2000); // Descente lente
+                setTimeout(() => { box.scrollTop = 0; }, 3000); 
             }
-        }, 30); // Vitesse du défilement
+        }, 40);
     }
 </script>
 </body>
