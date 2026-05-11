@@ -13,7 +13,7 @@
         .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px; }
         label { display: block; font-size: 0.85rem; font-weight: bold; color: #555; margin-bottom: 5px; }
         input, select { padding: 12px; border: 1px solid #bcc6d2; border-radius: 6px; font-size: 1rem; width: 100%; box-sizing: border-box; }
-        .type-selector { background: #007bff; color: white; font-weight: bold; cursor: pointer; height: 50px; font-size: 1.2rem; border: none; border-radius: 8px; }
+        .type-selector { background: #007bff; color: white; font-weight: bold; cursor: pointer; height: 50px; font-size: 1.2rem; border: none; border-radius: 8px; width: 100%; }
         .btn-add { background: #28a745; color: white; border: none; padding: 15px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; font-size: 1.1rem; transition: 0.2s; }
         .btn-add:hover { background: #218838; }
         .shooter-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; }
@@ -35,9 +35,9 @@
         <select id="typeSelector" class="type-selector" onchange="updateMenus()">
             <option value="TAR">TAR (Tir aux Armes Réglementaires)</option>
             <option value="ISSF10">ISSF / Para-Tir 10 Mètres</option>
+            <option value="ISSF2550">ISSF / Para-Tir 25 & 50 Mètres</option>
             <option value="MLAIC">MLAIC (Armes Anciennes)</option>
             <option value="EDT">EDT (École de Tir)</option>
-            <option value="ISSF2550">ISSF 25 / 50 Mètres</option>
         </select>
 
         <h3 style="margin-top:25px; border-top: 1px solid #ccc; padding-top: 20px;">Nouveau Tireur</h3>
@@ -79,6 +79,16 @@
             ],
             cats: ["Minime F", "Minime G", "Cadet F", "Cadet G", "Junior Fille", "Junior Garçon", "Dame 1", "Dame 2", "Dame 3", "Senior 1", "Senior 2", "Senior 3"]
         },
+        ISSF2550: {
+            disc: [
+                "250 - Pistolet Percussion Centrale", "251 - Pistolet 25m", "252 - Pistolet Vitesse 25m", "253 - Pistolet Standard 25m", 
+                "500 - Pistolet 50m", "501 - Carabine 60BC", "502 - Carabine 3x20", "503 - Carabine 3x40",
+                "271 - HP P3 Pistolet 25m (SH1)", "272 - HP F1 Pistolet Vitesse 25m (SH1)", "273 - HP P4 Pistolet 50m (SH1)",
+                "274 - HP F2 Pistolet Standard 25m (SH1)", "571 - HP R6 Carabine 50m 60BC (SH1)", "572 - HP R9 Carabine 50m 60BC (SH2)",
+                "573 - HP Carabine 50m 3x20 (SH1)", "574 - HP Carabine 50m 3x40 (SH1)"
+            ],
+            cats: ["Junior Fille", "Junior Garçon", "Dame 1", "Dame 2", "Senior 1", "Senior 2", "Senior 3"]
+        },
         EDT: {
             disc: [
                 "101 - Pistolet 3/7 EDT", "152 - Pistolet Vitesse 10m EDT", "159 - Cible Mobile 10m EDT", 
@@ -87,20 +97,16 @@
                 "162 - HP R3 Car. 10m couchée EDT (SH1)", "163 - HP P1 Pistolet 10m EDT (SH1)", 
                 "150/154 - Combiné EDT", "165 - HP Carabine 10m couchée EDT (visuel)"
             ],
-            cats: ["Poussin Fille", "Poussin Garçon", "Benjamin Fille", "Benjamin Garçon", "Minime Fille", "Minime Garçon"]
+            cats: ["Poussin Fille", "Poussin Garçon", "Benjamin Fille", "Benjamin Garçon", "Minime Fille", "Minime G"]
         },
         MLAIC: {
             disc: [
                 "601 - Miquelet Origine", "701 - Miquelet Réplique", "602 - Maximilien Origine", "702 - Maximilien Réplique", 
                 "603 - Minié Origine", "703 - Minié Réplique", "604 - Whitworth Origine", "704 - Whitworth Réplique",
                 "605 - Cominazzo Origine", "705 - Cominazzo Réplique", "606 - Kuchenreuter Origine", "706 - Kuchenreuter Réplique",
-                "607 - Colt", "712 - Mariette", "615 - Vetterli Origine", "715 - Vetterli Réplique", "623 - Malson Origine", "723 - Malson Réplique"
+                "607 - Colt", "712 - Mariette", "615 - Vetterli Origine", "715 - Vetterli Réplique", "637 - Lamarmora Origine", "737 - Lamarmora Réplique"
             ],
             cats: ["Senior", "Junior"]
-        },
-        ISSF2550: {
-            disc: ["251 - Pistolet 25m", "252 - Pistolet Vitesse 25m", "253 - Pistolet Standard 25m", "250 - Pistolet Percussion Centrale", "500 - Pistolet 50m", "501 - Carabine 60BC", "502 - Carabine 3x20"],
-            cats: ["Junior Fille", "Junior Garçon", "Dame 1", "Dame 2", "Senior 1", "Senior 2", "Senior 3"]
         }
     };
 
@@ -163,7 +169,7 @@
     }
 
     function saveScore(id, val) {
-        db.ref(compId + '/shooters/' + id).update({ score: parseInt(val) || 0 });
+        db.ref(compId + '/shooters/' + id).update({ score: parseFloat(val) || 0 });
         const anim = document.getElementById('ok-' + id);
         anim.style.display = 'inline'; setTimeout(() => anim.style.display = 'none', 1000);
     }
