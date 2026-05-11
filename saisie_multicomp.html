@@ -2,47 +2,44 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Saisie Dynamique — Ligue LR</title>
+    <title>Saisie Dynamique Régionaux — Ligue LR</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
         .container { max-width: 1000px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         header { border-bottom: 2px solid #007bff; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-        
         .form-group { background: #eef2f7; padding: 20px; border-radius: 10px; margin-bottom: 25px; border: 1px solid #d1d9e6; }
         .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px; }
         label { display: block; font-size: 0.85rem; font-weight: bold; color: #555; margin-bottom: 5px; }
         input, select { padding: 12px; border: 1px solid #bcc6d2; border-radius: 6px; font-size: 1rem; width: 100%; box-sizing: border-box; }
-        
-        .type-selector { background: #007bff; color: white; font-weight: bold; cursor: pointer; }
+        .type-selector { background: #007bff; color: white; font-weight: bold; cursor: pointer; height: 50px; font-size: 1.2rem; }
         .btn-add { background: #28a745; color: white; border: none; padding: 15px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; font-size: 1.1rem; }
-        .search-box { background: #fff; border: 2px solid #007bff; padding: 15px; border-radius: 8px; width: 100%; margin-bottom: 20px; font-size: 1.1rem; box-sizing: border-box; }
-        
         .shooter-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; }
         .score-input { width: 90px; padding: 10px; text-align: center; font-weight: bold; border: 2px solid #007bff; border-radius: 6px; color: #007bff; font-size: 1.2rem; }
         .save-anim { color: #28a745; font-weight: bold; margin-left: 10px; display: none; }
+        .search-box { background: #fff; border: 2px solid #007bff; padding: 15px; border-radius: 8px; width: 100%; margin-bottom: 20px; font-size: 1.1rem; box-sizing: border-box; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <header>
-        <h1 style="margin:0; color:#007bff;">🎯 Saisie Intelligente</h1>
+        <h1 style="margin:0; color:#007bff;">🎯 Saisie Régionaux</h1>
         <a href="index_admin.html" style="text-decoration:none; font-weight:bold; color:#666;">← Retour</a>
     </header>
 
     <div class="form-group">
-        <h3 style="margin-top:0;">1. Choisir le groupe d'épreuve</h3>
+        <label>TYPE DE CHAMPIONNAT</label>
         <select id="typeSelector" class="type-selector" onchange="updateMenus()">
-            <option value="TAR">TAR (Tir aux Armes Réglementaires)</option>
-            <option value="ISSF10">ISSF 10 Mètres</option>
-            <option value="ISSF2550">ISSF 25 / 50 Mètres</option>
+            <option value="TAR">TAR (Armes Réglementaires)</option>
+            <option value="ISSF10">ISSF / Para-Tir 10 Mètres</option>
             <option value="MLAIC">MLAIC (Armes Anciennes)</option>
+            <option value="ISSF2550">ISSF 25 / 50 Mètres</option>
             <option value="EDT">EDT (École de Tir)</option>
         </select>
 
-        <h3 style="margin-top:20px;">2. Détails du Tireur</h3>
+        <h3 style="margin-top:25px; border-top: 1px solid #ccc; padding-top: 20px;">Nouveau Tireur</h3>
         <div class="form-row">
             <div><label>NOM</label><input type="text" id="newNom" placeholder="NOM"></div>
             <div><label>Prénom</label><input type="text" id="newPrenom" placeholder="Prénom"></div>
@@ -52,34 +49,44 @@
             <div><label>Discipline</label><select id="newDiscipline"></select></div>
             <div><label>Catégorie</label><select id="newCategorie"></select></div>
         </div>
-        <button class="btn-add" onclick="addShooter()">Enregistrer le tireur</button>
+        <button class="btn-add" onclick="addShooter()">Ajouter le tireur</button>
     </div>
 
-    <input type="text" id="search" class="search-box" placeholder="🔍 Rechercher dans la liste..." onkeyup="filterList()">
+    <input type="text" id="search" class="search-box" placeholder="🔍 Rechercher un nom ou un club..." onkeyup="filterList()">
     <div id="shooterList"></div>
 </div>
 
 <script>
     const dataRef = {
         TAR: {
-            disc: ["810 - Fusil Répétition", "812 - Fusil Semi-Auto", "815 - Fusil Modifié", "816 - Fusil S.A. PC", "820 - Carabine 22", "830 - Pistolet-Revolver", "831 - Vitesse Militaire", "832 - Armes poing auth."],
-            cats: ["S1", "S2", "S3", "D1"]
+            disc: ["810 - Fusil Répétition manuelle", "811 - Fusils Modifiés Gros Calibre", "812 - Fusils Modifiés Petit Calibre", "813 - Challenges Armes Répétition", "815 - FSA - Gros Calibre", "816 - FSA - Petit Calibre", "820 - Carabine d'initiation militaire 22 lr", "821 - Carabine 22 semi-auto", "822 - Car. initiation 22lr - Assis", "823 - Carabine Militaire Match 22lr", "830 - Pistolet / Revolver", "831 - Pistolet Vitesse Réglementaire", "832 - Armes de poing Authentiques"],
+            cats: ["Senior"]
         },
         ISSF10: {
-            disc: ["Pistolet 10m", "Pistolet Standard 10m", "Pistolet Vitesse 10m", "Carabine 10m"],
-            cats: ["S1", "S2", "S3", "D1", "D2", "D3", "JG", "JF", "CG", "CF", "P1", "P2", "R1", "R2"]
-        },
-        ISSF2550: {
-            disc: ["Pistolet 25m", "Pistolet Vitesse 25m", "Pistolet Standard 25m", "Percussion Centrale", "Pistolet 50m", "Carabine 60 BC", "Carabine 3x20"],
-            cats: ["S1", "S2", "S3", "D1", "D2", "JG", "JF"]
+            disc: ["100 - Pistolet 10m", "102 - Pistolet Vitesse 10m", "103 - Pistolet Standard 10m", "104 - Carabine 10m", "107 - Arbalète Match 10m", "109 - Cible Mobile 10m", "110 - Cible Mobile Mixte 10m", "025 - Arbalète Field 18m", "171 - HP R1/R2 Car. 10m deb. (SH1)", "173 - HP R3 Car. 10m couchée (SH1)", "174 - HP R4 Car. 10m deb. Potence (SH2)", "175 - HP R5 Car. 10m couchée Potence (SH2)", "181 - HP P1/P2 Pistolet 10m (SH1)", "183 - HP F5 Pistolet Vitesse 10m (SH1)", "184 - HP P5 Pistolet Standard 10m (SH1)"],
+            cats: ["Minime Fille", "Minime Garçon", "Cadet Fille", "Cadet Garçon", "Junior Fille", "Junior Garçon", "Dame 1", "Dame 2", "Dame 3", "Senior 1", "Senior 2", "Senior 3"]
         },
         MLAIC: {
-            disc: ["Miquelet", "Maximilian", "Minie", "Whitworth", "Cominazzo", "Kuchenreuter", "Mariette", "Vetterli"],
-            cats: ["S1", "D1"]
+            disc: [
+                "601 - Miquelet Origine", "701 - Miquelet Réplique", "602 - Maximilien Origine", "702 - Maximilien Réplique", 
+                "603 - Minié Origine", "703 - Minié Réplique", "604 - Whitworth Origine", "704 - Whitworth Réplique",
+                "605 - Cominazzo Origine", "705 - Cominazzo Réplique", "606 - Kuchenreuter Origine", "706 - Kuchenreuter Réplique",
+                "706-S - Kuchen. Rép. Side Hammer", "706-U - Kuchen. Rép. Under Hammer", "607 - Colt", "608 - Walkyrie Origine",
+                "708 - Walkyrie Réplique", "614 - Tanegashima Origine", "714 - Tanegashima Réplique", "615 - Vetterli Origine",
+                "715 - Vetterli Réplique", "616 - Hizadai Origine", "716 - Hizadai Réplique", "621 - Manton Origine",
+                "721 - Manton Réplique", "622 - Lorenzoni Origine", "722 - Lorenzoni Réplique", "623 - Malson Origine",
+                "723 - Malson Réplique", "712 - Mariette", "628 - Tanzutsu Origine", "728 - Tanzutsu Réplique",
+                "636 - Pensylvannia Origine", "736 - Pensylvannia Réplique", "637 - Lamarmora Origine", "737 - Lamarmora Réplique"
+            ],
+            cats: ["Senior", "Junior"]
+        },
+        ISSF2550: {
+            disc: ["251 - Pistolet 25m", "252 - Pistolet Vitesse 25m", "253 - Pistolet Standard 25m", "250 - Pistolet Percussion Centrale", "501 - Carabine 60BC", "502 - Carabine 3x20", "503 - Carabine 3x40", "500 - Pistolet 50m"],
+            cats: ["Junior Fille", "Junior Garçon", "Dame 1", "Dame 2", "Senior 1", "Senior 2", "Senior 3"]
         },
         EDT: {
-            disc: ["Pistolet 10m EDT", "Pistolet Vitesse EDT", "Carabine 10m EDT"],
-            cats: ["Poussin Garçon", "Poussin Fille", "Benjamin Garçon", "Benjamin Fille", "Minime Garçon", "Minime Fille"]
+            disc: ["Pistolet 10m EDT", "Pistolet Vitesse EDT", "Carabine 10m EDT", "Arbalète Field EDT"],
+            cats: ["Poussin F", "Poussin G", "Benjamin F", "Benjamin G", "Minime F", "Minime G"]
         }
     };
 
@@ -87,12 +94,10 @@
         const type = document.getElementById('typeSelector').value;
         const dMenu = document.getElementById('newDiscipline');
         const cMenu = document.getElementById('newCategorie');
-        
         dMenu.innerHTML = dataRef[type].disc.map(d => `<option value="${d}">${d}</option>`).join('');
         cMenu.innerHTML = dataRef[type].cats.map(c => `<option value="${c}">${c}</option>`).join('');
     }
 
-    // INITIALISATION FIREBASE (Vérifiée)
     const firebaseConfig = {
         apiKey: "AIzaSyAvfMRtRrhh_e-27xHlwIx9c5DIdUQm6HM",
         authDomain: "resultats-tir-ligue-lr.firebaseapp.com",
@@ -120,7 +125,6 @@
         const nom = document.getElementById('newNom').value.toUpperCase();
         const prenom = document.getElementById('newPrenom').value;
         if (!nom || !prenom) return alert("Nom et Prénom requis");
-
         const s = {
             lastName: nom, firstName: prenom,
             discipline: document.getElementById('newDiscipline').value,
@@ -137,25 +141,17 @@
         const cont = document.getElementById('shooterList');
         cont.innerHTML = '';
         list.sort((a,b) => a.lastName.localeCompare(b.lastName)).forEach(s => {
-            cont.innerHTML += `
-                <div class="shooter-item">
-                    <div class="shooter-info">
-                        <b>${s.lastName}</b> ${s.firstName}
-                        <div style="font-size:0.85rem; color:#666;">${s.discipline} — ${s.category} — ${s.club}</div>
-                    </div>
-                    <div>
-                        <input type="number" class="score-input" value="${s.score || 0}" onchange="saveScore('${s.id}', this.value)">
-                        <span id="ok-${s.id}" class="save-anim">✔</span>
-                    </div>
-                </div>`;
+            cont.innerHTML += `<div class="shooter-item">
+                <div class="shooter-info"><b>${s.lastName}</b> ${s.firstName}<div>${s.discipline} — ${s.category} — ${s.club}</div></div>
+                <div><input type="number" class="score-input" value="${s.score || 0}" onchange="saveScore('${s.id}', this.value)"><span id="ok-${s.id}" class="save-anim">✔</span></div>
+            </div>`;
         });
     }
 
     function saveScore(id, val) {
         db.ref(compId + '/shooters/' + id).update({ score: parseInt(val) || 0 });
         const anim = document.getElementById('ok-' + id);
-        anim.style.display = 'inline';
-        setTimeout(() => anim.style.display = 'none', 1000);
+        anim.style.display = 'inline'; setTimeout(() => anim.style.display = 'none', 1000);
     }
 
     function filterList() {
@@ -164,7 +160,7 @@
         renderList(filtered);
     }
 
-    updateMenus(); // Appel initial
+    updateMenus();
 </script>
 </body>
 </html>
