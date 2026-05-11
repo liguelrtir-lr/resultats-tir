@@ -8,107 +8,32 @@
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #050b0d;
-            --surface: #0e2228;
-            --accent: #0fb8c9;
-            --gold: rgba(255, 215, 0, 0.2);
-            --gold-border: #ffd700;
-            --silver: rgba(192, 192, 192, 0.2);
-            --silver-border: #c0c0c0;
-            --bronze: rgba(205, 127, 50, 0.2);
-            --bronze-border: #cd7f32;
+            --bg: #050b0d; --surface: #0e2228; --accent: #0fb8c9;
+            --gold: rgba(255, 215, 0, 0.2); --gold-border: #ffd700;
+            --silver: rgba(192, 192, 192, 0.2); --silver-border: #c0c0c0;
+            --bronze: rgba(205, 127, 50, 0.2); --bronze-border: #cd7f32;
         }
-
-        body {
-            font-family: 'Rajdhani', sans-serif;
-            background: var(--bg);
-            color: white;
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-        }
-
-        /* HEADER EMBELLI */
-        .header {
-            background: linear-gradient(135deg, #153039 0%, #050b0d 100%);
-            padding: 25px;
-            text-align: center;
-            border-bottom: 3px solid var(--accent);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            position: relative;
-            z-index: 100;
-        }
-
-        h1 {
-            font-family: 'Orbitron', sans-serif;
-            margin: 0;
-            font-size: 3rem;
-            text-transform: uppercase;
-            letter-spacing: 6px;
-            color: var(--accent);
-            text-shadow: 0 0 20px rgba(15, 184, 201, 0.6);
-        }
-
-        /* CONTENEUR DE DÉFILEMENT */
-        .scroll-container {
-            height: calc(100vh - 130px);
-            overflow-y: hidden;
-            padding: 0 40px;
-        }
-
-        /* DISCIPLINE FIXE (STICKY) */
-        .category-wrapper { position: relative; }
-        
-        .category-header {
-            position: sticky;
-            top: 0;
-            background: var(--bg);
-            padding: 20px 0;
-            z-index: 50;
-        }
-
-        .category-title {
-            background: rgba(15, 184, 201, 0.1);
-            color: var(--accent);
-            padding: 15px 25px;
-            border-radius: 8px;
-            font-family: 'Orbitron', sans-serif;
-            font-size: 2rem;
-            border-left: 8px solid var(--accent);
-            text-shadow: 0 0 10px rgba(15, 184, 201, 0.3);
-        }
-
-        /* TABLEAU ET LIGNES */
+        body { font-family: 'Rajdhani', sans-serif; background: var(--bg); color: white; margin: 0; padding: 0; overflow: hidden; }
+        .header { background: linear-gradient(135deg, #153039 0%, #050b0d 100%); padding: 25px; text-align: center; border-bottom: 3px solid var(--accent); position: relative; z-index: 100; }
+        h1 { font-family: 'Orbitron', sans-serif; margin: 0; font-size: 3rem; text-transform: uppercase; letter-spacing: 6px; color: var(--accent); text-shadow: 0 0 20px rgba(15, 184, 201, 0.6); }
+        .scroll-container { height: calc(100vh - 130px); overflow-y: hidden; padding: 0 40px; }
+        .category-header { position: sticky; top: 0; background: var(--bg); padding: 20px 0; z-index: 50; }
+        .category-title { background: rgba(15, 184, 201, 0.1); color: var(--accent); padding: 15px 25px; border-radius: 8px; font-family: 'Orbitron', sans-serif; font-size: 2rem; border-left: 8px solid var(--accent); }
         table { width: 100%; border-collapse: separate; border-spacing: 0 10px; margin-bottom: 50px; }
-        
-        tr { background: var(--surface); transition: 0.3s; }
-        
-        td { padding: 18px; font-size: 1.8rem; font-weight: 600; border-top: 1px solid rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.05); }
-
-        /* COULEURS DES MÉDAILLES SUR TOUTE LA LIGNE */
-        .medal-1 { background: var(--gold) !important; border-top: 1px solid var(--gold-border) !important; border-bottom: 1px solid var(--gold-border) !important; }
-        .medal-1 td:first-child { border-left: 5px solid var(--gold-border); }
-        
-        .medal-2 { background: var(--silver) !important; border-top: 1px solid var(--silver-border) !important; border-bottom: 1px solid var(--silver-border) !important; }
-        .medal-2 td:first-child { border-left: 5px solid var(--silver-border); }
-
-        .medal-3 { background: var(--bronze) !important; border-top: 1px solid var(--bronze-border) !important; border-bottom: 1px solid var(--bronze-border) !important; }
-        .medal-3 td:first-child { border-left: 5px solid var(--bronze-border); }
-
+        tr { background: var(--surface); }
+        td { padding: 18px; font-size: 1.8rem; font-weight: 600; }
+        .medal-1 { background: var(--gold) !important; border: 1px solid var(--gold-border) !important; }
+        .medal-2 { background: var(--silver) !important; border: 1px solid var(--silver-border) !important; }
+        .medal-3 { background: var(--bronze) !important; border: 1px solid var(--bronze-border) !important; }
         .rank { width: 80px; text-align: center; font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: 2.2rem; }
         .score { text-align: right; color: var(--accent); font-family: 'Orbitron', sans-serif; font-weight: bold; font-size: 2.4rem; padding-right: 40px; }
-        .club { color: #94a3b8; font-size: 1.3rem; text-transform: uppercase; opacity: 0.8; }
+        .club { color: #94a3b8; font-size: 1.3rem; text-transform: uppercase; }
     </style>
 </head>
 <body>
 
-<div class="header">
-    <h1 id="compTitle">LIGUE LR — LIVE</h1>
-</div>
-
-<div class="scroll-container" id="scrollBox">
-    <div id="content"></div>
-</div>
+<div class="header"><h1 id="compTitle">LIGUE LR — LIVE</h1></div>
+<div class="scroll-container" id="scrollBox"><div id="content"></div></div>
 
 <script>
     const firebaseConfig = {
@@ -130,14 +55,19 @@
             const all = snapshot.val();
             if (!all) return;
 
-            // Détection du dossier TAR_2026 (Racine ou Competitions)
+            // Détection souple du dossier
             let data = all[compId] || (all.competitions ? all.competitions[compId] : null);
 
             if (data) {
                 document.getElementById('compTitle').textContent = data.config ? data.config.name : compId;
+                
+                // On fouille partout pour trouver les tireurs
                 let raw = data.shooters || data.shootters || data;
-                let list = Object.values(raw).filter(s => s && typeof s === 'object' && s.lastName);
-                if (list.length > 0) render(list);
+                
+                // FILTRE STRICT : On ne garde que les objets qui ont un NOM (évite de planter sur 'config')
+                let shooters = Object.values(raw).filter(s => s && typeof s === 'object' && s.lastName);
+
+                if (shooters.length > 0) render(shooters);
             }
         });
     }
@@ -145,42 +75,29 @@
     function render(shooters) {
         const content = document.getElementById('content');
         content.innerHTML = '';
-        
-        // Groupement par Discipline
         const groups = {};
+
         shooters.forEach(s => {
-            let cat = s.discipline || s.category || "AUTRES ÉPREUVES";
+            // Détection de la discipline (clé discipline ou category ou défaut)
+            let cat = s.discipline || s.category || "DISCIPLINE NON DÉFINIE";
             if (!groups[cat]) groups[cat] = [];
             groups[cat].push(s);
         });
 
         Object.keys(groups).sort().forEach(catName => {
-            const catWrapper = document.createElement('div');
-            catWrapper.className = 'category-wrapper';
-
             const sorted = groups[catName].sort((a,b) => (Number(b.score) || 0) - (Number(a.score) || 0));
+            const catWrapper = document.createElement('div');
             
-            let html = `
-                <div class="category-header"><div class="category-title">${catName}</div></div>
-                <table>
-                    <tbody>`;
-            
+            let html = `<div class="category-header"><div class="category-title">${catName}</div></div><table><tbody>`;
             sorted.forEach((s, i) => {
                 const rank = i + 1;
-                let medalClass = rank === 1 ? "medal-1" : rank === 2 ? "medal-2" : rank === 3 ? "medal-3" : "";
-                
-                html += `
-                    <tr class="${medalClass}">
-                        <td class="rank">${rank}</td>
-                        <td>
-                            <span style="color:white">${s.firstName}</span> 
-                            <span style="text-transform:uppercase; font-weight:900; color:white;">${s.lastName}</span>
-                            <div class="club">${s.club || '-'}</div>
-                        </td>
-                        <td class="score">${s.score || 0}</td>
-                    </tr>`;
+                const mClass = rank === 1 ? "medal-1" : rank === 2 ? "medal-2" : rank === 3 ? "medal-3" : "";
+                html += `<tr class="${mClass}">
+                    <td class="rank">${rank}</td>
+                    <td>${s.firstName} <span style="text-transform:uppercase; font-weight:900;">${s.lastName}</span><div class="club">${s.club || '-'}</div></td>
+                    <td class="score">${s.score || 0}</td>
+                </tr>`;
             });
-            
             html += `</tbody></table>`;
             catWrapper.innerHTML = html;
             content.appendChild(catWrapper);
@@ -192,11 +109,10 @@
     function startAutoScroll() {
         if (scrollInterval) clearInterval(scrollInterval);
         const box = document.getElementById('scrollBox');
-        let speed = 1;
         scrollInterval = setInterval(() => {
-            box.scrollTop += speed;
+            box.scrollTop += 1;
             if (box.scrollTop + box.clientHeight >= box.scrollHeight - 1) {
-                setTimeout(() => { box.scrollTop = 0; }, 4000); // Pause en bas avant de remonter
+                setTimeout(() => { box.scrollTop = 0; }, 4000);
             }
         }, 40);
     }
