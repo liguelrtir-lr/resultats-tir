@@ -11,7 +11,6 @@
     
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      /* Retour au dégradé que tu aimes */
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
       height: 100vh;
@@ -87,7 +86,7 @@
       padding: 20px;
       border-bottom: 1px solid rgba(255,255,255,0.1);
       align-items: center;
-      font-size: 1.4em; /* Plus gros pour la lisibilité */
+      font-size: 1.4em; 
       transition: background 0.3s;
     }
 
@@ -111,10 +110,36 @@
       border-radius: 10px;
     }
 
-    /* COULEURS DES MÉDAILLES */
-    .row:nth-child(1) .rank { color: #ffd700; font-size: 1.6em; text-shadow: 0 0 15px rgba(255,215,0,0.4); }
-    .row:nth-child(2) .rank { color: #e2e2e2; }
-    .row:nth-child(3) .rank { color: #ff9d6e; }
+    /* --- STYLES DU PODIUM (Ligne entière) --- */
+
+    /* OR - 1er */
+    .row.rank-1 {
+      background: linear-gradient(90deg, rgba(255, 215, 0, 0.8) 0%, rgba(255, 239, 148, 0.8) 100%) !important;
+      color: #333; /* Texte sombre pour contraste */
+      box-shadow: 0 5px 15px rgba(255, 215, 0, 0.3);
+    }
+    .row.rank-1 .rank, .row.rank-1 .name, .row.rank-1 .club, .row.rank-1 .score {
+      color: #222 !important;
+    }
+    .row.rank-1 .score { background: rgba(0,0,0,0.1); }
+
+    /* ARGENT - 2ème */
+    .row.rank-2 {
+      background: linear-gradient(90deg, rgba(192, 192, 192, 0.8) 0%, rgba(232, 232, 232, 0.8) 100%) !important;
+      color: #333;
+    }
+    .row.rank-2 .rank, .row.rank-2 .name, .row.rank-2 .club, .row.rank-2 .score {
+      color: #222 !important;
+    }
+    .row.rank-2 .score { background: rgba(0,0,0,0.1); }
+
+    /* BRONZE - 3ème */
+    .row.rank-3 {
+      background: linear-gradient(90deg, rgba(205, 127, 50, 0.8) 0%, rgba(255, 179, 107, 0.8) 100%) !important;
+      color: #fff; /* Texte blanc pour contraste sur le bronze */
+    }
+    .row.rank-3 .score { background: rgba(255,255,255,0.1); }
+
 
     .clock { font-family: 'Courier New', Courier, monospace; font-size: 1.8em; font-weight: bold; }
   </style>
@@ -204,14 +229,22 @@
       document.getElementById('currentViewTitle').textContent = view.title;
       
       const container = document.getElementById('tableScroll');
-      container.innerHTML = view.shooters.map((s, i) => `
-        <div class="row">
-          <div class="rank">${i + 1}</div>
-          <div class="name">${s.lastName} ${s.firstName}</div>
-          <div class="club">${s.club || ''}</div>
-          <div class="score">${s.score}</div>
-        </div>
-      `).join('');
+      container.innerHTML = view.shooters.map((s, i) => {
+        // Ajout dynamique de la classe de rang pour le style
+        let rankClass = '';
+        if (i === 0) rankClass = 'rank-1';
+        else if (i === 1) rankClass = 'rank-2';
+        else if (i === 2) rankClass = 'rank-3';
+
+        return `
+          <div class="row ${rankClass}">
+            <div class="rank">${i + 1}</div>
+            <div class="name">${s.lastName} ${s.firstName}</div>
+            <div class="club">${s.club || ''}</div>
+            <div class="score">${s.score}</div>
+          </div>
+        `;
+      }).join('');
 
       container.scrollTop = 0;
       clearInterval(scrollTimer);
