@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Saisie Dynamique Régionaux — Ligue LR</title>
+    <title>Saisie Régionaux — Ligue LR</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <style>
@@ -32,11 +32,11 @@
     <div class="form-group">
         <label>TYPE DE CHAMPIONNAT</label>
         <select id="typeSelector" class="type-selector" onchange="updateMenus()">
+            <option value="EDT">EDT (École de Tir)</option>
             <option value="TAR">TAR (Armes Réglementaires)</option>
             <option value="ISSF10">ISSF / Para-Tir 10 Mètres</option>
             <option value="MLAIC">MLAIC (Armes Anciennes)</option>
             <option value="ISSF2550">ISSF 25 / 50 Mètres</option>
-            <option value="EDT">EDT (École de Tir)</option>
         </select>
 
         <h3 style="margin-top:25px; border-top: 1px solid #ccc; padding-top: 20px;">Nouveau Tireur</h3>
@@ -58,35 +58,25 @@
 
 <script>
     const dataRef = {
+        EDT: {
+            disc: ["101 - Pistolet 10m EDT", "105 - Carabine 10m EDT", "150 - Pistolet 3/7 EDT", "152 - Pistolet Vitesse EDT", "154 - Carabine 3 positions EDT", "025 - Arbalète Field EDT"],
+            cats: ["Poussin Fille", "Poussin Garçon", "Benjamin Fille", "Benjamin Garçon", "Minime Fille", "Minime Garçon"]
+        },
         TAR: {
-            disc: ["810 - Fusil Répétition manuelle", "811 - Fusils Modifiés Gros Calibre", "812 - Fusils Modifiés Petit Calibre", "813 - Challenges Armes Répétition", "815 - FSA - Gros Calibre", "816 - FSA - Petit Calibre", "820 - Carabine d'initiation militaire 22 lr", "821 - Carabine 22 semi-auto", "822 - Car. initiation 22lr - Assis", "823 - Carabine Militaire Match 22lr", "830 - Pistolet / Revolver", "831 - Pistolet Vitesse Réglementaire", "832 - Armes de poing Authentiques"],
+            disc: ["810 - Fusil Répétition", "812 - Fusil Semi-Auto", "815 - Fusil Modifié", "816 - Fusil S.A. PC", "820 - Carabine 22 LR", "830 - Pistolet / Revolver", "831 - Vitesse Militaire", "832 - Armes de poing Auth."],
             cats: ["Senior"]
         },
         ISSF10: {
-            disc: ["100 - Pistolet 10m", "102 - Pistolet Vitesse 10m", "103 - Pistolet Standard 10m", "104 - Carabine 10m", "107 - Arbalète Match 10m", "109 - Cible Mobile 10m", "110 - Cible Mobile Mixte 10m", "025 - Arbalète Field 18m", "171 - HP R1/R2 Car. 10m deb. (SH1)", "173 - HP R3 Car. 10m couchée (SH1)", "174 - HP R4 Car. 10m deb. Potence (SH2)", "175 - HP R5 Car. 10m couchée Potence (SH2)", "181 - HP P1/P2 Pistolet 10m (SH1)", "183 - HP F5 Pistolet Vitesse 10m (SH1)", "184 - HP P5 Pistolet Standard 10m (SH1)"],
-            cats: ["Minime Fille", "Minime Garçon", "Cadet Fille", "Cadet Garçon", "Junior Fille", "Junior Garçon", "Dame 1", "Dame 2", "Dame 3", "Senior 1", "Senior 2", "Senior 3"]
+            disc: ["100 - Pistolet 10m", "102 - Pistolet Vitesse 10m", "103 - Pistolet Standard 10m", "104 - Carabine 10m", "171 - HP R1/R2 (SH1)", "181 - HP P1/P2 (SH1)"],
+            cats: ["Minime F", "Minime G", "Cadet F", "Cadet G", "Junior F", "Junior G", "Dame 1", "Dame 2", "Dame 3", "Senior 1", "Senior 2", "Senior 3"]
         },
         MLAIC: {
-            disc: [
-                "601 - Miquelet Origine", "701 - Miquelet Réplique", "602 - Maximilien Origine", "702 - Maximilien Réplique", 
-                "603 - Minié Origine", "703 - Minié Réplique", "604 - Whitworth Origine", "704 - Whitworth Réplique",
-                "605 - Cominazzo Origine", "705 - Cominazzo Réplique", "606 - Kuchenreuter Origine", "706 - Kuchenreuter Réplique",
-                "706-S - Kuchen. Rép. Side Hammer", "706-U - Kuchen. Rép. Under Hammer", "607 - Colt", "608 - Walkyrie Origine",
-                "708 - Walkyrie Réplique", "614 - Tanegashima Origine", "714 - Tanegashima Réplique", "615 - Vetterli Origine",
-                "715 - Vetterli Réplique", "616 - Hizadai Origine", "716 - Hizadai Réplique", "621 - Manton Origine",
-                "721 - Manton Réplique", "622 - Lorenzoni Origine", "722 - Lorenzoni Réplique", "623 - Malson Origine",
-                "723 - Malson Réplique", "712 - Mariette", "628 - Tanzutsu Origine", "728 - Tanzutsu Réplique",
-                "636 - Pensylvannia Origine", "736 - Pensylvannia Réplique", "637 - Lamarmora Origine", "737 - Lamarmora Réplique"
-            ],
+            disc: ["712 - Mariette", "706 - Kuchenreuter Réplique", "715 - Vetterli Réplique", "704 - Whitworth Réplique", "737 - Lamarmora Réplique"],
             cats: ["Senior", "Junior"]
         },
         ISSF2550: {
-            disc: ["251 - Pistolet 25m", "252 - Pistolet Vitesse 25m", "253 - Pistolet Standard 25m", "250 - Pistolet Percussion Centrale", "501 - Carabine 60BC", "502 - Carabine 3x20", "503 - Carabine 3x40", "500 - Pistolet 50m"],
-            cats: ["Junior Fille", "Junior Garçon", "Dame 1", "Dame 2", "Senior 1", "Senior 2", "Senior 3"]
-        },
-        EDT: {
-            disc: ["Pistolet 10m EDT", "Pistolet Vitesse EDT", "Carabine 10m EDT", "Arbalète Field EDT"],
-            cats: ["Poussin F", "Poussin G", "Benjamin F", "Benjamin G", "Minime F", "Minime G"]
+            disc: ["251 - Pistolet 25m", "252 - Pistolet Vitesse 25m", "253 - Pistolet Standard 25m", "501 - Carabine 60BC"],
+            cats: ["D1", "D2", "S1", "S2", "S3"]
         }
     };
 
