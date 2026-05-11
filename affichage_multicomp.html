@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>LIVE — Résultats par Catégories</title>
+    <title>LIVE — Classement par Épreuves</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
@@ -10,44 +10,38 @@
         :root { --bg: #050b0d; --surface: #0e2228; --accent: #0fb8c9; --gold: #ffd700; --silver: #c0c0c0; --bronze: #cd7f32; }
         body { font-family: 'Rajdhani', sans-serif; background: var(--bg); color: white; margin: 0; padding: 0; overflow: hidden; }
         .header { background: linear-gradient(to bottom, #153039, var(--bg)); padding: 15px; text-align: center; border-bottom: 2px solid var(--accent); position: sticky; top: 0; z-index: 10; }
-        h1 { font-family: 'Orbitron', sans-serif; margin: 0; font-size: 2.2rem; text-transform: uppercase; color: var(--accent); }
+        h1 { font-family: 'Orbitron', sans-serif; margin: 0; font-size: 2rem; text-transform: uppercase; color: var(--accent); }
         .scroll-container { height: calc(100vh - 100px); overflow-y: hidden; padding: 0 20px; }
-        
-        /* Titre de Catégorie */
         .category-header { 
-            background: rgba(15, 184, 201, 0.15); 
+            background: rgba(15, 184, 201, 0.1); 
             color: var(--accent); 
-            padding: 15px; 
-            margin-top: 40px; 
-            border-radius: 8px; 
+            padding: 12px; 
+            margin: 30px 0 10px 0; 
+            border-radius: 4px; 
             font-family: 'Orbitron', sans-serif;
-            font-size: 1.8rem;
+            font-size: 1.6rem;
+            border-left: 4px solid var(--accent);
             text-align: left;
-            border-left: 5px solid var(--accent);
         }
-
-        table { width: 100%; border-collapse: separate; border-spacing: 0 5px; margin-bottom: 20px; }
-        th { font-family: 'Orbitron', sans-serif; padding: 12px; color: var(--accent); border-bottom: 1px solid var(--accent); text-align: left; font-size: 1rem; }
-        tr { background: var(--surface); }
-        td { padding: 12px; font-size: 1.4rem; font-weight: 500; }
-        
-        .rank { width: 70px; text-align: center; font-weight: 800; font-size: 1.6rem; }
-        .rank-1 { color: var(--gold); text-shadow: 0 0 10px var(--gold); }
-        .rank-2 { color: var(--silver); text-shadow: 0 0 10px var(--silver); }
-        .rank-3 { color: var(--bronze); text-shadow: 0 0 10px var(--bronze); }
-        .score { text-align: right; color: var(--accent); font-family: 'Orbitron', sans-serif; font-weight: bold; font-size: 1.8rem; padding-right: 20px; }
-        .club { color: #94a3b8; font-size: 1rem; text-transform: uppercase; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 30px; background: var(--surface); }
+        th { font-family: 'Orbitron', sans-serif; padding: 10px; color: var(--accent); border-bottom: 1px solid var(--accent); text-align: left; font-size: 0.9rem; }
+        td { padding: 10px; font-size: 1.3rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .rank { width: 60px; text-align: center; font-weight: bold; }
+        .rank-1 { color: var(--gold); } .rank-2 { color: var(--silver); } .rank-3 { color: var(--bronze); }
+        .score { text-align: right; color: var(--accent); font-family: 'Orbitron', sans-serif; font-weight: bold; padding-right: 15px; }
+        .club { color: #94a3b8; font-size: 0.9rem; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1 id="compTitle">CLASSEMENTS...</h1>
-    <div id="status">Chargement des catégories...</div>
+    <h1 id="compTitle">SCAN DES ÉPREUVES...</h1>
+    <div id="status" style="font-size: 0.9rem; opacity: 0.7;">Initialisation...</div>
 </div>
 
 <div class="scroll-container" id="scrollBox">
-    <div id="content"></div> </div>
+    <div id="content"></div>
+</div>
 
 <script>
     const firebaseConfig = {
@@ -65,30 +59,35 @@
     const compId = params.get('comp');
 
     if (compId) {
+        // ON ÉCOUTE TOUTE LA BASE POUR TROUVER LE DOSSIER
         db.ref().on('value', (snapshot) => {
             const allData = snapshot.val();
             if (!allData) return;
 
+            // Recherche du dossier cible (racine ou competitions/)
             let targetData = allData[compId] || (allData.competitions ? allData.competitions[compId] : null);
 
             if (targetData) {
                 document.getElementById('compTitle').textContent = targetData.config ? targetData.config.name : compId;
                 
+                // On récupère les tireurs (shooters ou vrac)
                 let rawList = targetData.shooters || targetData.shootters || targetData;
                 const shooters = Object.values(rawList).filter(s => s && s.lastName);
 
                 if (shooters.length > 0) {
-                    renderByCategories(shooters);
+                    renderCategories(shooters);
                 }
+            } else {
+                document.getElementById('status').textContent = "ID " + compId + " non trouvé.";
             }
         });
     }
 
-    function renderByCategories(shooters) {
+    function renderCategories(shooters) {
         const content = document.getElementById('content');
         content.innerHTML = '';
 
-        // 1. Grouper par discipline/catégorie
+        // Groupement par discipline
         const grouped = {};
         shooters.forEach(s => {
             const cat = s.discipline || s.category || "AUTRES";
@@ -96,46 +95,32 @@
             grouped[cat].push(s);
         });
 
-        // 2. Trier les catégories par nom et afficher
+        // Affichage de chaque bloc
         Object.keys(grouped).sort().forEach(catName => {
-            const catContainer = document.createElement('div');
+            const sorted = grouped[catName].sort((a,b) => (b.score || 0) - (a.score || 0));
             
-            // Tri des tireurs dans la catégorie par score
-            const sortedShooters = grouped[catName].sort((a, b) => (b.score || 0) - (a.score || 0));
-
-            let html = `
-                <div class="category-header">${catName}</div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width:80px">Rang</th>
-                            <th>Tireur</th>
-                            <th>Club</th>
-                            <th style="text-align:right">Points</th>
-                        </tr>
-                    </thead>
-                    <tbody>`;
-
-            sortedShooters.forEach((s, i) => {
+            let html = `<div class="category-header">${catName}</div>
+                        <table>
+                            <thead><tr><th>Rang</th><th>Tireur</th><th>Club</th><th style="text-align:right">Score</th></tr></thead>
+                            <tbody>`;
+            
+            sorted.forEach((s, i) => {
                 const rank = i + 1;
-                let rankClass = rank <= 3 ? "rank-" + rank : "";
-                let medal = rank === 1 ? "🥇 " : rank === 2 ? "🥈 " : rank === 3 ? "🥉 " : "";
+                const rClass = rank === 1 ? "rank-1" : rank === 2 ? "rank-2" : rank === 3 ? "rank-3" : "";
+                const medal = rank === 1 ? "🥇 " : rank === 2 ? "🥈 " : rank === 3 ? "🥉 " : "";
                 
-                html += `
-                    <tr>
-                        <td class="rank ${rankClass}">${medal}${rank}</td>
-                        <td>${s.firstName} <span style="text-transform:uppercase; font-weight:700;">${s.lastName}</span></td>
-                        <td class="club">${s.club || '-'}</td>
-                        <td class="score">${s.score || 0}</td>
-                    </tr>`;
+                html += `<tr>
+                            <td class="rank ${rClass}">${medal}${rank}</td>
+                            <td>${s.firstName} <span style="text-transform:uppercase; font-weight:700;">${s.lastName}</span></td>
+                            <td class="club">${s.club || '-'}</td>
+                            <td class="score">${s.score || 0}</td>
+                         </tr>`;
             });
-
             html += `</tbody></table>`;
-            catContainer.innerHTML = html;
-            content.appendChild(catContainer);
+            content.innerHTML += html;
         });
 
-        document.getElementById('status').textContent = shooters.length + " tireurs — Classement par épreuves";
+        document.getElementById('status').textContent = shooters.length + " tireurs classés par épreuve";
         startAutoScroll();
     }
 
@@ -143,11 +128,10 @@
     function startAutoScroll() {
         if (scrollInterval) clearInterval(scrollInterval);
         const box = document.getElementById('scrollBox');
-        let speed = 1;
         scrollInterval = setInterval(() => {
-            box.scrollTop += speed;
+            box.scrollTop += 1;
             if (box.scrollTop + box.clientHeight >= box.scrollHeight - 1) {
-                setTimeout(() => { box.scrollTop = 0; }, 4000); 
+                setTimeout(() => { box.scrollTop = 0; }, 3000);
             }
         }, 40);
     }
