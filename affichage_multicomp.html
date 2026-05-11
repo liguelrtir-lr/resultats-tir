@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>LIVE — Résultats Ligue LR</title>
+    <title>LIVE — Classements</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
@@ -29,7 +29,7 @@
 
 <div class="header">
     <h1 id="compTitle">RECHERCHE...</h1>
-    <div id="status">Chargement des données...</div>
+    <div id="status" style="font-size:0.8rem; opacity:0.6">Initialisation...</div>
 </div>
 
 <div class="scroll-container" id="scrollBox">
@@ -52,24 +52,41 @@
     const compId = params.get('comp');
 
     if (compId) {
-        // ON ÉCOUTE TOUT POUR NE RIEN RATER
+        // ON ÉCOUTE TOUTE LA BASE POUR ÊTRE SÛR
         db.ref().on('value', (snap) => {
             const all = snap.val();
             if (!all) return;
 
-            // On cherche le TAR ou autre
+            // Détection du dossier (Racine ou Competitions)
             let data = all[compId] || (all.competitions ? all.competitions[compId] : null);
 
             if (data) {
                 document.getElementById('compTitle').textContent = data.config ? data.config.name : compId;
                 
-                // On prend les tireurs peu importe où ils sont rangés
-                let shootersObj = data.shooters || data.shootters || data;
-                let list = Object.values(shootersObj).filter(s => s && typeof s === 'object' && s.lastName);
-
-                if (list.length > 0) {
-                    render(list);
+                // --- EXTRACTION DES TIREURS ---
+                let shootersArray = [];
+                
+                // On regarde dans 'shooters'
+                if (data.shooters) shootersArray = Object.values(data.shooters);
+                // Sinon dans 'shootters' (faute de frappe)
+                else if (data.shootters) shootersArray = Object.values(data.shootters);
+                // Sinon on prend tout sauf 'config'
+                else {
+                    shootersArray = Object.keys(data)
+                        .filter(key => key !== 'config')
+                        .map(key => data[key]);
                 }
+
+                // Filtrage pour ne garder que les objets tireurs valides
+                const validShooters = shootersArray.filter(s => s && typeof s === 'object' && (s.lastName || s.firstName));
+
+                if (validShooters.length > 0) {
+                    render(validShooters);
+                } else {
+                    document.getElementById('status').textContent = "Dossier trouvé mais données tireurs illisibles.";
+                }
+            } else {
+                document.getElementById('status').textContent = "ID " + compId + " non trouvé dans Firebase.";
             }
         });
     }
@@ -77,17 +94,15 @@
     function render(shooters) {
         const content = document.getElementById('content');
         content.innerHTML = '';
-
-        // GROUPEMENT
         const groups = {};
+
         shooters.forEach(s => {
-            // On essaie de trouver une discipline, sinon on met "GÉNÉRAL"
+            // Détection de la discipline
             let cat = s.discipline || s.category || "CLASSEMENT GÉNÉRAL";
             if (!groups[cat]) groups[cat] = [];
             groups[cat].push(s);
         });
 
-        // AFFICHAGE DES GROUPES
         Object.keys(groups).sort().forEach(catName => {
             const sorted = groups[catName].sort((a,b) => (Number(b.score) || 0) - (Number(a.score) || 0));
             
@@ -102,7 +117,7 @@
                 const medal = rank === 1 ? "🥇 " : rank === 2 ? "🥈 " : rank === 3 ? "🥉 " : "";
                 html += `<tr>
                             <td class="rank ${rClass}">${medal}${rank}</td>
-                            <td>${s.firstName} <b>${s.lastName.toUpperCase()}</b><br><small style="color:#94a3b8">${s.club || ''}</small></td>
+                            <td>${s.firstName || ''} <b>${(s.lastName || '').toUpperCase()}</b><br><small style="color:#94a3b8">${s.club || ''}</small></td>
                             <td class="score">${s.score || 0}</td>
                          </tr>`;
             });
@@ -110,7 +125,7 @@
             content.innerHTML += html;
         });
 
-        document.getElementById('status').textContent = shooters.length + " tireurs classés";
+        document.getElementById('status').textContent = shooters.length + " tireurs chargés avec succès.";
         startAutoScroll();
     }
 
