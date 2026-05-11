@@ -2,62 +2,107 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>🎯 Résultats TAR - Live</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🎯 Résultats Provisoires - TAR</title>
+
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   
   <style>
     body {
-      font-family: sans-serif;
-      background: #0f2027;
-      color: white;
-      margin: 0;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
+      font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+      color:#fff;
+      margin:0;
+      padding-bottom: 80px;
     }
-    .header { background: #1e3c72; padding: 15px; text-align: center; }
+
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      text-align:center;
+      padding:18px 30px;
+      background: linear-gradient(135deg, #4f7cff 0%, #7c3aed 50%, #4f7cff 100%);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    .header h1 { font-size: 2em; margin: 0; font-weight: 950; letter-spacing: 2px; color: #fff; }
+    .competition-name { font-size:1.1em; color: #fff; margin-top:5px; font-weight:700; }
+    .header-clock { font-size:1.5em; font-weight:900; color:rgba(255,255,255,0.9); letter-spacing:3px; margin-top:5px; }
+    
+    .live-indicator {
+      display:inline-block;
+      padding:4px 12px;
+      background:red;
+      border-radius:20px;
+      font-weight:800;
+      font-size:.7em;
+      animation:pulse 2s infinite;
+      margin-top:5px;
+    }
+
     .ranking-container {
-      flex: 1;
-      background: white;
-      color: #111;
-      margin: 15px;
-      border-radius: 15px;
-      display: flex;
-      flex-direction: column;
+      background: rgba(255,255,255,0.98);
+      border-radius: 20px;
+      margin: 20px;
       overflow: hidden;
+      color: #111;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.4);
     }
-    .ranking-title { font-size: 1.5em; padding: 15px; text-align: center; color: #1e3c72; font-weight: bold; border-bottom: 2px solid #eee; }
-    .grid-head { display: grid; grid-template-columns: 60px 1fr 180px 120px; background: #eee; font-weight: bold; }
-    .grid-scroll { flex: 1; overflow-y: auto; scroll-behavior: smooth; }
-    .grid-row { display: grid; grid-template-columns: 60px 1fr 180px 120px; border-bottom: 1px solid #eee; align-items: center; }
-    .cell { padding: 12px; }
-    .rank { font-weight: bold; text-align: center; color: #1e3c72; }
-    .score { font-weight: bold; text-align: center; }
-    .footer { padding: 10px; font-size: 0.8em; text-align: center; opacity: 0.6; }
-    .indicator { color: #4f7cff; font-weight: bold; margin-bottom: 5px; }
+
+    .ranking-title {
+      font-size: 1.8em;
+      color: #1e3c72;
+      text-align: center;
+      padding: 20px;
+      font-weight: 800;
+      background: #f8fafc;
+      border-bottom: 3px solid #1e3c72;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #1e3c72; color: white; padding: 15px; text-transform: uppercase; font-size: 0.9em; }
+    td { padding: 15px; border-bottom: 1px solid #e2e8f0; font-size: 1.2em; }
+    
+    /* Styles pour les médailles */
+    .medal-1 { background: linear-gradient(90deg, #ffd700, #fff2a3) !important; color: #000 !important; font-weight: bold; }
+    .medal-2 { background: linear-gradient(90deg, #c0c0c0, #e8e8e8) !important; color: #000 !important; font-weight: bold; }
+    .medal-3 { background: linear-gradient(90deg, #cd7f32, #ffb36b) !important; color: #000 !important; font-weight: bold; }
+
+    .rank-cell { font-weight: 900; color: #1e3c72; font-size: 1.4em; text-align: center; width: 80px; }
+    .medal-1 .rank-cell, .medal-2 .rank-cell, .medal-3 .rank-cell { color: #000; }
+    .score-cell { font-weight: 900; text-align: center; width: 150px; }
+
+    .footer-bar {
+      position: fixed;
+      bottom: 0; width: 100%;
+      background: rgba(15, 32, 39, 0.95);
+      padding: 10px;
+      text-align: center;
+      z-index: 1000;
+    }
+    .rotate-info { color: #4f7cff; font-weight: bold; }
+
+    @keyframes pulse { 0% {opacity:1} 50% {opacity:0.5} 100% {opacity:1} }
   </style>
 </head>
-
 <body>
+
   <div class="header">
-    <h2 id="competitionName">Chargement...</h2>
-    <div id="clock">00:00:00</div>
+    <h1>🎯 Résultats Provisoires</h1>
+    <div class="competition-name" id="competitionName">Chargement...</div>
+    <div class="header-clock" id="headerClock">--:--:--</div>
+    <div class="live-indicator">🔴 EN DIRECT</div>
   </div>
 
   <div class="ranking-container" id="rankingContainer"></div>
-  
-  <div class="footer">
-    <div class="indicator" id="autoRotateIndicator">Initialisation...</div>
-    Espace pour Pause • Double-clic pour Plein écran
+
+  <div class="footer-bar">
+    <div class="rotate-info" id="rotateIndicator">Initialisation...</div>
   </div>
 
   <script>
     const COMPETITION_ID = (new URLSearchParams(window.location.search).get('comp') || 'TAR');
-    
     const firebaseConfig = {
       apiKey: "AIzaSyAvfMRtRrhh_e-27xHlwIx9c5DIdUQm6HM",
       authDomain: "resultats-tir-ligue-lr.firebaseapp.com",
@@ -67,138 +112,105 @@
       appId: "1:468808300974:web:563a14cc4477c10b28303f"
     };
 
-    let allShooters = [], rotateViews = [], currentIdx = 0;
-    let autoRotate = true, perViewSec = 8;
-    let mainTimer = null, scrollInterval = null;
-
-    // 1. Initialisation Firebase
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+
+    let allShooters = [], views = [], currentIdx = 0, isPaused = false;
+    const START_PAUSE = 3000; // 3 secondes de pause au début
+    const END_PAUSE = 2500;   // 2.5 secondes de pause en bas
+    const MIN_TIME = 8000;    // Temps min par page
 
     db.ref(`competitions/${COMPETITION_ID}/config/name`).on('value', s => {
       document.getElementById('competitionName').textContent = s.val() || 'Compétition';
     });
 
     db.ref(`competitions/${COMPETITION_ID}/shooters`).on('value', s => {
-      const data = s.val() || {};
-      allShooters = Object.values(data);
-      preparerVues();
+      allShooters = Object.values(s.val() || {});
+      const map = new Map();
+      allShooters.forEach(sh => {
+        const key = `${sh.discipline}|${sh.category || ''}`;
+        if (!map.has(key)) map.set(key, { d: sh.discipline, c: sh.category || '' });
+      });
+      views = Array.from(map.values()).sort((a,b) => a.d.localeCompare(b.d));
       lancerCycle();
     });
 
-    // 2. Préparation des catégories
-    function preparerVues() {
-      const v = new Map();
-      allShooters.forEach(s => {
-        const d = (s.discipline || 'Sans nom').trim();
-        const c = (s.category || '').trim();
-        if (!v.has(d)) v.set(d, new Set());
-        if (c) v.get(d).add(c);
-      });
-      
-      rotateViews = [];
-      Array.from(v.keys()).sort().forEach(d => {
-        const cats = Array.from(v.get(d)).sort();
-        if (cats.length === 0) rotateViews.push({ d, c: '' });
-        else cats.forEach(c => rotateViews.push({ d, c }));
-      });
-    }
+    async function lancerCycle() {
+      if (isPaused || !views.length) return;
 
-    // 3. Gestion du Cycle
-    function lancerCycle() {
-      clearAllTimers();
-      if (!rotateViews.length) return;
+      const vue = views[currentIdx];
+      afficherDonnees(vue);
 
-      const vue = rotateViews[currentIdx];
-      afficherTableau(vue);
+      // On attend 3 secondes AVANT de commencer quoi que ce soit
+      await new Promise(r => setTimeout(r, START_PAUSE)); 
 
-      // On laisse un petit délai pour que le DOM se dessine avant de calculer le scroll
-      setTimeout(() => {
-        const scroller = document.getElementById('tableScroll');
-        const estLong = scroller && scroller.scrollHeight > scroller.clientHeight;
+      const totalH = document.body.scrollHeight;
+      const viewH = window.innerHeight;
 
-        if (estLong && autoRotate) {
-          demarrerScrollAuto(scroller);
-        } else {
-          mainTimer = setTimeout(passerSuivant, perViewSec * 1000);
-        }
-        majIndicateur();
-      }, 500);
-    }
+      if (totalH > viewH) {
+        const dist = totalH - viewH;
+        const duration = Math.max(MIN_TIME, dist * 15); 
+        await smoothScroll(dist, duration);
+        await new Promise(r => setTimeout(r, END_PAUSE)); 
+      } else {
+        await new Promise(r => setTimeout(r, MIN_TIME));
+      }
 
-    function demarrerScrollAuto(scroller) {
-      const max = scroller.scrollHeight - scroller.clientHeight;
-      // Vitesse : on veut parcourir le reste du temps (environ 6s)
-      const vitesse = max / ( (perViewSec - 2) * 30 ); 
-      
-      scrollInterval = setInterval(() => {
-        if (!autoRotate) return;
-        scroller.scrollTop += vitesse;
-        
-        if (scroller.scrollTop >= max - 1) {
-          clearInterval(scrollInterval);
-          // Pause en bas de 2s avant de changer
-          mainTimer = setTimeout(passerSuivant, 2000);
-        }
-      }, 33);
-    }
-
-    function passerSuivant() {
-      if (!autoRotate) return;
-      currentIdx = (currentIdx + 1) % rotateViews.length;
+      currentIdx = (currentIdx + 1) % views.length;
       lancerCycle();
     }
 
-    function clearAllTimers() {
-      clearTimeout(mainTimer);
-      clearInterval(scrollInterval);
-    }
-
-    // 4. Affichage pur
-    function afficherTableau(vue) {
+    function afficherDonnees(vue) {
+      window.scrollTo(0, 0);
       const container = document.getElementById('rankingContainer');
-      const tireurs = allShooters
-        .filter(s => s.discipline === vue.d && (vue.c === '' || s.category === vue.c))
+      const data = allShooters
+        .filter(s => s.discipline === vue.d && (s.category || '') === vue.c)
         .sort((a,b) => (Number(b.score)||0) - (Number(a.score)||0));
 
-      let html = `
-        <div class="ranking-title">${vue.d} ${vue.c ? ' - ' + vue.c : ''}</div>
-        <div class="grid-head">
-          <div class="cell">#</div><div class="cell">Nom / Prénom</div><div class="cell">Club</div><div class="cell">Score</div>
-        </div>
-        <div class="grid-scroll" id="tableScroll">
-      `;
+      let html = `<div class="ranking-title">${vue.d} ${vue.c ? '<br><small>'+vue.c+'</small>' : ''}</div>`;
+      html += `<table><thead><tr><th>#</th><th>Tireur</th><th>Club</th><th>Score</th></tr></thead><tbody>`;
+      
+      data.forEach((s, i) => {
+        let medalClass = "";
+        if (i === 0) medalClass = "medal-1";
+        else if (i === 1) medalClass = "medal-2";
+        else if (i === 2) medalClass = "medal-3";
 
-      tireurs.forEach((s, i) => {
-        html += `
-          <div class="grid-row">
-            <div class="cell rank">${i+1}</div>
-            <div class="cell"><b>${s.lastName || ''}</b> ${s.firstName || ''}</div>
-            <div class="cell">${s.club || '-'}</div>
-            <div class="cell score">${s.score || 0} <small>/${s.maxScore || 0}</small></div>
-          </div>
-        `;
+        html += `<tr class="${medalClass}">
+          <td class="rank-cell">${i+1}</td>
+          <td><b>${s.lastName}</b> ${s.firstName}</td>
+          <td>${s.club || ''}</td>
+          <td class="score-cell">${s.score} <small style="opacity:0.5">/${s.maxScore}</small></td>
+        </tr>`;
       });
-
-      container.innerHTML = html + `</div>`;
+      container.innerHTML = html + `</tbody></table>`;
+      
+      const next = views[(currentIdx + 1) % views.length];
+      document.getElementById('rotateIndicator').textContent = next ? `↻ PROCHAIN : ${next.d} ${next.c}` : "";
     }
 
-    function majIndicateur() {
-      const el = document.getElementById('autoRotateIndicator');
-      if (!autoRotate) { el.textContent = "⏸ MODE TV EN PAUSE"; return; }
-      const next = rotateViews[(currentIdx + 1) % rotateViews.length];
-      el.textContent = `↻ PROCHAIN : ${next ? next.d + ' ' + next.c : '...'}`;
+    function smoothScroll(distance, duration) {
+      return new Promise(resolve => {
+        const start = performance.now();
+        function step(now) {
+          if (isPaused) return; 
+          const elapsed = now - start;
+          const progress = Math.min(elapsed / duration, 1);
+          window.scrollTo(0, distance * progress);
+          if (progress < 1) requestAnimationFrame(step);
+          else resolve();
+        }
+        requestAnimationFrame(step);
+      });
     }
 
-    // Horloge & Clavier
-    setInterval(() => { document.getElementById('clock').textContent = new Date().toLocaleTimeString(); }, 1000);
+    setInterval(() => { document.getElementById('headerClock').textContent = new Date().toLocaleTimeString(); }, 1000);
     
     document.addEventListener('keydown', e => {
-      if (e.code === 'Space') {
-        e.preventDefault();
-        autoRotate = !autoRotate;
-        if (autoRotate) lancerCycle();
-        else majIndicateur();
+      if(e.code === 'Space') { 
+        isPaused = !isPaused; 
+        document.getElementById('rotateIndicator').textContent = isPaused ? "⏸ PAUSE" : "↻ REPRISE...";
+        if (!isPaused) lancerCycle();
       }
     });
   </script>
