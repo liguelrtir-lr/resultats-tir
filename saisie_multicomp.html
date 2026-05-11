@@ -12,12 +12,12 @@
         .form-group { background: #eef2f7; padding: 20px; border-radius: 10px; margin-bottom: 25px; border: 1px solid #d1d9e6; }
         .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px; }
         label { display: block; font-size: 0.85rem; font-weight: bold; color: #555; margin-bottom: 5px; }
-        input, select { padding: 12px; border: 1px solid #bcc6d2; border-radius: 6px; font-size: 1rem; width: 100%; box-sizing: border-box; }
+        input, select { padding: 12px; border: 1px solid #bcc6d2; border-radius: 6px; font-size: 1rem; width: 100%; box-sizing: border-box; background: white; color: black; }
         .type-selector { background: #007bff; color: white; font-weight: bold; cursor: pointer; height: 50px; font-size: 1.2rem; border: none; border-radius: 8px; width: 100%; }
-        .btn-add { background: #28a745; color: white; border: none; padding: 15px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; font-size: 1.1rem; transition: 0.2s; }
+        .btn-add { background: #28a745; color: white; border: none; padding: 15px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; font-size: 1.1rem; transition: 0.2s; margin-top: 10px; }
         .btn-add:hover { background: #218838; }
         .shooter-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; }
-        .score-input { width: 90px; padding: 10px; text-align: center; font-weight: bold; border: 2px solid #007bff; border-radius: 6px; color: #007bff; font-size: 1.2rem; }
+        .score-input { width: 100px; padding: 10px; text-align: center; font-weight: bold; border: 2px solid #007bff; border-radius: 6px; color: #007bff; font-size: 1.2rem; }
         .save-anim { color: #28a745; font-weight: bold; margin-left: 10px; display: none; }
         .search-box { background: #fff; border: 2px solid #007bff; padding: 15px; border-radius: 8px; width: 100%; margin-bottom: 20px; font-size: 1.1rem; box-sizing: border-box; }
     </style>
@@ -60,52 +60,23 @@
 <script>
     const dataRef = {
         TAR: {
-            disc: [
-                "810 - Fusil Répétition manuelle", "811 - Fusils Modifiés Gros Calibre", "812 - Fusils Modifiés Petit Calibre", 
-                "813 - Challenges Armes à rép. man. ou semi-auto", "815 - FSA - Gros Calibre", "816 - FSA - Petit Calibre", 
-                "820 - Carabine d'initiation militaire 22 lr", "821 - Carabine 22 semi-auto", 
-                "822 - Car. d'initiation militaire 22lr - Assis", "823 - Carabine Militaire Match 22lr",
-                "830 - Pistolet / Revolver", "831 - Pistolet Vitesse Réglementaire", "832 - Armes de poing Authentiques"
-            ],
+            disc: ["810 - Fusil Répétition manuelle", "811 - Fusils Modifiés Gros Calibre", "812 - Fusils Modifiés Petit Calibre", "813 - Challenges Armes à rép.", "815 - FSA - Gros Calibre", "816 - FSA - Petit Calibre", "820 - Carabine 22 lr", "821 - Carabine 22 semi-auto", "822 - Car. 22lr Assis", "823 - Carabine Match 22lr", "830 - Pistolet / Revolver", "831 - Pistolet Vitesse Réglementaire", "832 - Armes de poing Authentiques"],
             cats: ["Senior"]
         },
         ISSF10: {
-            disc: [
-                "100 - Pistolet 10m", "102 - Pistolet Vitesse 10m", "103 - Pistolet Standard 10m", "104 - Carabine 10m", 
-                "107 - Arbalète Match 10m", "109 - Cible Mobile 10m", "110 - Cible Mobile Mixte 10m", "025 - Arbalète Field 18m",
-                "171 - HP R1/R2 Car. 10m (SH1)", "173 - HP R3 Car. 10m (SH1)", "174 - HP R4 Car. 10m (SH2)", 
-                "175 - HP R5 Car. 10m (SH2)", "181 - HP P1/P2 Pistolet 10m (SH1)", "183 - HP F5 Pist. Vitesse 10m", 
-                "184 - HP P5 Pist. Standard 10m", "185 - HP F6 Pistolet 10m CLF"
-            ],
+            disc: ["100 - Pistolet 10m", "102 - Pistolet Vitesse 10m", "103 - Pistolet Standard 10m", "104 - Carabine 10m", "107 - Arbalète Match 10m", "171 - HP R1/R2 Car. 10m", "181 - HP P1/P2 Pistolet 10m"],
             cats: ["Minime F", "Minime G", "Cadet F", "Cadet G", "Junior Fille", "Junior Garçon", "Dame 1", "Dame 2", "Dame 3", "Senior 1", "Senior 2", "Senior 3"]
         },
         ISSF2550: {
-            disc: [
-                "250 - Pistolet Percussion Centrale", "251 - Pistolet 25m", "252 - Pistolet Vitesse 25m", "253 - Pistolet Standard 25m", 
-                "500 - Pistolet 50m", "501 - Carabine 60BC", "502 - Carabine 3x20",
-                "271 - HP P3 Pistolet 25m (SH1)", "272 - HP F1 Pistolet Vitesse 25m (SH1)", "273 - HP P4 Pistolet 50m (SH1)",
-                "274 - HP F2 Pistolet Standard 25m (SH1)", "571 - HP R6 Carabine 50m 60BC (SH1)", "572 - HP R9 Carabine 50m 60BC (SH2)",
-                "573 - HP Carabine 50m 3x20 (SH1)", "574 - HP Carabine 50m 3x40 (SH1)"
-            ],
+            disc: ["250 - Pistolet Percussion Centrale", "251 - Pistolet 25m", "252 - Pistolet Vitesse 25m", "253 - Pistolet Standard 25m", "500 - Pistolet 50m", "501 - Carabine 60BC", "502 - Carabine 3x20", "271 - HP P3 Pistolet 25m", "571 - HP R6 Carabine 50m"],
             cats: ["Minime F", "Minime G", "Cadet F", "Cadet G", "Junior Fille", "Junior Garçon", "Dame 1", "Dame 2", "Senior 1", "Senior 2", "Senior 3"]
         },
         EDT: {
-            disc: [
-                "101 - Pistolet 3/7 EDT", "152 - Pistolet Vitesse 10m EDT", "159 - Cible Mobile 10m EDT", 
-                "154 - Carabine 10m EDT", "150 - Pistolet 10m EDT", "105 - Carabine 3 x 20 EDT", 
-                "158 - Arbalète Field EDT", "161 - HP R5 Car. 10m couchée EDT (SH2)", 
-                "162 - HP R3 Car. 10m couchée EDT (SH1)", "163 - HP P1 Pistolet 10m EDT (SH1)", 
-                "150/154 - Combiné EDT", "165 - HP Carabine 10m couchée EDT (visuel)"
-            ],
+            disc: ["101 - Pistolet 3/7 EDT", "152 - Pistolet Vitesse 10m EDT", "154 - Carabine 10m EDT", "150 - Pistolet 10m EDT", "105 - Carabine 3 x 20 EDT", "158 - Arbalète Field EDT", "150/154 - Combiné EDT"],
             cats: ["Poussin Fille", "Poussin Garçon", "Benjamin Fille", "Benjamin Garçon", "Minime Fille", "Minime Garçon"]
         },
         MLAIC: {
-            disc: [
-                "601 - Miquelet Origine", "701 - Miquelet Réplique", "602 - Maximilien Origine", "702 - Maximilien Réplique", 
-                "603 - Minié Origine", "703 - Minié Réplique", "604 - Whitworth Origine", "704 - Whitworth Réplique",
-                "605 - Cominazzo Origine", "705 - Cominazzo Réplique", "606 - Kuchenreuter Origine", "706 - Kuchenreuter Réplique",
-                "607 - Colt", "712 - Mariette", "615 - Vetterli Origine", "715 - Vetterli Réplique", "637 - Lamarmora Origine", "737 - Lamarmora Réplique"
-            ],
+            disc: ["601 - Miquelet Origine", "701 - Miquelet Réplique", "606 - Kuchenreuter Réplique", "712 - Mariette", "715 - Vetterli Réplique"],
             cats: ["Senior", "Junior"]
         }
     };
@@ -114,10 +85,25 @@
         const type = document.getElementById('typeSelector').value;
         const dMenu = document.getElementById('newDiscipline');
         const cMenu = document.getElementById('newCategorie');
-        dMenu.innerHTML = dataRef[type].disc.map(d => `<option value="${d}">${d}</option>`).join('');
-        cMenu.innerHTML = dataRef[type].cats.map(c => `<option value="${c}">${c}</option>`).join('');
+        
+        // On vide et on remplit
+        dMenu.innerHTML = "";
+        cMenu.innerHTML = "";
+
+        dataRef[type].disc.forEach(d => {
+            let opt = document.createElement("option");
+            opt.value = d; opt.textContent = d;
+            dMenu.appendChild(opt);
+        });
+
+        dataRef[type].cats.forEach(c => {
+            let opt = document.createElement("option");
+            opt.value = c; opt.textContent = c;
+            cMenu.appendChild(opt);
+        });
     }
 
+    // INITIALISATION FIREBASE
     const firebaseConfig = {
         apiKey: "AIzaSyAvfMRtRrhh_e-27xHlwIx9c5DIdUQm6HM",
         authDomain: "resultats-tir-ligue-lr.firebaseapp.com",
@@ -169,4 +155,21 @@
     }
 
     function saveScore(id, val) {
-        db.ref(compId + '/shooters/' + id).
+        db.ref(compId + '/shooters/' + id).update({ score: parseFloat(val) || 0 });
+        const anim = document.getElementById('ok-' + id);
+        anim.style.display = 'inline'; setTimeout(() => anim.style.display = 'none', 1000);
+    }
+
+    function filterList() {
+        const q = document.getElementById('search').value.toLowerCase();
+        const filtered = shootersData.filter(s => s.lastName.toLowerCase().includes(q) || s.firstName.toLowerCase().includes(q));
+        renderList(filtered);
+    }
+
+    // COMMANDE DE RÉVEIL AU CHARGEMENT
+    window.onload = function() {
+        updateMenus();
+    };
+</script>
+</body>
+</html>
