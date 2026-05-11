@@ -2,18 +2,17 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🎯 Résultats en Direct - Tir Sportif</title>
-
+  <title>🎯 Résultats — Ligue LR Tir</title>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
+    
     body {
-      font-family:'Segoe UI', sans-serif;
-      background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      /* Retour au dégradé que tu aimes */
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
       height: 100vh;
       overflow: hidden;
@@ -21,91 +20,117 @@
       flex-direction: column;
     }
 
-    /* HEADER */
+    /* HEADER LUMINEUX */
     .header {
-      padding: 20px;
-      background: rgba(0,0,0,0.4);
+      padding: 25px 40px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 2px solid #0fb8c9;
+      border-bottom: 1px solid rgba(255,255,255,0.2);
     }
-    .comp-name { font-size: 1.8em; font-weight: 800; color: #0fb8c9; text-transform: uppercase; }
+    
+    .comp-name { 
+      font-size: 2.2em; 
+      font-weight: 900; 
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      text-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
 
-    /* ZONE DE CLASSEMENT FIXE POUR FORCER LE SCROLL */
     .ranking-container {
       flex: 1;
       display: flex;
       flex-direction: column;
-      padding: 20px;
-      max-height: calc(100vh - 100px); /* Laisse de la place pour le header */
+      padding: 30px;
+      max-height: calc(100vh - 100px);
     }
 
     .view-title {
-      background: #0fb8c9;
-      color: #0e2228;
-      padding: 10px 20px;
-      font-size: 1.5em;
-      font-weight: bold;
-      border-radius: 10px 10px 0 0;
+      background: #ffffff;
+      color: #764ba2;
+      padding: 15px;
+      font-size: 1.8em;
+      font-weight: 900;
+      border-radius: 15px 15px 0 0;
       text-align: center;
+      text-transform: uppercase;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
     }
 
     .grid-header {
       display: grid;
-      grid-template-columns: 60px 1fr 150px 100px;
-      background: #1c3d49;
-      padding: 15px;
-      font-weight: bold;
-      border-bottom: 2px solid #0fb8c9;
+      grid-template-columns: 80px 1fr 250px 150px;
+      background: rgba(255, 255, 255, 0.2);
+      padding: 20px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-size: 1.1em;
+      border-bottom: 2px solid rgba(255,255,255,0.3);
     }
 
-    /* LA ZONE QUI DOIT DEFILER */
     .grid-scroll {
       flex: 1;
-      overflow-y: auto; /* Important */
-      background: rgba(255,255,255,0.05);
-      border-radius: 0 0 10px 10px;
-      position: relative;
+      overflow-y: auto;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 0 0 15px 15px;
+      backdrop-filter: blur(5px);
     }
 
-    /* Supprimer la barre de défilement visuelle pour l'effet TV */
     .grid-scroll::-webkit-scrollbar { display: none; }
 
     .row {
       display: grid;
-      grid-template-columns: 60px 1fr 150px 100px;
-      padding: 15px;
+      grid-template-columns: 80px 1fr 250px 150px;
+      padding: 20px;
       border-bottom: 1px solid rgba(255,255,255,0.1);
       align-items: center;
-      font-size: 1.2em;
+      font-size: 1.4em; /* Plus gros pour la lisibilité */
+      transition: background 0.3s;
     }
 
-    .rank { font-weight: 800; font-size: 1.2em; color: #0fb8c9; }
-    .name { font-weight: 600; }
-    .club { font-size: 0.9em; opacity: 0.8; }
-    .score { font-weight: 900; color: #18d9a0; text-align: right; font-size: 1.3em; }
+    .row:nth-child(even) { background: rgba(255,255,255,0.03); }
 
-    /* PODIUM COLORS */
-    .row:nth-child(1) .rank { color: #ffd700; font-size: 1.5em; }
-    .row:nth-child(2) .rank { color: #c0c0c0; }
-    .row:nth-child(3) .rank { color: #cd7f32; }
+    .rank { 
+      font-weight: 900; 
+      font-size: 1.2em; 
+      text-align: center;
+    }
 
-    .indicator { position: fixed; bottom: 10px; right: 20px; font-size: 0.8em; opacity: 0.5; }
+    .name { font-weight: 700; text-transform: capitalize; }
+    .club { font-size: 0.8em; opacity: 0.9; font-style: italic; }
+    .score { 
+      font-weight: 900; 
+      text-align: right; 
+      font-size: 1.3em;
+      color: #ffffff;
+      background: rgba(255,255,255,0.15);
+      padding: 5px 15px;
+      border-radius: 10px;
+    }
+
+    /* COULEURS DES MÉDAILLES */
+    .row:nth-child(1) .rank { color: #ffd700; font-size: 1.6em; text-shadow: 0 0 15px rgba(255,215,0,0.4); }
+    .row:nth-child(2) .rank { color: #e2e2e2; }
+    .row:nth-child(3) .rank { color: #ff9d6e; }
+
+    .clock { font-family: 'Courier New', Courier, monospace; font-size: 1.8em; font-weight: bold; }
   </style>
 </head>
 <body>
 
   <div class="header">
     <div class="comp-name" id="compTitle">Chargement...</div>
-    <div id="clock" style="font-family: monospace; font-size: 1.2em;">00:00:00</div>
+    <div class="clock" id="clock">00:00:00</div>
   </div>
 
   <div class="ranking-container">
-    <div class="view-title" id="currentViewTitle">---</div>
+    <div class="view-title" id="currentViewTitle">Chargement des catégories...</div>
     <div class="grid-header">
-      <div>RANG</div>
-      <div>NOM PRENOM</div>
+      <div style="text-align: center;">#</div>
+      <div>TIREUR</div>
       <div>CLUB</div>
       <div style="text-align: right;">SCORE</div>
     </div>
@@ -113,9 +138,8 @@
       </div>
   </div>
 
-  <div class="indicator" id="rotateStatus">Rotation Active</div>
-
   <script>
+    // Config Firebase (Inchangée)
     const firebaseConfig = {
       apiKey: "AIzaSyAvfMRtRrhh_e-27xHlwIx9c5DIdUQm6HM",
       authDomain: "resultats-tir-ligue-lr.firebaseapp.com",
@@ -125,26 +149,24 @@
       appId: "1:468808300974:web:563a14cc4477c10b28303f"
     };
 
-    firebase.initializeApp(firebaseConfig);
+    const app = firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-    const COMP_ID = new URLSearchParams(window.location.search).get('comp') || 'GENERAL';
+    const urlParams = new URLSearchParams(window.location.search);
+    const COMP_ID = urlParams.get('comp') || 'GENERAL';
 
     let allShooters = [];
     let rotateViews = [];
     let currentIdx = 0;
     let scrollTimer, rotateTimer;
 
-    // CONFIGURATION TEMPS
-    const perViewSeconds = 12; // Temps total par catégorie
-    const scrollPadding = 2000; // Pause 2s en haut et en bas
+    const perViewSeconds = 12; 
+    const scrollPadding = 2500; 
 
     function init() {
-      // Charger le titre
       db.ref(`${COMP_ID}/config/name`).on('value', s => {
         document.getElementById('compTitle').textContent = s.val() || COMP_ID;
       });
 
-      // Charger les données
       db.ref(`${COMP_ID}/shooters`).on('value', snap => {
         allShooters = snap.exists() ? Object.values(snap.val()) : [];
         prepareRotation();
@@ -177,7 +199,7 @@
     }
 
     function showView() {
-      if (!rotateViews[currentIdx]) { currentIdx = 0; }
+      if (currentIdx >= rotateViews.length) currentIdx = 0;
       const view = rotateViews[currentIdx];
       document.getElementById('currentViewTitle').textContent = view.title;
       
@@ -191,15 +213,12 @@
         </div>
       `).join('');
 
-      // RESET SCROLL
       container.scrollTop = 0;
       clearInterval(scrollTimer);
 
-      // DECLENCHEMENT DU SCROLL APRES PAUSE
       setTimeout(() => {
         const maxScroll = container.scrollHeight - container.clientHeight;
-        if (maxScroll > 5) {
-          // Calcul vitesse
+        if (maxScroll > 10) {
           const duration = (perViewSeconds * 1000) - (scrollPadding * 2);
           const step = maxScroll / (duration / 30);
           
@@ -211,7 +230,6 @@
             }
           }, 30);
         } else {
-          // Pas besoin de scroller, on attend juste
           rotateTimer = setTimeout(goNext, perViewSeconds * 1000);
         }
       }, scrollPadding);
