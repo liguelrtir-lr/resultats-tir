@@ -1,249 +1,86 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>🎯 Résultats — Ligue LR Tir</title>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-
-  <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      height: 100vh;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .header {
-      padding: 20px 40px;
-      background: rgba(255, 255, 255, 0.1);
-      backdrop-filter: blur(10px);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid rgba(255,255,255,0.2);
-      z-index: 1000;
-    }
-    
-    .comp-name { 
-      font-size: 2.2em; 
-      font-weight: 900; 
-      text-transform: uppercase;
-      letter-spacing: 2px;
-    }
-
-    .ranking-container {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      padding: 30px;
-      overflow: hidden; /* Empêche le container de scroller, c'est la liste qui le fera */
-    }
-
-    /* --- EN-TÊTE FIXE (DISCIPLINE) --- */
-    .view-title {
-      background: #ffffff;
-      color: #764ba2;
-      padding: 15px;
-      font-size: 1.8em;
-      font-weight: 900;
-      border-radius: 15px 15px 0 0;
-      text-align: center;
-      text-transform: uppercase;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
-
-    /* --- EN-TÊTE FIXE (COLONNES #, TIREUR, CLUB, SCORE) --- */
-    .grid-header {
-      display: grid;
-      grid-template-columns: 80px 1fr 250px 150px;
-      background: rgba(118, 75, 162, 0.95); /* Fond opaque pour ne pas voir les noms passer derrière */
-      padding: 20px;
-      font-weight: 800;
-      text-transform: uppercase;
-      font-size: 1.1em;
-      border-bottom: 2px solid rgba(255,255,255,0.3);
-      position: sticky;
-      top: 68px; /* Juste en dessous du titre blanc */
-      z-index: 99;
-    }
-
-    .grid-scroll {
-      flex: 1;
-      overflow-y: auto;
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 0 0 15px 15px;
-      backdrop-filter: blur(5px);
-      position: relative;
-    }
-
-    .grid-scroll::-webkit-scrollbar { display: none; }
-
-    .row {
-      display: grid;
-      grid-template-columns: 80px 1fr 250px 150px;
-      padding: 20px;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-      align-items: center;
-      font-size: 1.4em; 
-    }
-
-    .row:nth-child(even) { background: rgba(255,255,255,0.03); }
-
-    .rank { font-weight: 900; text-align: center; }
-    .name { font-weight: 700; }
-    .club { font-size: 0.8em; opacity: 0.9; font-style: italic; }
-    .score { 
-      font-weight: 900; text-align: right; font-size: 1.3em;
-      background: rgba(255,255,255,0.15); padding: 5px 15px; border-radius: 10px;
-    }
-
-    /* --- PODIUM --- */
-    .row.rank-1 { background: linear-gradient(90deg, #ffd700 0%, #ffef94 100%) !important; color: #222 !important; }
-    .row.rank-1 * { color: #222 !important; }
-    .row.rank-2 { background: linear-gradient(90deg, #c0c0c0 0%, #e8e8e8 100%) !important; color: #222 !important; }
-    .row.rank-2 * { color: #222 !important; }
-    .row.rank-3 { background: linear-gradient(90deg, #cd7f32 0%, #ffb36b 100%) !important; color: #fff !important; }
-
-    .clock { font-family: 'Courier New', Courier, monospace; font-size: 1.8em; font-weight: bold; }
-  </style>
+    <meta charset="UTF-8">
+    <title>Résultats en Direct</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <style>
+        body { font-family: 'DM Sans', sans-serif; background: linear-gradient(135deg, #0e2228 0%, #050b0d 100%); color: white; margin: 0; padding: 20px; text-align: center; }
+        .header { background: rgba(21, 48, 57, 0.8); padding: 20px; border-radius: 15px; border: 1px solid #224f5e; margin-bottom: 20px; }
+        table { width: 100%; max-width: 900px; margin: 0 auto; border-collapse: collapse; background: #153039; border-radius: 10px; overflow: hidden; }
+        th { background: #0fb8c9; color: #0e2228; padding: 15px; text-transform: uppercase; }
+        td { padding: 12px; border-bottom: 1px solid #224f5e; }
+        .score-cell { font-weight: bold; color: #0fb8c9; font-size: 1.2em; text-align: right; }
+    </style>
 </head>
 <body>
 
-  <div class="header">
-    <div class="comp-name" id="compTitle">Chargement...</div>
-    <div class="clock" id="clock">00:00:00</div>
-  </div>
+<div class="header">
+    <h1 id="compTitle">CHARGEMENT...</h1>
+    <p id="status" style="color: #94a3b8;">Connexion à Firebase en cours...</p>
+</div>
 
-  <div class="ranking-container">
-    <div class="grid-scroll" id="tableScroll">
-      <div class="view-title" id="currentViewTitle">Chargement...</div>
-      <div class="grid-header">
-        <div style="text-align: center;">#</div>
-        <div>TIREUR</div>
-        <div>CLUB</div>
-        <div style="text-align: right;">SCORE</div>
-      </div>
-      <div id="listRows">
-        </div>
-    </div>
-  </div>
+<table id="resultTable">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Tireur</th>
+            <th>Club</th>
+            <th style="text-align: right;">Score</th>
+        </tr>
+    </thead>
+    <tbody id="resBody"></tbody>
+</table>
 
-  <script>
+<script>
     const firebaseConfig = {
-      apiKey: "AIzaSyAvfMRtRrhh_e-27xHlwIx9c5DIdUQm6HM",
-      authDomain: "resultats-tir-ligue-lr.firebaseapp.com",
-      databaseURL: "https://resultats-tir-ligue-lr-default-rtdb.europe-west1.firebasedatabase.app",
-      projectId: "resultats-tir-ligue-lr",
-      storageBucket: "resultats-tir-ligue-lr.firebasestorage.app",
-      appId: "1:468808300974:web:563a14cc4477c10b28303f"
+        apiKey: "AIzaSyAvfMRtRrhh_e-27xHlwIx9c5DIdUQm6HM",
+        authDomain: "resultats-tir-ligue-lr.firebaseapp.com",
+        databaseURL: "https://resultats-tir-ligue-lr-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "resultats-tir-ligue-lr",
+        storageBucket: "resultats-tir-ligue-lr.firebasestorage.app",
+        appId: "1:468808300974:web:563a14cc4477c10b28303f"
     };
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-    const urlParams = new URLSearchParams(window.location.search);
-    const COMP_ID = urlParams.get('comp') || 'GENERAL';
 
-    let allShooters = [];
-    let rotateViews = [];
-    let currentIdx = 0;
-    let scrollTimer, rotateTimer;
+    // On récupère l'ID et on le force en MAJUSCULES pour correspondre à Firebase
+    const params = new URLSearchParams(window.location.search);
+    let rawId = params.get('comp') || "";
+    const compId = rawId.toUpperCase(); 
 
-    const perViewSeconds = 15; // Un peu plus long car beaucoup de tireurs
-    const scrollPadding = 2500; 
+    if (compId) {
+        document.getElementById('status').textContent = "Recherche du dossier : " + compId;
 
-    function init() {
-      db.ref(`${COMP_ID}/config/name`).on('value', s => {
-        document.getElementById('compTitle').textContent = s.val() || COMP_ID;
-      });
+        // On écoute le dossier (ex: TAR_2026)
+        db.ref(compId).on('value', (snap) => {
+            const fullData = snap.val();
+            const tbody = document.getElementById('resBody');
+            tbody.innerHTML = '';
 
-      db.ref(`${COMP_ID}/shooters`).on('value', snap => {
-        allShooters = snap.exists() ? Object.values(snap.val()) : [];
-        prepareRotation();
-      });
+            if (fullData && fullData.shooters) {
+                document.getElementById('status').textContent = "Données trouvées !";
+                document.getElementById('compTitle').textContent = fullData.config ? fullData.config.name : compId;
 
-      setInterval(() => {
-        document.getElementById('clock').textContent = new Date().toLocaleTimeString();
-      }, 1000);
-    }
-
-    function prepareRotation() {
-      const groups = {};
-      allShooters.forEach(s => {
-        const key = `${s.discipline} - ${s.category}`;
-        if (!groups[key]) groups[key] = [];
-        groups[key].push(s);
-      });
-
-      rotateViews = Object.keys(groups).sort().map(key => ({
-        title: key,
-        shooters: groups[key].sort((a, b) => b.score - a.score)
-      }));
-
-      if (rotateViews.length > 0) startRotation();
-    }
-
-    function startRotation() {
-      clearTimeout(rotateTimer);
-      showView();
-    }
-
-    function showView() {
-      if (currentIdx >= rotateViews.length) currentIdx = 0;
-      const view = rotateViews[currentIdx];
-      document.getElementById('currentViewTitle').textContent = view.title;
-      
-      const listRows = document.getElementById('listRows');
-      listRows.innerHTML = view.shooters.map((s, i) => {
-        let rankClass = (i === 0) ? 'rank-1' : (i === 1) ? 'rank-2' : (i === 2) ? 'rank-3' : '';
-        return `
-          <div class="row ${rankClass}">
-            <div class="rank">${i + 1}</div>
-            <div class="name">${s.lastName} ${s.firstName}</div>
-            <div class="club">${s.club || ''}</div>
-            <div class="score">${s.score}</div>
-          </div>
-        `;
-      }).join('');
-
-      const scroller = document.getElementById('tableScroll');
-      scroller.scrollTop = 0;
-      clearInterval(scrollTimer);
-
-      setTimeout(() => {
-        // On mesure à partir des lignes uniquement (titres exclus)
-        const maxScroll = scroller.scrollHeight - scroller.clientHeight;
-        if (maxScroll > 10) {
-          const duration = (perViewSeconds * 1000) - (scrollPadding * 2);
-          const step = maxScroll / (duration / 30);
-          
-          scrollTimer = setInterval(() => {
-            scroller.scrollTop += step;
-            if (scroller.scrollTop >= maxScroll - 1) {
-              clearInterval(scrollTimer);
-              setTimeout(goNext, scrollPadding);
+                const list = Object.values(fullData.shooters).sort((a,b) => b.score - a.score);
+                list.forEach((t, index) => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td>${t.firstName} ${t.lastName}</td>
+                            <td>${t.club || '-'}</td>
+                            <td class="score-cell">${t.score}</td>
+                        </tr>
+                    `;
+                });
+            } else {
+                document.getElementById('status').textContent = "Aucun tireur trouvé dans le dossier " + compId;
+                tbody.innerHTML = '<tr><td colspan="4">En attente de résultats...</td></tr>';
             }
-          }, 30);
-        } else {
-          rotateTimer = setTimeout(goNext, perViewSeconds * 1000);
-        }
-      }, scrollPadding);
+        });
     }
-
-    function goNext() {
-      currentIdx++;
-      showView();
-    }
-
-    init();
-  </script>
+</script>
 </body>
 </html>
