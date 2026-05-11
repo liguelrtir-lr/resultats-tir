@@ -2,115 +2,45 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>LIVE — Résultats Ligue LR</title>
+    <title>LIVE — Ligue LR</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #ffffff; /* Fond Blanc Brillant */
-            --header-bg: #f8f9fa;
-            --accent: #007bff; /* Bleu Ligue */
-            --gold: #fff9db; /* Jaune très clair pour fond Or */
-            --gold-border: #fcc419; /* Bordure Or éclatante */
-            --silver: #f1f3f5; /* Gris clair pour fond Argent */
-            --silver-border: #adb5bd; /* Bordure Argent */
-            --bronze: #fff4e6; /* Orange très clair pour fond Bronze */
-            --bronze-border: #fd7e14; /* Bordure Bronze éclatante */
-            --text-main: #212529;
-            --text-sub: #868e96;
+            --bg: #ffffff;
+            --accent: #007bff;
+            --gold: #fff9db; --gold-b: #fcc419;
+            --silver: #f1f3f5; --silver-b: #adb5bd;
+            --bronze: #fff4e6; --bronze-b: #fd7e14;
         }
-
-        body {
-            font-family: 'Roboto', sans-serif;
-            background: var(--bg);
-            color: var(--text-main);
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-        }
-
-        /* HEADER LUMINEUX ET PLUS FIN */
-        .header {
-            background: var(--header-bg);
-            padding: 15px;
-            text-align: center;
-            border-bottom: 2px solid var(--accent);
-            position: relative;
-            z-index: 100;
-        }
-
-        h1 {
-            font-family: 'Oswald', sans-serif;
-            margin: 0;
-            font-size: 2.2rem;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: var(--accent);
-        }
-
-        /* CONTENEUR DE DÉFILEMENT */
-        .scroll-container {
-            height: calc(100vh - 80px);
-            overflow-y: hidden;
-            padding: 0 30px;
-        }
-
-        /* TITRE DE CATÉGORIE STICKY */
-        .category-header {
-            position: sticky;
-            top: 0;
-            background: var(--bg);
-            padding: 15px 0;
-            z-index: 50;
-            margin-top: 20px;
-        }
-
-        .category-title {
-            background: var(--header-bg);
-            color: var(--accent);
-            padding: 12px 20px;
-            border-radius: 6px;
-            font-family: 'Oswald', sans-serif;
-            font-size: 1.6rem;
-            border-left: 6px solid var(--accent);
-            text-align: left;
-        }
-
-        /* TABLEAU ET LIGNES */
-        table { width: 100%; border-collapse: separate; border-spacing: 0 5px; margin-bottom: 40px; }
+        body { font-family: 'Roboto', sans-serif; background: var(--bg); color: #212529; margin: 0; overflow: hidden; }
         
-        tr { background: #f8f9fa; }
-        
-        td { padding: 12px; font-size: 1.3rem; font-weight: 400; border-top: 1px solid #e9ecef; border-bottom: 1px solid #e9ecef; }
+        .header { background: #f8f9fa; padding: 10px; text-align: center; border-bottom: 2px solid var(--accent); }
+        h1 { font-family: 'Oswald', sans-serif; margin: 0; font-size: 1.8rem; text-transform: uppercase; color: var(--accent); }
 
-        /* MÉDAILLES ÉCLATANTES SUR FOND BLANC */
-        .medal-1 { background: var(--gold) !important; border: 1px solid var(--gold-border) !important; }
-        .medal-1 .score { color: var(--gold-border); }
-        .medal-1 .rank { color: var(--gold-border); }
+        .scroll-container { height: calc(100vh - 65px); overflow-y: hidden; padding: 0 20px; }
 
-        .medal-2 { background: var(--silver) !important; border: 1px solid var(--silver-border) !important; }
-        .medal-2 .score { color: var(--silver-border); }
-        .medal-2 .rank { color: var(--silver-border); }
+        .cat-header { position: sticky; top: 0; background: var(--bg); padding: 10px 0; z-index: 50; }
+        .cat-title { background: #e9ecef; color: var(--accent); padding: 8px 15px; border-radius: 4px; font-family: 'Oswald', sans-serif; font-size: 1.4rem; border-left: 5px solid var(--accent); }
 
-        .medal-3 { background: var(--bronze) !important; border: 1px solid var(--bronze-border) !important; }
-        .medal-3 .score { color: var(--bronze-border); }
-        .medal-3 .rank { color: var(--bronze-border); }
+        table { width: 100%; border-collapse: separate; border-spacing: 0 4px; margin-bottom: 30px; }
+        td { padding: 10px; font-size: 1.2rem; border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; }
 
-        .rank { width: 70px; text-align: center; font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 1.5rem; color: #adb5bd; }
-        .score { text-align: right; color: var(--accent); font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 1.8rem; padding-right: 30px; }
-        .club { color: var(--text-sub); font-size: 0.9rem; text-transform: uppercase; margin-top: 3px; }
+        /* MÉDAILLES SUR FOND BLANC */
+        .m1 { background: var(--gold) !important; border-color: var(--gold-b) !important; color: #856404; }
+        .m2 { background: var(--silver) !important; border-color: var(--silver-b) !important; color: #495057; }
+        .m3 { background: var(--bronze) !important; border-color: var(--bronze-b) !important; color: #854226; }
+
+        .rank { width: 50px; text-align: center; font-family: 'Oswald', sans-serif; font-weight: 700; }
+        .score { text-align: right; font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 1.5rem; color: var(--accent); padding-right: 20px; }
+        .club { color: #6c757d; font-size: 0.85rem; text-transform: uppercase; }
     </style>
 </head>
 <body>
 
-<div class="header">
-    <h1 id="compTitle">RÉSULTATS LIVE — LIGUE LR</h1>
-</div>
-
-<div class="scroll-container" id="scrollBox">
-    <div id="content"></div>
-</div>
+<div class="header"><h1 id="compTitle">CHARGEMENT...</h1></div>
+<div class="scroll-container" id="scrollBox"><div id="content"></div></div>
 
 <script>
     const firebaseConfig = {
@@ -125,20 +55,23 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     const params = new URLSearchParams(window.location.search);
-    const compId = params.get('comp');
+    let compId = params.get('comp');
 
     if (compId) {
-        db.ref().on('value', (snapshot) => {
-            const all = snapshot.val();
+        // ON SCANNE TOUTE LA BASE POUR NE PAS RATER LE TAR
+        db.ref().on('value', (snap) => {
+            const all = snap.val();
             if (!all) return;
 
-            let data = all[compId] || (all.competitions ? all.competitions[compId] : null);
+            // Détection (TAR_2026, tar_2026, competitions/TAR_2026, etc.)
+            const idUpper = compId.toUpperCase();
+            let data = all[idUpper] || all[compId] || (all.competitions ? (all.competitions[idUpper] || all.competitions[compId]) : null);
 
             if (data) {
                 document.getElementById('compTitle').textContent = data.config ? data.config.name : compId;
                 let raw = data.shooters || data.shootters || data;
-                let list = Object.values(raw).filter(s => s && typeof s === 'object' && s.lastName);
-                if (list.length > 0) render(list);
+                let shooters = Object.values(raw).filter(s => s && typeof s === 'object' && s.lastName);
+                if (shooters.length > 0) render(shooters);
             }
         });
     }
@@ -149,51 +82,37 @@
         const groups = {};
 
         shooters.forEach(s => {
-            let cat = s.discipline || s.category || "AUTRES ÉPREUVES";
+            let cat = s.discipline || s.category || "AUTRES";
             if (!groups[cat]) groups[cat] = [];
             groups[cat].push(s);
         });
 
         Object.keys(groups).sort().forEach(catName => {
-            const catWrapper = document.createElement('div');
             const sorted = groups[catName].sort((a,b) => (Number(b.score) || 0) - (Number(a.score) || 0));
-            
-            let html = `
-                <div class="category-header"><div class="category-title">${catName}</div></div>
-                <table>
-                    <tbody>`;
+            let html = `<div class="cat-header"><div class="cat-title">${catName}</div></div><table><tbody>`;
             
             sorted.forEach((s, i) => {
                 const rank = i + 1;
-                let medalClass = rank === 1 ? "medal-1" : rank === 2 ? "medal-2" : rank === 3 ? "medal-3" : "";
-                
-                html += `
-                    <tr class="${medalClass}">
-                        <td class="rank">${rank}</td>
-                        <td>
-                            <span>${s.firstName}</span> 
-                            <span style="text-transform:uppercase; font-weight:700;">${s.lastName}</span>
-                            <div class="club">${s.club || '-'}</div>
-                        </td>
-                        <td class="score">${s.score || 0}</td>
-                    </tr>`;
+                const m = rank === 1 ? "m1" : rank === 2 ? "m2" : rank === 3 ? "m3" : "";
+                html += `<tr class="${m}">
+                    <td class="rank">${rank}</td>
+                    <td><b>${s.firstName} ${s.lastName.toUpperCase()}</b><div class="club">${s.club || ''}</div></td>
+                    <td class="score">${s.score || 0}</td>
+                </tr>`;
             });
             html += `</tbody></table>`;
-            catWrapper.innerHTML = html;
-            content.appendChild(catWrapper);
+            content.innerHTML += html;
         });
         startAutoScroll();
     }
 
-    let scrollInterval;
     function startAutoScroll() {
-        if (scrollInterval) clearInterval(scrollInterval);
         const box = document.getElementById('scrollBox');
-        let speed = 1;
-        scrollInterval = setInterval(() => {
-            box.scrollTop += speed;
+        if (window.itv) clearInterval(window.itv);
+        window.itv = setInterval(() => {
+            box.scrollTop += 1;
             if (box.scrollTop + box.clientHeight >= box.scrollHeight - 1) {
-                setTimeout(() => { box.scrollTop = 0; }, 4000); 
+                setTimeout(() => { box.scrollTop = 0; }, 3000);
             }
         }, 40);
     }
