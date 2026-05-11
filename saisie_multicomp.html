@@ -2,89 +2,97 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Saisie Officielle — Ligue LR</title>
+    <title>Saisie Dynamique — Ligue LR</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
-        .container { max-width: 900px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         header { border-bottom: 2px solid #007bff; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
         
-        .form-group { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e9ecef; }
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-        input, select { padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 1rem; width: 100%; box-sizing: border-box; }
+        .form-group { background: #eef2f7; padding: 20px; border-radius: 10px; margin-bottom: 25px; border: 1px solid #d1d9e6; }
+        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px; }
+        label { display: block; font-size: 0.85rem; font-weight: bold; color: #555; margin-bottom: 5px; }
+        input, select { padding: 12px; border: 1px solid #bcc6d2; border-radius: 6px; font-size: 1rem; width: 100%; box-sizing: border-box; }
         
-        .btn-add { background: #28a745; color: white; border: none; padding: 12px; border-radius: 5px; cursor: pointer; width: 100%; font-weight: bold; font-size: 1.1rem; }
-        .search-box { background: #fff; border: 2px solid #007bff; padding: 12px; border-radius: 8px; width: 100%; margin-bottom: 20px; font-size: 1rem; }
+        .type-selector { background: #007bff; color: white; font-weight: bold; cursor: pointer; }
+        .btn-add { background: #28a745; color: white; border: none; padding: 15px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; font-size: 1.1rem; }
+        .search-box { background: #fff; border: 2px solid #007bff; padding: 15px; border-radius: 8px; width: 100%; margin-bottom: 20px; font-size: 1.1rem; box-sizing: border-box; }
         
-        .shooter-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; }
-        .shooter-info { flex-grow: 1; }
-        .score-input { width: 80px; padding: 8px; text-align: center; font-weight: bold; border: 2px solid #007bff; border-radius: 5px; color: #007bff; }
+        .shooter-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; }
+        .score-input { width: 90px; padding: 10px; text-align: center; font-weight: bold; border: 2px solid #007bff; border-radius: 6px; color: #007bff; font-size: 1.2rem; }
         .save-anim { color: #28a745; font-weight: bold; margin-left: 10px; display: none; }
-        .btn-back { text-decoration: none; color: #666; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <header>
-        <h1 style="margin:0; color:#007bff;">Saisie des Résultats</h1>
-        <a href="index_admin.html" class="btn-back">← Retour</a>
+        <h1 style="margin:0; color:#007bff;">🎯 Saisie Intelligente</h1>
+        <a href="index_admin.html" style="text-decoration:none; font-weight:bold; color:#666;">← Retour</a>
     </header>
 
     <div class="form-group">
-        <h3 style="margin-top:0;">Ajouter un nouveau tireur</h3>
+        <h3 style="margin-top:0;">1. Choisir le groupe d'épreuve</h3>
+        <select id="typeSelector" class="type-selector" onchange="updateMenus()">
+            <option value="TAR">TAR (Tir aux Armes Réglementaires)</option>
+            <option value="ISSF10">ISSF 10 Mètres</option>
+            <option value="ISSF2550">ISSF 25 / 50 Mètres</option>
+            <option value="MLAIC">MLAIC (Armes Anciennes)</option>
+            <option value="EDT">EDT (École de Tir)</option>
+        </select>
+
+        <h3 style="margin-top:20px;">2. Détails du Tireur</h3>
         <div class="form-row">
-            <input type="text" id="newNom" placeholder="NOM (en majuscules)">
-            <input type="text" id="newPrenom" placeholder="Prénom">
+            <div><label>NOM</label><input type="text" id="newNom" placeholder="NOM"></div>
+            <div><label>Prénom</label><input type="text" id="newPrenom" placeholder="Prénom"></div>
+            <div><label>Club</label><input type="text" id="newClub" placeholder="Club"></div>
         </div>
         <div class="form-row">
-            <select id="newDiscipline">
-                <optgroup label="TAR (Épreuves 800)">
-                    <option value="810 - Fusil Répétition">810 - Fusil Répétition</option>
-                    <option value="812 - Fusil Semi-Auto">812 - Fusil Semi-Auto</option>
-                    <option value="815 - Fusil Modifié">815 - Fusil Modifié</option>
-                    <option value="816 - Fusil Semi-Auto PC">816 - Fusil Semi-Auto PC</option>
-                    <option value="820 - Carabine 22 LR">820 - Carabine 22 LR</option>
-                    <option value="830 - Pistolet-Revolver">830 - Pistolet-Revolver</option>
-                    <option value="831 - Vitesse Militaire">831 - Vitesse Militaire</option>
-                    <option value="832 - Armes poing auth.">832 - Armes poing auth.</option>
-                </optgroup>
-                <optgroup label="ISSF / Standard">
-                    <option value="Pistolet 10m">Pistolet 10m</option>
-                    <option value="Standard 10m">Standard 10m</option>
-                    <option value="Pistolet 25m">Pistolet 25m</option>
-                    <option value="Standard 25m">Standard 25m</option>
-                    <option value="Percussion Centrale">Percussion Centrale</option>
-                    <option value="Carabine 3x20">Carabine 3x20</option>
-                    <option value="Vitesse 25m">Vitesse 25m</option>
-                </optgroup>
-            </select>
-            <select id="newCategorie">
-                <option value="D1">D1 (Dame 1)</option>
-                <option value="D2">D2 (Dame 2)</option>
-                <option value="D3">D3 (Dame 3)</option>
-                <option value="S1">S1 (Senior 1)</option>
-                <option value="S2">S2 (Senior 2)</option>
-                <option value="S3">S3 (Senior 3)</option>
-                <option value="JF">JF (Junior Fille)</option>
-                <option value="JG">JG (Junior Garçon)</option>
-                <optgroup label="Para-Tir">
-                    <option value="P1">P1 (Pistolet SH1)</option>
-                    <option value="P2">P2 (Pistolet SH1 Dame)</option>
-                    <option value="R1">R1 (Carabine SH1)</option>
-                </optgroup>
-            </select>
+            <div><label>Discipline</label><select id="newDiscipline"></select></div>
+            <div><label>Catégorie</label><select id="newCategorie"></select></div>
         </div>
-        <input type="text" id="newClub" placeholder="Club" style="margin-bottom:10px;">
-        <button class="btn-add" onclick="addShooter()">Ajouter à la liste</button>
+        <button class="btn-add" onclick="addShooter()">Enregistrer le tireur</button>
     </div>
 
-    <input type="text" id="search" class="search-box" placeholder="🔍 Rechercher un tireur ou un club..." onkeyup="filterList()">
+    <input type="text" id="search" class="search-box" placeholder="🔍 Rechercher dans la liste..." onkeyup="filterList()">
     <div id="shooterList"></div>
 </div>
 
 <script>
+    const dataRef = {
+        TAR: {
+            disc: ["810 - Fusil Répétition", "812 - Fusil Semi-Auto", "815 - Fusil Modifié", "816 - Fusil S.A. PC", "820 - Carabine 22", "830 - Pistolet-Revolver", "831 - Vitesse Militaire", "832 - Armes poing auth."],
+            cats: ["S1", "S2", "S3", "D1"]
+        },
+        ISSF10: {
+            disc: ["Pistolet 10m", "Pistolet Standard 10m", "Pistolet Vitesse 10m", "Carabine 10m"],
+            cats: ["S1", "S2", "S3", "D1", "D2", "D3", "JG", "JF", "CG", "CF", "P1", "P2", "R1", "R2"]
+        },
+        ISSF2550: {
+            disc: ["Pistolet 25m", "Pistolet Vitesse 25m", "Pistolet Standard 25m", "Percussion Centrale", "Pistolet 50m", "Carabine 60 BC", "Carabine 3x20"],
+            cats: ["S1", "S2", "S3", "D1", "D2", "JG", "JF"]
+        },
+        MLAIC: {
+            disc: ["Miquelet", "Maximilian", "Minie", "Whitworth", "Cominazzo", "Kuchenreuter", "Mariette", "Vetterli"],
+            cats: ["S1", "D1"]
+        },
+        EDT: {
+            disc: ["Pistolet 10m EDT", "Pistolet Vitesse EDT", "Carabine 10m EDT"],
+            cats: ["Poussin Garçon", "Poussin Fille", "Benjamin Garçon", "Benjamin Fille", "Minime Garçon", "Minime Fille"]
+        }
+    };
+
+    function updateMenus() {
+        const type = document.getElementById('typeSelector').value;
+        const dMenu = document.getElementById('newDiscipline');
+        const cMenu = document.getElementById('newCategorie');
+        
+        dMenu.innerHTML = dataRef[type].disc.map(d => `<option value="${d}">${d}</option>`).join('');
+        cMenu.innerHTML = dataRef[type].cats.map(c => `<option value="${c}">${c}</option>`).join('');
+    }
+
+    // INITIALISATION FIREBASE (Vérifiée)
     const firebaseConfig = {
         apiKey: "AIzaSyAvfMRtRrhh_e-27xHlwIx9c5DIdUQm6HM",
         authDomain: "resultats-tir-ligue-lr.firebaseapp.com",
@@ -101,7 +109,6 @@
     let shootersData = [];
 
     if (compId) {
-        // Écoute des données à la nouvelle racine
         db.ref(compId + '/shooters').on('value', (snap) => {
             const data = snap.val() || {};
             shootersData = Object.keys(data).map(key => ({ id: key, ...data[key] }));
@@ -111,17 +118,16 @@
 
     function addShooter() {
         const nom = document.getElementById('newNom').value.toUpperCase();
-        if (!nom) return alert("Le nom est obligatoire");
+        const prenom = document.getElementById('newPrenom').value;
+        if (!nom || !prenom) return alert("Nom et Prénom requis");
 
         const s = {
-            lastName: nom,
-            firstName: document.getElementById('newPrenom').value,
+            lastName: nom, firstName: prenom,
             discipline: document.getElementById('newDiscipline').value,
             category: document.getElementById('newCategorie').value,
             club: document.getElementById('newClub').value || "-",
             score: 0
         };
-        
         db.ref(compId + '/shooters').push(s);
         document.getElementById('newNom').value = '';
         document.getElementById('newPrenom').value = '';
@@ -130,8 +136,6 @@
     function renderList(list) {
         const cont = document.getElementById('shooterList');
         cont.innerHTML = '';
-        
-        // Tri par Nom puis Discipline
         list.sort((a,b) => a.lastName.localeCompare(b.lastName)).forEach(s => {
             cont.innerHTML += `
                 <div class="shooter-item">
@@ -156,14 +160,11 @@
 
     function filterList() {
         const q = document.getElementById('search').value.toLowerCase();
-        const filtered = shootersData.filter(s => 
-            s.lastName.toLowerCase().includes(q) || 
-            s.firstName.toLowerCase().includes(q) || 
-            s.club.toLowerCase().includes(q) ||
-            s.discipline.toLowerCase().includes(q)
-        );
+        const filtered = shootersData.filter(s => s.lastName.toLowerCase().includes(q) || s.firstName.toLowerCase().includes(q));
         renderList(filtered);
     }
+
+    updateMenus(); // Appel initial
 </script>
 </body>
 </html>
