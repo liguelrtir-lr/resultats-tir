@@ -2,41 +2,34 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>LIVE — Classement par Épreuves</title>
+    <title>LIVE — Résultats Ligue LR</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
     <style>
         :root { --bg: #050b0d; --surface: #0e2228; --accent: #0fb8c9; --gold: #ffd700; --silver: #c0c0c0; --bronze: #cd7f32; }
         body { font-family: 'Rajdhani', sans-serif; background: var(--bg); color: white; margin: 0; padding: 0; overflow: hidden; }
-        .header { background: linear-gradient(to bottom, #153039, var(--bg)); padding: 15px; text-align: center; border-bottom: 2px solid var(--accent); position: sticky; top: 0; z-index: 10; }
+        .header { background: linear-gradient(to bottom, #153039, var(--bg)); padding: 15px; text-align: center; border-bottom: 2px solid var(--accent); }
         h1 { font-family: 'Orbitron', sans-serif; margin: 0; font-size: 2rem; text-transform: uppercase; color: var(--accent); }
         .scroll-container { height: calc(100vh - 100px); overflow-y: hidden; padding: 0 20px; }
-        .category-header { 
-            background: rgba(15, 184, 201, 0.1); 
-            color: var(--accent); 
-            padding: 12px; 
-            margin: 30px 0 10px 0; 
-            border-radius: 4px; 
-            font-family: 'Orbitron', sans-serif;
-            font-size: 1.6rem;
-            border-left: 4px solid var(--accent);
-            text-align: left;
+        .category-title { 
+            background: rgba(15, 184, 201, 0.1); color: var(--accent); padding: 10px; 
+            margin: 25px 0 10px 0; border-radius: 4px; font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem; border-left: 4px solid var(--accent); text-align: left;
         }
         table { width: 100%; border-collapse: collapse; margin-bottom: 30px; background: var(--surface); }
-        th { font-family: 'Orbitron', sans-serif; padding: 10px; color: var(--accent); border-bottom: 1px solid var(--accent); text-align: left; font-size: 0.9rem; }
+        th { font-family: 'Orbitron', sans-serif; padding: 10px; color: var(--accent); border-bottom: 1px solid var(--accent); text-align: left; }
         td { padding: 10px; font-size: 1.3rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
         .rank { width: 60px; text-align: center; font-weight: bold; }
         .rank-1 { color: var(--gold); } .rank-2 { color: var(--silver); } .rank-3 { color: var(--bronze); }
-        .score { text-align: right; color: var(--accent); font-family: 'Orbitron', sans-serif; font-weight: bold; padding-right: 15px; }
-        .club { color: #94a3b8; font-size: 0.9rem; }
+        .score { text-align: right; color: var(--accent); font-family: 'Orbitron', sans-serif; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1 id="compTitle">SCAN DES ÉPREUVES...</h1>
-    <div id="status" style="font-size: 0.9rem; opacity: 0.7;">Initialisation...</div>
+    <h1 id="compTitle">RECHERCHE...</h1>
+    <div id="status">Chargement des données...</div>
 </div>
 
 <div class="scroll-container" id="scrollBox">
@@ -59,60 +52,57 @@
     const compId = params.get('comp');
 
     if (compId) {
-        db.ref().on('value', (snapshot) => {
-            const allData = snapshot.val();
-            if (!allData) return;
+        // ON ÉCOUTE TOUT POUR NE RIEN RATER
+        db.ref().on('value', (snap) => {
+            const all = snap.val();
+            if (!all) return;
 
-            let targetData = allData[compId] || (allData.competitions ? allData.competitions[compId] : null);
+            // On cherche le TAR ou autre
+            let data = all[compId] || (all.competitions ? all.competitions[compId] : null);
 
-            if (targetData) {
-                document.getElementById('compTitle').textContent = targetData.config ? targetData.config.name : compId;
+            if (data) {
+                document.getElementById('compTitle').textContent = data.config ? data.config.name : compId;
                 
-                let rawList = targetData.shooters || targetData.shootters || targetData;
-                const shooters = Object.values(rawList).filter(s => s && typeof s === 'object' && (s.lastName || s.firstName));
+                // On prend les tireurs peu importe où ils sont rangés
+                let shootersObj = data.shooters || data.shootters || data;
+                let list = Object.values(shootersObj).filter(s => s && typeof s === 'object' && s.lastName);
 
-                if (shooters.length > 0) {
-                    renderCategories(shooters);
-                } else {
-                    document.getElementById('status').textContent = "Aucun tireur trouvé dans ce dossier.";
+                if (list.length > 0) {
+                    render(list);
                 }
-            } else {
-                document.getElementById('status').textContent = "ID " + compId + " non trouvé.";
             }
         });
     }
 
-    function renderCategories(shooters) {
+    function render(shooters) {
         const content = document.getElementById('content');
         content.innerHTML = '';
 
-        const grouped = {};
+        // GROUPEMENT
+        const groups = {};
         shooters.forEach(s => {
-            // ON CHERCHE LA DISCIPLINE DANS TOUTES LES CLÉS POSSIBLES
-            const cat = s.discipline || s.category || s.disciplineName || s.event || "CLASSEMENT GÉNÉRAL";
-            if (!grouped[cat]) grouped[cat] = [];
-            grouped[cat].push(s);
+            // On essaie de trouver une discipline, sinon on met "GÉNÉRAL"
+            let cat = s.discipline || s.category || "CLASSEMENT GÉNÉRAL";
+            if (!groups[cat]) groups[cat] = [];
+            groups[cat].push(s);
         });
 
-        const sortedCategories = Object.keys(grouped).sort();
-
-        sortedCategories.forEach(catName => {
-            const sorted = grouped[catName].sort((a,b) => (Number(b.score) || 0) - (Number(a.score) || 0));
+        // AFFICHAGE DES GROUPES
+        Object.keys(groups).sort().forEach(catName => {
+            const sorted = groups[catName].sort((a,b) => (Number(b.score) || 0) - (Number(a.score) || 0));
             
-            let html = `<div class="category-header">${catName}</div>
+            let html = `<div class="category-title">${catName}</div>
                         <table>
-                            <thead><tr><th>Rang</th><th>Tireur</th><th>Club</th><th style="text-align:right">Score</th></tr></thead>
+                            <thead><tr><th style="width:70px">Rang</th><th>Tireur</th><th style="text-align:right">Score</th></tr></thead>
                             <tbody>`;
             
             sorted.forEach((s, i) => {
                 const rank = i + 1;
                 const rClass = rank === 1 ? "rank-1" : rank === 2 ? "rank-2" : rank === 3 ? "rank-3" : "";
                 const medal = rank === 1 ? "🥇 " : rank === 2 ? "🥈 " : rank === 3 ? "🥉 " : "";
-                
                 html += `<tr>
                             <td class="rank ${rClass}">${medal}${rank}</td>
-                            <td>${s.firstName || ''} <span style="text-transform:uppercase; font-weight:700;">${s.lastName || ''}</span></td>
-                            <td class="club">${s.club || '-'}</td>
+                            <td>${s.firstName} <b>${s.lastName.toUpperCase()}</b><br><small style="color:#94a3b8">${s.club || ''}</small></td>
                             <td class="score">${s.score || 0}</td>
                          </tr>`;
             });
@@ -120,7 +110,7 @@
             content.innerHTML += html;
         });
 
-        document.getElementById('status').textContent = shooters.length + " tireurs classés par épreuve";
+        document.getElementById('status').textContent = shooters.length + " tireurs classés";
         startAutoScroll();
     }
 
