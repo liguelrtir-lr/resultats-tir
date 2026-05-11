@@ -8,239 +8,221 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
-    :root{ --sbw: 12px; }
-
-    body{
-      font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    body {
+      font-family:'Segoe UI', sans-serif;
       background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
       color: white;
-      overflow-x: hidden;
-      min-height: 100vh;
+      height: 100vh;
+      overflow: hidden;
       display: flex;
       flex-direction: column;
     }
 
-    .container{ max-width: 100%; margin: 0 auto; flex: 1; display: flex; flex-direction: column; }
-
-    .header{
-      position: relative; text-align: center; padding: 18px 30px;
-      background: linear-gradient(135deg, #4f7cff 0%, #7c3aed 50%, #4f7cff 100%);
-      overflow: hidden; z-index: 10;
+    /* HEADER */
+    .header {
+      padding: 20px;
+      background: rgba(0,0,0,0.4);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #0fb8c9;
     }
-    .header h1{ font-size: 2em; font-weight: 950; letter-spacing: 2px; color: #ffffff; }
-    .header .competition-name{ font-size: 1.1em; color: #ffffff; font-weight: 700; margin-bottom: 8px; }
-    .header .live-indicator{
-      display: inline-block; padding: 5px 14px; background: red; border-radius: 20px;
-      font-weight: bold; font-size: 0.78em; animation: pulse 2s infinite;
-    }
-    .header-clock { font-size: 1.5em; font-weight: 900; color: rgba(255,255,255,0.9); margin-top: 6px; }
+    .comp-name { font-size: 1.8em; font-weight: 800; color: #0fb8c9; text-transform: uppercase; }
 
-    .ranking-container{
-      background: rgba(255,255,255,0.98); border-radius: 30px; padding: 22px;
-      flex: 1; margin: 12px 16px 0 16px; color: #111; display: flex; flex-direction: column; overflow: hidden;
+    /* ZONE DE CLASSEMENT FIXE POUR FORCER LE SCROLL */
+    .ranking-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      max-height: calc(100vh - 100px); /* Laisse de la place pour le header */
     }
 
-    .ranking-title{ font-size: 1.8em; color: #1e3c72; text-align: center; margin-bottom: 18px; font-weight: 800; border-bottom: 4px solid rgba(30,60,114,0.1); padding-bottom: 10px; }
+    .view-title {
+      background: #0fb8c9;
+      color: #0e2228;
+      padding: 10px 20px;
+      font-size: 1.5em;
+      font-weight: bold;
+      border-radius: 10px 10px 0 0;
+      text-align: center;
+    }
 
-    .ranking-grid{ --col-rank: 65px; --col-club: 180px; --col-score: 150px; flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-    .grid-head{ display: grid; grid-template-columns: var(--col-rank) 1fr var(--col-club) var(--col-score); background: #1e3c72; color: #fff; border-radius: 12px; margin-bottom: 8px; }
-    .hcell{ padding: 18px; font-weight: 800; text-transform: uppercase; font-size: 1.1em; text-align: center; }
-    .hcell:nth-child(2) { text-align: left; }
+    .grid-header {
+      display: grid;
+      grid-template-columns: 60px 1fr 150px 100px;
+      background: #1c3d49;
+      padding: 15px;
+      font-weight: bold;
+      border-bottom: 2px solid #0fb8c9;
+    }
 
-    .grid-scroll{ flex: 1; overflow-y: auto; scroll-behavior: smooth; }
-    .grid-row{ display: grid; grid-template-columns: var(--col-rank) 1fr var(--col-club) var(--col-score); align-items: center; margin-bottom: 7px; background: rgba(30,60,114,0.05); border-radius: 10px; }
+    /* LA ZONE QUI DOIT DEFILER */
+    .grid-scroll {
+      flex: 1;
+      overflow-y: auto; /* Important */
+      background: rgba(255,255,255,0.05);
+      border-radius: 0 0 10px 10px;
+      position: relative;
+    }
 
-    .cell{ padding: 18px; font-size: 1.15em; }
-    .cell.rank{ text-align: center; font-weight: 900; font-size: 1.8em; color: #1e3c72; }
-    .shooter-name{ font-weight: 700; color: #1e3c72; }
-    .category-badge{ display: inline-block; padding: 4px 12px; border-radius: 15px; font-size: 0.85em; font-weight: 700; margin-left: 10px; background: #eee; }
-    .cell.score{ text-align: center; font-weight: 900; font-size: 1.4em; }
+    /* Supprimer la barre de défilement visuelle pour l'effet TV */
+    .grid-scroll::-webkit-scrollbar { display: none; }
 
-    /* Podium Colors */
-    .rank-1 .cell.rank{ color: #ffd700; text-shadow: 0 0 10px rgba(255,215,0,0.5); }
-    .rank-2 .cell.rank{ color: #c0c0c0; }
-    .rank-3 .cell.rank{ color: #cd7f32; }
+    .row {
+      display: grid;
+      grid-template-columns: 60px 1fr 150px 100px;
+      padding: 15px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      align-items: center;
+      font-size: 1.2em;
+    }
 
-    .auto-rotate-indicator{ text-align: center; padding: 5px; color: rgba(255,255,255,0.4); font-size: 0.75em; }
-    .footer { text-align: center; padding: 10px; font-size: 0.7em; opacity: 0.5; }
+    .rank { font-weight: 800; font-size: 1.2em; color: #0fb8c9; }
+    .name { font-weight: 600; }
+    .club { font-size: 0.9em; opacity: 0.8; }
+    .score { font-weight: 900; color: #18d9a0; text-align: right; font-size: 1.3em; }
 
-    .fab-group { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; }
-    .fab { width: 50px; height: 50px; border-radius: 50%; border: none; cursor: pointer; color: white; font-size: 1.2em; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-    .fab-pdf { background: #ef4444; } .fab-csv { background: #22c55e; }
+    /* PODIUM COLORS */
+    .row:nth-child(1) .rank { color: #ffd700; font-size: 1.5em; }
+    .row:nth-child(2) .rank { color: #c0c0c0; }
+    .row:nth-child(3) .rank { color: #cd7f32; }
 
-    @keyframes pulse{ 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+    .indicator { position: fixed; bottom: 10px; right: 20px; font-size: 0.8em; opacity: 0.5; }
   </style>
 </head>
-
 <body>
-  <div class="container">
-    <div class="header">
-      <h1>🎯 Résultats</h1>
-      <div class="competition-name" id="competitionName">Chargement...</div>
-      <div class="live-indicator">🔴 EN DIRECT</div>
-      <div class="header-clock" id="headerClock">--:--:--</div>
+
+  <div class="header">
+    <div class="comp-name" id="compTitle">Chargement...</div>
+    <div id="clock" style="font-family: monospace; font-size: 1.2em;">00:00:00</div>
+  </div>
+
+  <div class="ranking-container">
+    <div class="view-title" id="currentViewTitle">---</div>
+    <div class="grid-header">
+      <div>RANG</div>
+      <div>NOM PRENOM</div>
+      <div>CLUB</div>
+      <div style="text-align: right;">SCORE</div>
     </div>
-
-    <div class="ranking-container" id="rankingContainer"></div>
-    <div class="auto-rotate-indicator" id="autoRotateIndicator"></div>
-
-    <div class="footer">Dernière mise à jour : <span id="lastUpdate">-</span></div>
+    <div class="grid-scroll" id="tableScroll">
+      </div>
   </div>
 
-  <div class="fab-group">
-    <button class="fab fab-pdf" onclick="exportPDF()">📄</button>
-    <button class="fab fab-csv" onclick="exportCSV()">📊</button>
-  </div>
+  <div class="indicator" id="rotateStatus">Rotation Active</div>
 
   <script>
-    const COMPETITION_ID = new URLSearchParams(window.location.search).get('comp') || 'ISSF10';
     const firebaseConfig = {
       apiKey: "AIzaSyAvfMRtRrhh_e-27xHlwIx9c5DIdUQm6HM",
       authDomain: "resultats-tir-ligue-lr.firebaseapp.com",
       databaseURL: "https://resultats-tir-ligue-lr-default-rtdb.europe-west1.firebasedatabase.app",
       projectId: "resultats-tir-ligue-lr",
       storageBucket: "resultats-tir-ligue-lr.firebasestorage.app",
-      messagingSenderId: "468808300974",
       appId: "1:468808300974:web:563a14cc4477c10b28303f"
     };
 
     firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
-    
-    let allShooters = [], rotateViews = [], currentIdx = 0, competitionConfig = {};
-    let autoRotateEnabled = true, perViewSeconds = 8, scrollPaddingSeconds = 2;
-    let rotateTimer = null, scrollTimer = null;
+    const db = firebase.database();
+    const COMP_ID = new URLSearchParams(window.location.search).get('comp') || 'GENERAL';
 
-    function normalizeKey(s){ return (s || '').toString().trim(); }
+    let allShooters = [];
+    let rotateViews = [];
+    let currentIdx = 0;
+    let scrollTimer, rotateTimer;
 
-    function buildRotateViews() {
-      const map = new Map();
+    // CONFIGURATION TEMPS
+    const perViewSeconds = 12; // Temps total par catégorie
+    const scrollPadding = 2000; // Pause 2s en haut et en bas
+
+    function init() {
+      // Charger le titre
+      db.ref(`${COMP_ID}/config/name`).on('value', s => {
+        document.getElementById('compTitle').textContent = s.val() || COMP_ID;
+      });
+
+      // Charger les données
+      db.ref(`${COMP_ID}/shooters`).on('value', snap => {
+        allShooters = snap.exists() ? Object.values(snap.val()) : [];
+        prepareRotation();
+      });
+
+      setInterval(() => {
+        document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+      }, 1000);
+    }
+
+    function prepareRotation() {
+      const groups = {};
       allShooters.forEach(s => {
-        const d = normalizeKey(s.discipline), c = normalizeKey(s.category);
-        if (!d) return;
-        if (!map.has(d)) map.set(d, new Set());
-        if (c) map.get(d).add(c);
+        const key = `${s.discipline} - ${s.category}`;
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(s);
       });
-      const views = [];
-      Array.from(map.keys()).sort().forEach(d => {
-        const cats = Array.from(map.get(d)).sort();
-        if (!cats.length) views.push({ mode:'disc_only', discipline:d });
-        else cats.forEach(c => views.push({ mode:'combo', discipline:d, category:c }));
-      });
-      return views.length ? views : [{ mode:'disc_only', discipline:'Résultats' }];
+
+      rotateViews = Object.keys(groups).sort().map(key => ({
+        title: key,
+        shooters: groups[key].sort((a, b) => b.score - a.score)
+      }));
+
+      if (rotateViews.length > 0) startRotation();
     }
 
-    // --- LOGIQUE DE DÉFILEMENT ET ROTATION ---
-    function stopAutoRotate() {
-      if (rotateTimer) clearInterval(rotateTimer);
-      if (scrollTimer) clearInterval(scrollTimer);
-      rotateTimer = null; scrollTimer = null;
+    function startRotation() {
+      clearTimeout(rotateTimer);
+      showView();
     }
 
-    function startAutoRotate() {
-      stopAutoRotate();
-      if (!rotateViews.length) return;
-
+    function showView() {
+      if (!rotateViews[currentIdx]) { currentIdx = 0; }
       const view = rotateViews[currentIdx];
-      displayRanking(view);
-
-      const scroller = document.getElementById('tableScroll');
+      document.getElementById('currentViewTitle').textContent = view.title;
       
-      // SI LA LISTE EST LONGUE (DÉPASSE L'ÉCRAN)
-      if (scroller && scroller.scrollHeight > scroller.clientHeight) {
-        startAutoScroll(scroller);
-      } 
-      // SI LA LISTE EST COURTE
-      else {
-        rotateTimer = setInterval(() => {
-          if (autoRotateEnabled) goNextView();
-        }, perViewSeconds * 1000);
-      }
-      updateIndicator();
-    }
+      const container = document.getElementById('tableScroll');
+      container.innerHTML = view.shooters.map((s, i) => `
+        <div class="row">
+          <div class="rank">${i + 1}</div>
+          <div class="name">${s.lastName} ${s.firstName}</div>
+          <div class="club">${s.club || ''}</div>
+          <div class="score">${s.score}</div>
+        </div>
+      `).join('');
 
-    function startAutoScroll(scroller) {
-      scroller.scrollTop = 0;
-      const maxScroll = scroller.scrollHeight - scroller.clientHeight;
-      // Vitesse calculée pour finir le scroll en (8s - pauses)
-      const travelTime = (perViewSeconds - (scrollPaddingSeconds * 2)) * 1000;
-      const step = maxScroll / (travelTime / 30);
+      // RESET SCROLL
+      container.scrollTop = 0;
+      clearInterval(scrollTimer);
 
-      // On attend 2s en haut avant de bouger
+      // DECLENCHEMENT DU SCROLL APRES PAUSE
       setTimeout(() => {
-        if (!autoRotateEnabled) return;
-        scrollTimer = setInterval(() => {
-          scroller.scrollTop += step;
-          if (scroller.scrollTop >= maxScroll - 1) {
-            clearInterval(scrollTimer);
-            // On attend 2s en bas avant de changer de page
-            setTimeout(() => { if (autoRotateEnabled) goNextView(); }, scrollPaddingSeconds * 1000);
-          }
-        }, 30);
-      }, scrollPaddingSeconds * 1000);
+        const maxScroll = container.scrollHeight - container.clientHeight;
+        if (maxScroll > 5) {
+          // Calcul vitesse
+          const duration = (perViewSeconds * 1000) - (scrollPadding * 2);
+          const step = maxScroll / (duration / 30);
+          
+          scrollTimer = setInterval(() => {
+            container.scrollTop += step;
+            if (container.scrollTop >= maxScroll - 1) {
+              clearInterval(scrollTimer);
+              setTimeout(goNext, scrollPadding);
+            }
+          }, 30);
+        } else {
+          // Pas besoin de scroller, on attend juste
+          rotateTimer = setTimeout(goNext, perViewSeconds * 1000);
+        }
+      }, scrollPadding);
     }
 
-    function goNextView() {
-      currentIdx = (currentIdx + 1) % rotateViews.length;
-      startAutoRotate();
+    function goNext() {
+      currentIdx++;
+      showView();
     }
 
-    function updateIndicator() {
-      const next = rotateViews[(currentIdx + 1) % rotateViews.length];
-      document.getElementById('autoRotateIndicator').textContent = 
-        autoRotateEnabled ? `↻ Prochain : ${next.discipline} ${next.category || ''}` : "⏸ Mode TV en pause";
-    }
-
-    function displayRanking(view) {
-      const container = document.getElementById('rankingContainer');
-      const filtered = allShooters.filter(s => {
-        if (view.mode === 'combo') return normalizeKey(s.discipline) === view.discipline && normalizeKey(s.category) === view.category;
-        return normalizeKey(s.discipline) === view.discipline;
-      }).sort((a,b) => (Number(b.score)||0) - (Number(a.score)||0));
-
-      let html = `<div class="ranking-title">${view.discipline} ${view.category || ''}</div>
-                  <div class="ranking-grid">
-                    <div class="grid-head"><div class="hcell">#</div><div class="hcell">Tireur</div><div class="hcell">Club</div><div class="hcell">Score</div></div>
-                    <div class="grid-scroll" id="tableScroll">`;
-
-      filtered.forEach((s, i) => {
-        const rCls = i < 3 ? `rank-${i+1}` : '';
-        html += `<div class="grid-row ${rCls}">
-          <div class="cell rank">${i+1}</div>
-          <div class="cell"><span class="shooter-name">${s.firstName} ${s.lastName}</span>
-            ${view.mode === 'disc_only' ? `<span class="category-badge">${s.category || ''}</span>` : ''}
-          </div>
-          <div class="cell" style="text-align:center">${s.club || ''}</div>
-          <div class="cell score">${s.score} <small style="opacity:0.4; font-size:0.6em;">/${s.maxScore}</small></div>
-        </div>`;
-      });
-      container.innerHTML = html + `</div></div>`;
-      document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
-    }
-
-    // --- FIREBASE ET CLOCK ---
-    database.ref(`${COMPETITION_ID}/config`).on('value', snap => {
-      competitionConfig = snap.val() || {};
-      document.getElementById('competitionName').textContent = competitionConfig.name || 'Compétition';
-    });
-
-    database.ref(`${COMPETITION_ID}/shooters`).on('value', snap => {
-      allShooters = Object.entries(snap.val() || {}).map(([id, d]) => ({id, ...d}));
-      rotateViews = buildRotateViews();
-      startAutoRotate();
-    });
-
-    setInterval(() => { document.getElementById('headerClock').textContent = new Date().toLocaleTimeString(); }, 1000);
-    document.addEventListener('keydown', e => { if(e.code==='Space'){ e.preventDefault(); autoRotateEnabled=!autoRotateEnabled; startAutoRotate(); }});
-
-    // --- EXPORTS ---
-    function exportPDF(){ /* Logique PDF identique */ alert('Génération PDF...'); }
-    function exportCSV(){ /* Logique CSV identique */ alert('Export CSV...'); }
+    init();
   </script>
 </body>
 </html>
