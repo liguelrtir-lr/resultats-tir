@@ -2,38 +2,89 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Résultats en Direct</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Résultats en Direct — Ligue LR</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <style>
-        body { font-family: 'DM Sans', sans-serif; background: linear-gradient(135deg, #0e2228 0%, #050b0d 100%); color: white; margin: 0; padding: 20px; text-align: center; }
-        .header { background: rgba(21, 48, 57, 0.8); padding: 20px; border-radius: 15px; border: 1px solid #224f5e; margin-bottom: 20px; }
-        table { width: 100%; max-width: 900px; margin: 0 auto; border-collapse: collapse; background: #153039; border-radius: 10px; overflow: hidden; }
-        th { background: #0fb8c9; color: #0e2228; padding: 15px; text-transform: uppercase; }
-        td { padding: 12px; border-bottom: 1px solid #224f5e; }
-        .score-cell { font-weight: bold; color: #0fb8c9; font-size: 1.2em; text-align: right; }
+        :root {
+            --bg: #0e2228;
+            --surface: #153039;
+            --accent: #0fb8c9;
+            --text: #ffffff;
+            --border: #224f5e;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .header {
+            background: var(--surface);
+            padding: 30px;
+            border-radius: 15px;
+            border: 1px solid var(--border);
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        h1 { margin: 0; font-size: 2.5em; text-transform: uppercase; letter-spacing: 2px; }
+        #status { color: var(--accent); margin-top: 10px; font-weight: bold; }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--surface);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        th {
+            background: var(--accent);
+            color: var(--bg);
+            padding: 18px;
+            text-transform: uppercase;
+            font-size: 0.9em;
+        }
+        td {
+            padding: 15px;
+            border-bottom: 1px solid var(--border);
+            font-size: 1.1em;
+        }
+        tr:nth-child(even) { background: rgba(255,255,255,0.03); }
+        .rank { font-weight: bold; color: var(--accent); width: 50px; }
+        .score { font-weight: bold; text-align: right; color: var(--accent); font-size: 1.3em; }
+        .club { color: #94a3b8; font-size: 0.9em; }
     </style>
 </head>
 <body>
 
-<div class="header">
-    <h1 id="compTitle">CHARGEMENT...</h1>
-    <p id="status" style="color: #94a3b8;">Connexion à Firebase en cours...</p>
+<div class="container">
+    <div class="header">
+        <h1 id="compTitle">CHARGEMENT...</h1>
+        <div id="status">Connexion à la base de données...</div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th style="text-align: left;">Tireur</th>
+                <th style="text-align: left;">Club</th>
+                <th style="text-align: right;">Score</th>
+            </tr>
+        </thead>
+        <tbody id="resultsBody">
+            <tr><td colspan="4">Recherche des tireurs en cours...</td></tr>
+        </tbody>
+    </table>
 </div>
 
-<table id="resultTable">
-    <thead>
-        <tr>
-            <th>#</th>
-            <th>Tireur</th>
-            <th>Club</th>
-            <th style="text-align: right;">Score</th>
-        </tr>
-    </thead>
-    <tbody id="resBody"></tbody>
-</table>
-
 <script>
+    // CONFIGURATION FIREBASE
     const firebaseConfig = {
         apiKey: "AIzaSyAvfMRtRrhh_e-27xHlwIx9c5DIdUQm6HM",
         authDomain: "resultats-tir-ligue-lr.firebaseapp.com",
@@ -46,41 +97,69 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // On récupère l'ID et on le force en MAJUSCULES pour correspondre à Firebase
+    // RÉCUPÉRATION DU CODE DANS L'URL
     const params = new URLSearchParams(window.location.search);
-    let rawId = params.get('comp') || "";
-    const compId = rawId.toUpperCase(); 
+    const compId = params.get('comp');
 
     if (compId) {
-        document.getElementById('status').textContent = "Recherche du dossier : " + compId;
+        // FONCTION QUI CHERCHE PARTOUT (Racine ou dossier Competitions)
+        function startSync(id) {
+            // On essaie d'abord le chemin direct
+            db.ref(id).on('value', (snap) => {
+                const data = snap.val();
+                if (data && (data.shooters || data.config)) {
+                    showData(data);
+                } else {
+                    // Si rien à la racine, on essaie dans le dossier competitions/
+                    db.ref('competitions/' + id).on('value', (snapComp) => {
+                        const dataComp = snapComp.val();
+                        if (dataComp) {
+                            showData(dataComp);
+                        } else {
+                            document.getElementById('status').textContent = "Aucune donnée trouvée pour : " + id;
+                        }
+                    });
+                }
+            });
+        }
 
-        // On écoute le dossier (ex: TAR_2026)
-        db.ref(compId).on('value', (snap) => {
-            const fullData = snap.val();
-            const tbody = document.getElementById('resBody');
+        function showData(data) {
+            const titleElem = document.getElementById('compTitle');
+            const statusElem = document.getElementById('status');
+            const tbody = document.getElementById('resultsBody');
+
+            if (data.config) titleElem.textContent = data.config.name;
+            
+            // On récupère les tireurs (shooters ou direct)
+            const shooters = data.shooters || {};
+            const list = Object.values(shooters).sort((a, b) => b.score - a.score);
+
+            statusElem.textContent = list.length + " tireur(s) enregistré(s) - Mise à jour en direct";
+            
             tbody.innerHTML = '';
-
-            if (fullData && fullData.shooters) {
-                document.getElementById('status').textContent = "Données trouvées !";
-                document.getElementById('compTitle').textContent = fullData.config ? fullData.config.name : compId;
-
-                const list = Object.values(fullData.shooters).sort((a,b) => b.score - a.score);
-                list.forEach((t, index) => {
-                    tbody.innerHTML += `
-                        <tr>
-                            <td>${index + 1}</td>
-                            <td>${t.firstName} ${t.lastName}</td>
-                            <td>${t.club || '-'}</td>
-                            <td class="score-cell">${t.score}</td>
-                        </tr>
-                    `;
-                });
-            } else {
-                document.getElementById('status').textContent = "Aucun tireur trouvé dans le dossier " + compId;
-                tbody.innerHTML = '<tr><td colspan="4">En attente de résultats...</td></tr>';
+            if (list.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4">Aucun score disponible</td></tr>';
+                return;
             }
-        });
+
+            list.forEach((s, index) => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="rank">${index + 1}</td>
+                        <td style="text-align: left;">${s.firstName} ${s.lastName}</td>
+                        <td style="text-align: left;" class="club">${s.club || '-'}</td>
+                        <td class="score">${s.score}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        startSync(compId);
+    } else {
+        document.getElementById('compTitle').textContent = "ERREUR";
+        document.getElementById('status').textContent = "Aucun code de compétition fourni dans l'URL.";
     }
 </script>
+
 </body>
 </html>
