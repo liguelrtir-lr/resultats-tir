@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Saisie Officielle Ligue LR</title>
+    <title>Saisie Officielle Ligue LR — DEFINITIF</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <style>
@@ -60,23 +60,29 @@
 <script>
     const dataRef = {
         TAR: {
-            disc: ["810 - Fusil Répétition manuelle", "811 - Fusils Modifiés Gros Calibre", "812 - Fusils Modifiés Petit Calibre", "813 - Challenges Armes à rép.", "815 - FSA - Gros Calibre", "816 - FSA - Petit Calibre", "820 - Carabine 22 lr", "821 - Carabine 22 semi-auto", "822 - Car. 22lr Assis", "823 - Carabine Match 22lr", "830 - Pistolet / Revolver", "831 - Pistolet Vitesse Réglementaire", "832 - Armes de poing Authentiques"],
+            disc: ["810 - Fusil Répétition manuelle", "811 - Fusils Modifiés Gros Calibre", "812 - Fusils Modifiés Petit Calibre", "813 - Challenges armes à rép. manuelle ou semi-auto", "815 - FSA - Gros Calibre", "816 - FSA - Petit Calibre", "820 - Carabine d'initiation militaire 22 lr", "821 - Carabine 22 semi-auto", "822 - Car. d'initiation militaire 22lr - Assis", "823 - Carabine Militaire Match 22lr", "830 - Pistolet / Revolver", "831 - Pistolet Vitesse Réglementaire", "832 - Armes de poing Authentiques"],
             cats: ["Senior"]
         },
         ISSF10: {
-            disc: ["100 - Pistolet 10m", "102 - Pistolet Vitesse 10m", "103 - Pistolet Standard 10m", "104 - Carabine 10m", "107 - Arbalète Match 10m", "171 - HP R1/R2 Car. 10m", "181 - HP P1/P2 Pistolet 10m"],
+            disc: ["100 - Pistolet 10m", "102 - Pistolet Vitesse 10m", "103 - Pistolet Standard 10m", "104 - Carabine 10m", "107 - Arbalète Match 10m", "109 - Cible Mobile 10m", "110 - Cible Mobile Mixte 10m", "025 - Arbalète Field 18m", "171 - HP R1/R2 Car. 10m (SH1)", "173 - HP R3 Car. 10m (SH1)", "174 - HP R4 Car. 10m (SH2)", "175 - HP R5 Car. 10m (SH2)", "177 - HP VIS Car. 10m deb. (Visuel)", "178 - HP VIP Car. 10m couchée (Visuel)", "179 - HP F7 Car. 10m couchée CLF", "181 - HP P1/P2 Pist. 10m (SH1)", "183 - HP F5 Pist. Vitesse 10m (SH1)", "184 - HP P5 Pist. Standard 10m (SH1)", "185 - HP F6 Pistolet 10m CLF"],
             cats: ["Minime F", "Minime G", "Cadet F", "Cadet G", "Junior Fille", "Junior Garçon", "Dame 1", "Dame 2", "Dame 3", "Senior 1", "Senior 2", "Senior 3"]
         },
         ISSF2550: {
-            disc: ["250 - Pistolet Percussion Centrale", "251 - Pistolet 25m", "252 - Pistolet Vitesse 25m", "253 - Pistolet Standard 25m", "500 - Pistolet 50m", "501 - Carabine 60BC", "502 - Carabine 3x20", "271 - HP P3 Pistolet 25m", "571 - HP R6 Carabine 50m"],
+            disc: [
+                "250 - Pistolet Percussion Centrale", "251 - Pistolet 25m", "252 - Pistolet Vitesse 25m", "253 - Pistolet Standard 25m", 
+                "500 - Pistolet 50m", "501 - Carabine 60BC", "502 - Carabine 3x20",
+                "271 - HP P3 Pistolet 25m (SH1)", "272 - HP F1 Pist. Vitesse 25m (SH1)", "273 - HP P4 Pistolet 50m (SH1)",
+                "274 - HP F2 Pist. Standard 25m (SH1)", "571 - HP R6 Carabine 50m 60BC (SH1)", "572 - HP R9 Carabine 50m 60BC (SH2)",
+                "573 - HP Carabine 50m 3x20 (SH1)", "575 - HP Carabine 50m 3x40 (SH1)", "275 - HP P6 Pistolet 25m (SH1) Mixte"
+            ],
             cats: ["Minime F", "Minime G", "Cadet F", "Cadet G", "Junior Fille", "Junior Garçon", "Dame 1", "Dame 2", "Senior 1", "Senior 2", "Senior 3"]
         },
         EDT: {
-            disc: ["101 - Pistolet 3/7 EDT", "152 - Pistolet Vitesse 10m EDT", "154 - Carabine 10m EDT", "150 - Pistolet 10m EDT", "105 - Carabine 3 x 20 EDT", "158 - Arbalète Field EDT", "150/154 - Combiné EDT"],
+            disc: ["101 - Pistolet 3/7 EDT", "150 - Pistolet 10m EDT", "152 - Pistolet Vitesse 10m EDT", "154 - Carabine 10m EDT", "105 - Carabine 3x20 EDT", "158 - Arbalète Field EDT", "159 - Cible Mobile 10m EDT", "161 - HP R5 Car. 10m couchée EDT (SH2)", "162 - HP R3 Car. 10m couchée EDT (SH1)", "163 - HP P1 Pistolet 10m EDT (SH1)", "150/154 - Combiné EDT", "165 - HP Carabine 10m couchée EDT (visuel)"],
             cats: ["Poussin Fille", "Poussin Garçon", "Benjamin Fille", "Benjamin Garçon", "Minime Fille", "Minime Garçon"]
         },
         MLAIC: {
-            disc: ["601 - Miquelet Origine", "701 - Miquelet Réplique", "606 - Kuchenreuter Réplique", "712 - Mariette", "715 - Vetterli Réplique"],
+            disc: ["601 - Miquelet Origine", "701 - Miquelet Réplique", "602 - Maximilien Origine", "702 - Maximilien Réplique", "603 - Minié Origine", "703 - Minié Réplique", "604 - Whitworth Origine", "704 - Whitworth Réplique", "605 - Cominazzo Origine", "705 - Cominazzo Réplique", "606 - Kuchenreuter Origine", "706 - Kuchenreuter Réplique", "607 - Colt", "712 - Mariette", "615 - Vetterli Origine", "715 - Vetterli Réplique", "637 - Lamarmora Origine", "737 - Lamarmora Réplique"],
             cats: ["Senior", "Junior"]
         }
     };
@@ -85,25 +91,11 @@
         const type = document.getElementById('typeSelector').value;
         const dMenu = document.getElementById('newDiscipline');
         const cMenu = document.getElementById('newCategorie');
-        
-        // On vide et on remplit
-        dMenu.innerHTML = "";
-        cMenu.innerHTML = "";
-
-        dataRef[type].disc.forEach(d => {
-            let opt = document.createElement("option");
-            opt.value = d; opt.textContent = d;
-            dMenu.appendChild(opt);
-        });
-
-        dataRef[type].cats.forEach(c => {
-            let opt = document.createElement("option");
-            opt.value = c; opt.textContent = c;
-            cMenu.appendChild(opt);
-        });
+        dMenu.innerHTML = ""; cMenu.innerHTML = "";
+        dataRef[type].disc.forEach(d => { let opt = document.createElement("option"); opt.value = d; opt.textContent = d; dMenu.appendChild(opt); });
+        dataRef[type].cats.forEach(c => { let opt = document.createElement("option"); opt.value = c; opt.textContent = c; cMenu.appendChild(opt); });
     }
 
-    // INITIALISATION FIREBASE
     const firebaseConfig = {
         apiKey: "AIzaSyAvfMRtRrhh_e-27xHlwIx9c5DIdUQm6HM",
         authDomain: "resultats-tir-ligue-lr.firebaseapp.com",
@@ -118,7 +110,6 @@
     const compId = params.get('comp');
 
     let shootersData = [];
-
     if (compId) {
         db.ref(compId + '/shooters').on('value', (snap) => {
             const data = snap.val() || {};
@@ -131,21 +122,13 @@
         const nom = document.getElementById('newNom').value.toUpperCase();
         const prenom = document.getElementById('newPrenom').value;
         if (!nom || !prenom) return alert("Nom et Prénom requis");
-        const s = {
-            lastName: nom, firstName: prenom,
-            discipline: document.getElementById('newDiscipline').value,
-            category: document.getElementById('newCategorie').value,
-            club: document.getElementById('newClub').value || "-",
-            score: 0
-        };
+        const s = { lastName: nom, firstName: prenom, discipline: document.getElementById('newDiscipline').value, category: document.getElementById('newCategorie').value, club: document.getElementById('newClub').value || "-", score: 0 };
         db.ref(compId + '/shooters').push(s);
-        document.getElementById('newNom').value = '';
-        document.getElementById('newPrenom').value = '';
+        document.getElementById('newNom').value = ''; document.getElementById('newPrenom').value = '';
     }
 
     function renderList(list) {
-        const cont = document.getElementById('shooterList');
-        cont.innerHTML = '';
+        const cont = document.getElementById('shooterList'); cont.innerHTML = '';
         list.sort((a,b) => a.lastName.localeCompare(b.lastName)).forEach(s => {
             cont.innerHTML += `<div class="shooter-item">
                 <div class="shooter-info"><b>${s.lastName}</b> ${s.firstName}<div>${s.discipline} — ${s.category} — ${s.club}</div></div>
@@ -156,20 +139,16 @@
 
     function saveScore(id, val) {
         db.ref(compId + '/shooters/' + id).update({ score: parseFloat(val) || 0 });
-        const anim = document.getElementById('ok-' + id);
-        anim.style.display = 'inline'; setTimeout(() => anim.style.display = 'none', 1000);
+        const anim = document.getElementById('ok-' + id); anim.style.display = 'inline'; setTimeout(() => anim.style.display = 'none', 1000);
     }
 
     function filterList() {
         const q = document.getElementById('search').value.toLowerCase();
-        const filtered = shootersData.filter(s => s.lastName.toLowerCase().includes(q) || s.firstName.toLowerCase().includes(q));
+        const filtered = shootersData.filter(s => s.lastName.toLowerCase().includes(q) || s.firstName.toLowerCase().includes(q) || s.discipline.toLowerCase().includes(q));
         renderList(filtered);
     }
 
-    // COMMANDE DE RÉVEIL AU CHARGEMENT
-    window.onload = function() {
-        updateMenus();
-    };
+    window.onload = function() { updateMenus(); };
 </script>
 </body>
 </html>
