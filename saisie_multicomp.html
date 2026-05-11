@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Saisie Officielle — Ligue LR</title>
+    <title>Saisie Officielle Ligue LR</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <style>
@@ -13,7 +13,7 @@
         .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px; }
         label { display: block; font-size: 0.85rem; font-weight: bold; color: #555; margin-bottom: 5px; }
         input, select { padding: 12px; border: 1px solid #bcc6d2; border-radius: 6px; font-size: 1rem; width: 100%; box-sizing: border-box; }
-        .type-selector { background: #007bff; color: white; font-weight: bold; cursor: pointer; height: 50px; font-size: 1.2rem; }
+        .type-selector { background: #007bff; color: white; font-weight: bold; cursor: pointer; height: 50px; font-size: 1.2rem; border: none; border-radius: 8px; }
         .btn-add { background: #28a745; color: white; border: none; padding: 15px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; font-size: 1.1rem; transition: 0.2s; }
         .btn-add:hover { background: #218838; }
         .shooter-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; }
@@ -61,46 +61,42 @@
     const dataRef = {
         TAR: {
             disc: [
-                "810 - Fusil Répétition manuelle", 
-                "811 - Fusils Modifiés Gros Calibre", 
-                "812 - Fusils Modifiés Petit Calibre", 
-                "813 - Challenge Armes à Répétition", 
-                "814 - Pistolet Revolver (Assis)",
-                "815 - FSA - Gros Calibre", 
-                "816 - FSA - Petit Calibre", 
-                "820 - Carabine d'initiation militaire 22 lr", 
-                "821 - Carabine 22 semi-auto", 
-                "822 - Carabine 22lr d'initiation militaire - Assis", 
-                "823 - Carabine Militaire Match 22lr",
-                "830 - Pistolet / Revolver", 
-                "831 - Pistolet Vitesse Réglementaire", 
-                "832 - Armes de poing Authentiques"
+                "810 - Fusil Répétition manuelle", "811 - Fusils Modifiés Gros Calibre", "812 - Fusils Modifiés Petit Calibre", 
+                "813 - Challenges Armes à rép. man. ou semi-auto", "815 - FSA - Gros Calibre", "816 - FSA - Petit Calibre", 
+                "820 - Carabine d'initiation militaire 22 lr", "821 - Carabine 22 semi-auto", 
+                "822 - Car. d'initiation militaire 22lr - Assis", "823 - Carabine Militaire Match 22lr",
+                "830 - Pistolet / Revolver", "831 - Pistolet Vitesse Réglementaire", "832 - Armes de poing Authentiques"
             ],
             cats: ["Senior"]
         },
         ISSF10: {
             disc: [
                 "100 - Pistolet 10m", "102 - Pistolet Vitesse 10m", "103 - Pistolet Standard 10m", "104 - Carabine 10m", 
-                "107 - Arbalète Match 10m", "109 - Cible Mobile 10m", "110 - Cible Mobile Mixte 10m",
-                "171 - HP R1/R2 Car. 10m deb. (SH1)", "173 - HP R3 Car. 10m couchée (SH1)", 
-                "174 - HP R4 Car. 10m deb. Potence (SH2)", "175 - HP R5 Car. 10m couchée Potence (SH2)", 
-                "181 - HP P1/P2 Pistolet 10m (SH1)", "183 - HP F5 Pistolet Vitesse 10m (SH1)", 
-                "184 - HP P5 Pistolet Standard 10m (SH1)"
+                "107 - Arbalète Match 10m", "109 - Cible Mobile 10m", "110 - Cible Mobile Mixte 10m", "025 - Arbalète Field 18m",
+                "171 - HP R1/R2 Car. 10m (SH1)", "173 - HP R3 Car. 10m (SH1)", "174 - HP R4 Car. 10m (SH2)", 
+                "175 - HP R5 Car. 10m (SH2)", "181 - HP P1/P2 Pistolet 10m (SH1)", "183 - HP F5 Pist. Vitesse 10m", 
+                "184 - HP P5 Pist. Standard 10m", "185 - HP F6 Pistolet 10m CLF"
             ],
             cats: ["Minime F", "Minime G", "Cadet F", "Cadet G", "Junior Fille", "Junior Garçon", "Dame 1", "Dame 2", "Dame 3", "Senior 1", "Senior 2", "Senior 3"]
+        },
+        EDT: {
+            disc: [
+                "101 - Pistolet 3/7 EDT", "152 - Pistolet Vitesse 10m EDT", "159 - Cible Mobile 10m EDT", 
+                "154 - Carabine 10m EDT", "150 - Pistolet 10m EDT", "105 - Carabine 3 x 20 EDT", 
+                "158 - Arbalète Field EDT", "161 - HP R5 Car. 10m couchée EDT (SH2)", 
+                "162 - HP R3 Car. 10m couchée EDT (SH1)", "163 - HP P1 Pistolet 10m EDT (SH1)", 
+                "150/154 - Combiné EDT", "165 - HP Carabine 10m couchée EDT (visuel)"
+            ],
+            cats: ["Poussin Fille", "Poussin Garçon", "Benjamin Fille", "Benjamin Garçon", "Minime Fille", "Minime Garçon"]
         },
         MLAIC: {
             disc: [
                 "601 - Miquelet Origine", "701 - Miquelet Réplique", "602 - Maximilien Origine", "702 - Maximilien Réplique", 
                 "603 - Minié Origine", "703 - Minié Réplique", "604 - Whitworth Origine", "704 - Whitworth Réplique",
                 "605 - Cominazzo Origine", "705 - Cominazzo Réplique", "606 - Kuchenreuter Origine", "706 - Kuchenreuter Réplique",
-                "607 - Colt", "712 - Mariette", "615 - Vetterli Origine", "715 - Vetterli Réplique", "637 - Lamarmora Origine", "737 - Lamarmora Réplique"
+                "607 - Colt", "712 - Mariette", "615 - Vetterli Origine", "715 - Vetterli Réplique", "623 - Malson Origine", "723 - Malson Réplique"
             ],
             cats: ["Senior", "Junior"]
-        },
-        EDT: {
-            disc: ["101 - Pistolet 10m EDT", "105 - Carabine 10m EDT", "150 - Pistolet 3/7 EDT", "152 - Pistolet Vitesse EDT", "154 - Carabine 3 positions EDT", "025 - Arbalète Field EDT"],
-            cats: ["Poussin Fille", "Poussin Garçon", "Benjamin Fille", "Benjamin Garçon", "Minime Fille", "Minime Garçon"]
         },
         ISSF2550: {
             disc: ["251 - Pistolet 25m", "252 - Pistolet Vitesse 25m", "253 - Pistolet Standard 25m", "250 - Pistolet Percussion Centrale", "500 - Pistolet 50m", "501 - Carabine 60BC", "502 - Carabine 3x20"],
@@ -112,12 +108,10 @@
         const type = document.getElementById('typeSelector').value;
         const dMenu = document.getElementById('newDiscipline');
         const cMenu = document.getElementById('newCategorie');
-        
         dMenu.innerHTML = dataRef[type].disc.map(d => `<option value="${d}">${d}</option>`).join('');
         cMenu.innerHTML = dataRef[type].cats.map(c => `<option value="${c}">${c}</option>`).join('');
     }
 
-    // FIREBASE INITIALISATION
     const firebaseConfig = {
         apiKey: "AIzaSyAvfMRtRrhh_e-27xHlwIx9c5DIdUQm6HM",
         authDomain: "resultats-tir-ligue-lr.firebaseapp.com",
@@ -145,7 +139,6 @@
         const nom = document.getElementById('newNom').value.toUpperCase();
         const prenom = document.getElementById('newPrenom').value;
         if (!nom || !prenom) return alert("Nom et Prénom requis");
-
         const s = {
             lastName: nom, firstName: prenom,
             discipline: document.getElementById('newDiscipline').value,
@@ -162,34 +155,22 @@
         const cont = document.getElementById('shooterList');
         cont.innerHTML = '';
         list.sort((a,b) => a.lastName.localeCompare(b.lastName)).forEach(s => {
-            cont.innerHTML += `
-                <div class="shooter-item">
-                    <div class="shooter-info">
-                        <b>${s.lastName}</b> ${s.firstName}
-                        <div style="font-size:0.85rem; color:#666;">${s.discipline} — ${s.category} — ${s.club}</div>
-                    </div>
-                    <div>
-                        <input type="number" class="score-input" value="${s.score || 0}" onchange="saveScore('${s.id}', this.value)">
-                        <span id="ok-${s.id}" class="save-anim">✔</span>
-                    </div>
-                </div>`;
+            cont.innerHTML += `<div class="shooter-item">
+                <div class="shooter-info"><b>${s.lastName}</b> ${s.firstName}<div>${s.discipline} — ${s.category} — ${s.club}</div></div>
+                <div><input type="number" class="score-input" value="${s.score || 0}" onchange="saveScore('${s.id}', this.value)"><span id="ok-${s.id}" class="save-anim">✔</span></div>
+            </div>`;
         });
     }
 
     function saveScore(id, val) {
         db.ref(compId + '/shooters/' + id).update({ score: parseInt(val) || 0 });
         const anim = document.getElementById('ok-' + id);
-        anim.style.display = 'inline';
-        setTimeout(() => anim.style.display = 'none', 1000);
+        anim.style.display = 'inline'; setTimeout(() => anim.style.display = 'none', 1000);
     }
 
     function filterList() {
         const q = document.getElementById('search').value.toLowerCase();
-        const filtered = shootersData.filter(s => 
-            s.lastName.toLowerCase().includes(q) || 
-            s.firstName.toLowerCase().includes(q) || 
-            s.discipline.toLowerCase().includes(q)
-        );
+        const filtered = shootersData.filter(s => s.lastName.toLowerCase().includes(q) || s.firstName.toLowerCase().includes(q) || s.discipline.toLowerCase().includes(q));
         renderList(filtered);
     }
 
