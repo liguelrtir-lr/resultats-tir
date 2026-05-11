@@ -21,6 +21,7 @@
         .shooter-info { flex-grow: 1; }
         .score-input { width: 80px; padding: 8px; text-align: center; font-weight: bold; border: 2px solid #007bff; border-radius: 5px; color: #007bff; }
         .save-anim { color: #28a745; font-weight: bold; margin-left: 10px; display: none; }
+        .btn-back { text-decoration: none; color: #666; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -28,13 +29,13 @@
 <div class="container">
     <header>
         <h1 style="margin:0; color:#007bff;">Saisie des Résultats</h1>
-        <a href="index_admin.html" style="text-decoration:none; color:#666;">← Retour</a>
+        <a href="index_admin.html" class="btn-back">← Retour</a>
     </header>
 
     <div class="form-group">
         <h3 style="margin-top:0;">Ajouter un nouveau tireur</h3>
         <div class="form-row">
-            <input type="text" id="newNom" placeholder="Nom">
+            <input type="text" id="newNom" placeholder="NOM (en majuscules)">
             <input type="text" id="newPrenom" placeholder="Prénom">
         </div>
         <div class="form-row">
@@ -43,11 +44,11 @@
                     <option value="810 - Fusil Répétition">810 - Fusil Répétition</option>
                     <option value="812 - Fusil Semi-Auto">812 - Fusil Semi-Auto</option>
                     <option value="815 - Fusil Modifié">815 - Fusil Modifié</option>
-                    <option value="816 - Fusil Semi-Auto Petit Calibre">816 - Fusil Semi-Auto PC</option>
+                    <option value="816 - Fusil Semi-Auto PC">816 - Fusil Semi-Auto PC</option>
                     <option value="820 - Carabine 22 LR">820 - Carabine 22 LR</option>
                     <option value="830 - Pistolet-Revolver">830 - Pistolet-Revolver</option>
                     <option value="831 - Vitesse Militaire">831 - Vitesse Militaire</option>
-                    <option value="832 - Armes de poing authentiques">832 - Armes de poing auth.</option>
+                    <option value="832 - Armes poing auth.">832 - Armes poing auth.</option>
                 </optgroup>
                 <optgroup label="ISSF / Standard">
                     <option value="Pistolet 10m">Pistolet 10m</option>
@@ -60,14 +61,14 @@
                 </optgroup>
             </select>
             <select id="newCategorie">
-                <option value="JF">JF (Junior Fille)</option>
-                <option value="JG">JG (Junior Garçon)</option>
                 <option value="D1">D1 (Dame 1)</option>
                 <option value="D2">D2 (Dame 2)</option>
                 <option value="D3">D3 (Dame 3)</option>
                 <option value="S1">S1 (Senior 1)</option>
                 <option value="S2">S2 (Senior 2)</option>
                 <option value="S3">S3 (Senior 3)</option>
+                <option value="JF">JF (Junior Fille)</option>
+                <option value="JG">JG (Junior Garçon)</option>
                 <optgroup label="Para-Tir">
                     <option value="P1">P1 (Pistolet SH1)</option>
                     <option value="P2">P2 (Pistolet SH1 Dame)</option>
@@ -79,7 +80,7 @@
         <button class="btn-add" onclick="addShooter()">Ajouter à la liste</button>
     </div>
 
-    <input type="text" id="search" class="search-box" placeholder="Rechercher un tireur..." onkeyup="filterList()">
+    <input type="text" id="search" class="search-box" placeholder="🔍 Rechercher un tireur ou un club..." onkeyup="filterList()">
     <div id="shooterList"></div>
 </div>
 
@@ -100,6 +101,7 @@
     let shootersData = [];
 
     if (compId) {
+        // Écoute des données à la nouvelle racine
         db.ref(compId + '/shooters').on('value', (snap) => {
             const data = snap.val() || {};
             shootersData = Object.keys(data).map(key => ({ id: key, ...data[key] }));
@@ -108,15 +110,18 @@
     }
 
     function addShooter() {
+        const nom = document.getElementById('newNom').value.toUpperCase();
+        if (!nom) return alert("Le nom est obligatoire");
+
         const s = {
-            lastName: document.getElementById('newNom').value.toUpperCase(),
+            lastName: nom,
             firstName: document.getElementById('newPrenom').value,
             discipline: document.getElementById('newDiscipline').value,
             category: document.getElementById('newCategorie').value,
-            club: document.getElementById('newClub').value,
+            club: document.getElementById('newClub').value || "-",
             score: 0
         };
-        if (!s.lastName) return alert("Nom obligatoire");
+        
         db.ref(compId + '/shooters').push(s);
         document.getElementById('newNom').value = '';
         document.getElementById('newPrenom').value = '';
@@ -125,12 +130,14 @@
     function renderList(list) {
         const cont = document.getElementById('shooterList');
         cont.innerHTML = '';
+        
+        // Tri par Nom puis Discipline
         list.sort((a,b) => a.lastName.localeCompare(b.lastName)).forEach(s => {
             cont.innerHTML += `
                 <div class="shooter-item">
                     <div class="shooter-info">
                         <b>${s.lastName}</b> ${s.firstName}
-                        <div style="font-size:0.8rem; color:#666;">${s.discipline} | ${s.category} | ${s.club}</div>
+                        <div style="font-size:0.85rem; color:#666;">${s.discipline} — ${s.category} — ${s.club}</div>
                     </div>
                     <div>
                         <input type="number" class="score-input" value="${s.score || 0}" onchange="saveScore('${s.id}', this.value)">
@@ -144,12 +151,17 @@
         db.ref(compId + '/shooters/' + id).update({ score: parseInt(val) || 0 });
         const anim = document.getElementById('ok-' + id);
         anim.style.display = 'inline';
-        setTimeout(() => anim.style.display = 'none', 1500);
+        setTimeout(() => anim.style.display = 'none', 1000);
     }
 
     function filterList() {
         const q = document.getElementById('search').value.toLowerCase();
-        const filtered = shootersData.filter(s => s.lastName.toLowerCase().includes(q) || s.firstName.toLowerCase().includes(q));
+        const filtered = shootersData.filter(s => 
+            s.lastName.toLowerCase().includes(q) || 
+            s.firstName.toLowerCase().includes(q) || 
+            s.club.toLowerCase().includes(q) ||
+            s.discipline.toLowerCase().includes(q)
+        );
         renderList(filtered);
     }
 </script>
