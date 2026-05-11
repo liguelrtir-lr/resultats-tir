@@ -82,12 +82,12 @@
         ISSF2550: {
             disc: [
                 "250 - Pistolet Percussion Centrale", "251 - Pistolet 25m", "252 - Pistolet Vitesse 25m", "253 - Pistolet Standard 25m", 
-                "500 - Pistolet 50m", "501 - Carabine 60BC", "502 - Carabine 3x20", "503 - Carabine 3x40",
+                "500 - Pistolet 50m", "501 - Carabine 60BC", "502 - Carabine 3x20",
                 "271 - HP P3 Pistolet 25m (SH1)", "272 - HP F1 Pistolet Vitesse 25m (SH1)", "273 - HP P4 Pistolet 50m (SH1)",
                 "274 - HP F2 Pistolet Standard 25m (SH1)", "571 - HP R6 Carabine 50m 60BC (SH1)", "572 - HP R9 Carabine 50m 60BC (SH2)",
                 "573 - HP Carabine 50m 3x20 (SH1)", "574 - HP Carabine 50m 3x40 (SH1)"
             ],
-            cats: ["Junior Fille", "Junior Garçon", "Dame 1", "Dame 2", "Senior 1", "Senior 2", "Senior 3"]
+            cats: ["Minime F", "Minime G", "Cadet F", "Cadet G", "Junior Fille", "Junior Garçon", "Dame 1", "Dame 2", "Senior 1", "Senior 2", "Senior 3"]
         },
         EDT: {
             disc: [
@@ -97,7 +97,7 @@
                 "162 - HP R3 Car. 10m couchée EDT (SH1)", "163 - HP P1 Pistolet 10m EDT (SH1)", 
                 "150/154 - Combiné EDT", "165 - HP Carabine 10m couchée EDT (visuel)"
             ],
-            cats: ["Poussin Fille", "Poussin Garçon", "Benjamin Fille", "Benjamin Garçon", "Minime Fille", "Minime G"]
+            cats: ["Poussin Fille", "Poussin Garçon", "Benjamin Fille", "Benjamin Garçon", "Minime Fille", "Minime Garçon"]
         },
         MLAIC: {
             disc: [
@@ -163,24 +163,10 @@
         list.sort((a,b) => a.lastName.localeCompare(b.lastName)).forEach(s => {
             cont.innerHTML += `<div class="shooter-item">
                 <div class="shooter-info"><b>${s.lastName}</b> ${s.firstName}<div>${s.discipline} — ${s.category} — ${s.club}</div></div>
-                <div><input type="number" class="score-input" value="${s.score || 0}" onchange="saveScore('${s.id}', this.value)"><span id="ok-${s.id}" class="save-anim">✔</span></div>
+                <div><input type="number" step="0.1" class="score-input" value="${s.score || 0}" onchange="saveScore('${s.id}', this.value)"><span id="ok-${s.id}" class="save-anim">✔</span></div>
             </div>`;
         });
     }
 
     function saveScore(id, val) {
-        db.ref(compId + '/shooters/' + id).update({ score: parseFloat(val) || 0 });
-        const anim = document.getElementById('ok-' + id);
-        anim.style.display = 'inline'; setTimeout(() => anim.style.display = 'none', 1000);
-    }
-
-    function filterList() {
-        const q = document.getElementById('search').value.toLowerCase();
-        const filtered = shootersData.filter(s => s.lastName.toLowerCase().includes(q) || s.firstName.toLowerCase().includes(q) || s.discipline.toLowerCase().includes(q));
-        renderList(filtered);
-    }
-
-    updateMenus();
-</script>
-</body>
-</html>
+        db.ref(compId + '/shooters/' + id).
