@@ -19,15 +19,15 @@
       flex-direction: column;
     }
 
-    /* HEADER LUMINEUX */
     .header {
-      padding: 25px 40px;
+      padding: 20px 40px;
       background: rgba(255, 255, 255, 0.1);
       backdrop-filter: blur(10px);
       display: flex;
       justify-content: space-between;
       align-items: center;
       border-bottom: 1px solid rgba(255,255,255,0.2);
+      z-index: 1000;
     }
     
     .comp-name { 
@@ -35,7 +35,6 @@
       font-weight: 900; 
       text-transform: uppercase;
       letter-spacing: 2px;
-      text-shadow: 0 4px 10px rgba(0,0,0,0.2);
     }
 
     .ranking-container {
@@ -43,9 +42,10 @@
       display: flex;
       flex-direction: column;
       padding: 30px;
-      max-height: calc(100vh - 100px);
+      overflow: hidden; /* Empêche le container de scroller, c'est la liste qui le fera */
     }
 
+    /* --- EN-TÊTE FIXE (DISCIPLINE) --- */
     .view-title {
       background: #ffffff;
       color: #764ba2;
@@ -56,18 +56,24 @@
       text-align: center;
       text-transform: uppercase;
       box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      position: sticky;
+      top: 0;
+      z-index: 100;
     }
 
+    /* --- EN-TÊTE FIXE (COLONNES #, TIREUR, CLUB, SCORE) --- */
     .grid-header {
       display: grid;
       grid-template-columns: 80px 1fr 250px 150px;
-      background: rgba(255, 255, 255, 0.2);
+      background: rgba(118, 75, 162, 0.95); /* Fond opaque pour ne pas voir les noms passer derrière */
       padding: 20px;
       font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: 1px;
       font-size: 1.1em;
       border-bottom: 2px solid rgba(255,255,255,0.3);
+      position: sticky;
+      top: 68px; /* Juste en dessous du titre blanc */
+      z-index: 99;
     }
 
     .grid-scroll {
@@ -76,6 +82,7 @@
       background: rgba(255, 255, 255, 0.05);
       border-radius: 0 0 15px 15px;
       backdrop-filter: blur(5px);
+      position: relative;
     }
 
     .grid-scroll::-webkit-scrollbar { display: none; }
@@ -87,59 +94,24 @@
       border-bottom: 1px solid rgba(255,255,255,0.1);
       align-items: center;
       font-size: 1.4em; 
-      transition: background 0.3s;
     }
 
     .row:nth-child(even) { background: rgba(255,255,255,0.03); }
 
-    .rank { 
-      font-weight: 900; 
-      font-size: 1.2em; 
-      text-align: center;
-    }
-
-    .name { font-weight: 700; text-transform: capitalize; }
+    .rank { font-weight: 900; text-align: center; }
+    .name { font-weight: 700; }
     .club { font-size: 0.8em; opacity: 0.9; font-style: italic; }
     .score { 
-      font-weight: 900; 
-      text-align: right; 
-      font-size: 1.3em;
-      color: #ffffff;
-      background: rgba(255,255,255,0.15);
-      padding: 5px 15px;
-      border-radius: 10px;
+      font-weight: 900; text-align: right; font-size: 1.3em;
+      background: rgba(255,255,255,0.15); padding: 5px 15px; border-radius: 10px;
     }
 
-    /* --- STYLES DU PODIUM (Ligne entière) --- */
-
-    /* OR - 1er */
-    .row.rank-1 {
-      background: linear-gradient(90deg, rgba(255, 215, 0, 0.8) 0%, rgba(255, 239, 148, 0.8) 100%) !important;
-      color: #333; /* Texte sombre pour contraste */
-      box-shadow: 0 5px 15px rgba(255, 215, 0, 0.3);
-    }
-    .row.rank-1 .rank, .row.rank-1 .name, .row.rank-1 .club, .row.rank-1 .score {
-      color: #222 !important;
-    }
-    .row.rank-1 .score { background: rgba(0,0,0,0.1); }
-
-    /* ARGENT - 2ème */
-    .row.rank-2 {
-      background: linear-gradient(90deg, rgba(192, 192, 192, 0.8) 0%, rgba(232, 232, 232, 0.8) 100%) !important;
-      color: #333;
-    }
-    .row.rank-2 .rank, .row.rank-2 .name, .row.rank-2 .club, .row.rank-2 .score {
-      color: #222 !important;
-    }
-    .row.rank-2 .score { background: rgba(0,0,0,0.1); }
-
-    /* BRONZE - 3ème */
-    .row.rank-3 {
-      background: linear-gradient(90deg, rgba(205, 127, 50, 0.8) 0%, rgba(255, 179, 107, 0.8) 100%) !important;
-      color: #fff; /* Texte blanc pour contraste sur le bronze */
-    }
-    .row.rank-3 .score { background: rgba(255,255,255,0.1); }
-
+    /* --- PODIUM --- */
+    .row.rank-1 { background: linear-gradient(90deg, #ffd700 0%, #ffef94 100%) !important; color: #222 !important; }
+    .row.rank-1 * { color: #222 !important; }
+    .row.rank-2 { background: linear-gradient(90deg, #c0c0c0 0%, #e8e8e8 100%) !important; color: #222 !important; }
+    .row.rank-2 * { color: #222 !important; }
+    .row.rank-3 { background: linear-gradient(90deg, #cd7f32 0%, #ffb36b 100%) !important; color: #fff !important; }
 
     .clock { font-family: 'Courier New', Courier, monospace; font-size: 1.8em; font-weight: bold; }
   </style>
@@ -152,19 +124,20 @@
   </div>
 
   <div class="ranking-container">
-    <div class="view-title" id="currentViewTitle">Chargement des catégories...</div>
-    <div class="grid-header">
-      <div style="text-align: center;">#</div>
-      <div>TIREUR</div>
-      <div>CLUB</div>
-      <div style="text-align: right;">SCORE</div>
-    </div>
     <div class="grid-scroll" id="tableScroll">
+      <div class="view-title" id="currentViewTitle">Chargement...</div>
+      <div class="grid-header">
+        <div style="text-align: center;">#</div>
+        <div>TIREUR</div>
+        <div>CLUB</div>
+        <div style="text-align: right;">SCORE</div>
       </div>
+      <div id="listRows">
+        </div>
+    </div>
   </div>
 
   <script>
-    // Config Firebase (Inchangée)
     const firebaseConfig = {
       apiKey: "AIzaSyAvfMRtRrhh_e-27xHlwIx9c5DIdUQm6HM",
       authDomain: "resultats-tir-ligue-lr.firebaseapp.com",
@@ -174,7 +147,7 @@
       appId: "1:468808300974:web:563a14cc4477c10b28303f"
     };
 
-    const app = firebase.initializeApp(firebaseConfig);
+    firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     const urlParams = new URLSearchParams(window.location.search);
     const COMP_ID = urlParams.get('comp') || 'GENERAL';
@@ -184,7 +157,7 @@
     let currentIdx = 0;
     let scrollTimer, rotateTimer;
 
-    const perViewSeconds = 12; 
+    const perViewSeconds = 15; // Un peu plus long car beaucoup de tireurs
     const scrollPadding = 2500; 
 
     function init() {
@@ -228,14 +201,9 @@
       const view = rotateViews[currentIdx];
       document.getElementById('currentViewTitle').textContent = view.title;
       
-      const container = document.getElementById('tableScroll');
-      container.innerHTML = view.shooters.map((s, i) => {
-        // Ajout dynamique de la classe de rang pour le style
-        let rankClass = '';
-        if (i === 0) rankClass = 'rank-1';
-        else if (i === 1) rankClass = 'rank-2';
-        else if (i === 2) rankClass = 'rank-3';
-
+      const listRows = document.getElementById('listRows');
+      listRows.innerHTML = view.shooters.map((s, i) => {
+        let rankClass = (i === 0) ? 'rank-1' : (i === 1) ? 'rank-2' : (i === 2) ? 'rank-3' : '';
         return `
           <div class="row ${rankClass}">
             <div class="rank">${i + 1}</div>
@@ -246,18 +214,20 @@
         `;
       }).join('');
 
-      container.scrollTop = 0;
+      const scroller = document.getElementById('tableScroll');
+      scroller.scrollTop = 0;
       clearInterval(scrollTimer);
 
       setTimeout(() => {
-        const maxScroll = container.scrollHeight - container.clientHeight;
+        // On mesure à partir des lignes uniquement (titres exclus)
+        const maxScroll = scroller.scrollHeight - scroller.clientHeight;
         if (maxScroll > 10) {
           const duration = (perViewSeconds * 1000) - (scrollPadding * 2);
           const step = maxScroll / (duration / 30);
           
           scrollTimer = setInterval(() => {
-            container.scrollTop += step;
-            if (container.scrollTop >= maxScroll - 1) {
+            scroller.scrollTop += step;
+            if (scroller.scrollTop >= maxScroll - 1) {
               clearInterval(scrollTimer);
               setTimeout(goNext, scrollPadding);
             }
