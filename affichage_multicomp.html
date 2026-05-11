@@ -12,29 +12,27 @@
         .header { background: linear-gradient(to bottom, #153039, var(--bg)); padding: 15px; text-align: center; border-bottom: 2px solid var(--accent); }
         h1 { font-family: 'Orbitron', sans-serif; margin: 0; font-size: 2rem; text-transform: uppercase; color: var(--accent); }
         .scroll-container { height: calc(100vh - 100px); overflow-y: hidden; padding: 0 20px; }
-        .category-title { 
-            background: rgba(15, 184, 201, 0.1); color: var(--accent); padding: 10px; 
-            margin: 25px 0 10px 0; border-radius: 4px; font-family: 'Orbitron', sans-serif;
-            font-size: 1.5rem; border-left: 4px solid var(--accent); text-align: left;
-        }
+        .category-title { background: rgba(15, 184, 201, 0.1); color: var(--accent); padding: 10px; margin: 25px 0 10px 0; border-radius: 4px; font-family: 'Orbitron', sans-serif; font-size: 1.5rem; border-left: 4px solid var(--accent); text-align: left; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 30px; background: var(--surface); }
-        th { font-family: 'Orbitron', sans-serif; padding: 10px; color: var(--accent); border-bottom: 1px solid var(--accent); text-align: left; }
-        td { padding: 10px; font-size: 1.3rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        td { padding: 10px; font-size: 1.3rem; border-bottom: 1px solid rgba(255,255,255,0.05); text-align: left; }
         .rank { width: 60px; text-align: center; font-weight: bold; }
         .rank-1 { color: var(--gold); } .rank-2 { color: var(--silver); } .rank-3 { color: var(--bronze); }
-        .score { text-align: right; color: var(--accent); font-family: 'Orbitron', sans-serif; font-weight: bold; }
+        .score { text-align: right; color: var(--accent); font-family: 'Orbitron', sans-serif; font-weight: bold; padding-right: 20px; }
+        #debug-log { position: fixed; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.8); color: #0f0; font-family: monospace; font-size: 10px; padding: 5px; z-index: 100; max-height: 50px; overflow: hidden; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1 id="compTitle">RECHERCHE...</h1>
-    <div id="status" style="font-size:0.8rem; opacity:0.6">Initialisation...</div>
+    <h1 id="compTitle">SCANNER LIVE...</h1>
+    <div id="status">En attente de données...</div>
 </div>
 
 <div class="scroll-container" id="scrollBox">
     <div id="content"></div>
 </div>
+
+<div id="debug-log">Initialisation système...</div>
 
 <script>
     const firebaseConfig = {
@@ -48,45 +46,47 @@
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-    const params = new URLSearchParams(window.location.search);
-    const compId = params.get('comp');
+    const log = (msg) => { document.getElementById('debug-log').innerHTML += " | " + msg; console.log(msg); };
 
-    if (compId) {
-        // ON ÉCOUTE TOUTE LA BASE POUR ÊTRE SÛR
+    const params = new URLSearchParams(window.location.search);
+    const compIdRaw = params.get('comp') || "";
+    
+    if (compIdRaw) {
+        log("Recherche de : " + compIdRaw);
+        
         db.ref().on('value', (snap) => {
             const all = snap.val();
-            if (!all) return;
+            if (!all) { log("Base vide"); return; }
 
-            // Détection du dossier (Racine ou Competitions)
-            let data = all[compId] || (all.competitions ? all.competitions[compId] : null);
+            // TEST DE TOUTES LES VARIANTES D'ID (MAJ/MIN)
+            const idUpper = compIdRaw.toUpperCase();
+            const idLower = compIdRaw.toLowerCase();
+            
+            let data = all[idUpper] || all[idLower] || all[compIdRaw];
+            
+            // TEST DANS LE DOSSIER COMPETITIONS
+            if (!data && all.competitions) {
+                data = all.competitions[idUpper] || all.competitions[idLower] || all.competitions[compIdRaw];
+            }
 
             if (data) {
-                document.getElementById('compTitle').textContent = data.config ? data.config.name : compId;
+                log("Dossier trouvé !");
+                document.getElementById('compTitle').textContent = data.config ? data.config.name : compIdRaw;
                 
-                // --- EXTRACTION DES TIREURS ---
-                let shootersArray = [];
+                // EXTRACTION SÉCURISÉE
+                let shootersObj = data.shooters || data.shootters || data;
+                let list = Object.values(shootersObj).filter(s => s && typeof s === 'object' && (s.lastName || s.firstName));
                 
-                // On regarde dans 'shooters'
-                if (data.shooters) shootersArray = Object.values(data.shooters);
-                // Sinon dans 'shootters' (faute de frappe)
-                else if (data.shootters) shootersArray = Object.values(data.shootters);
-                // Sinon on prend tout sauf 'config'
-                else {
-                    shootersArray = Object.keys(data)
-                        .filter(key => key !== 'config')
-                        .map(key => data[key]);
-                }
+                log(list.length + " tireurs détectés");
 
-                // Filtrage pour ne garder que les objets tireurs valides
-                const validShooters = shootersArray.filter(s => s && typeof s === 'object' && (s.lastName || s.firstName));
-
-                if (validShooters.length > 0) {
-                    render(validShooters);
+                if (list.length > 0) {
+                    render(list);
                 } else {
-                    document.getElementById('status').textContent = "Dossier trouvé mais données tireurs illisibles.";
+                    document.getElementById('status').textContent = "Dossier vide ou format inconnu.";
                 }
             } else {
-                document.getElementById('status').textContent = "ID " + compId + " non trouvé dans Firebase.";
+                log("ID introuvable dans la base");
+                document.getElementById('status').textContent = "Erreur : " + compIdRaw + " introuvable.";
             }
         });
     }
@@ -97,7 +97,6 @@
         const groups = {};
 
         shooters.forEach(s => {
-            // Détection de la discipline
             let cat = s.discipline || s.category || "CLASSEMENT GÉNÉRAL";
             if (!groups[cat]) groups[cat] = [];
             groups[cat].push(s);
@@ -105,15 +104,11 @@
 
         Object.keys(groups).sort().forEach(catName => {
             const sorted = groups[catName].sort((a,b) => (Number(b.score) || 0) - (Number(a.score) || 0));
-            
-            let html = `<div class="category-title">${catName}</div>
-                        <table>
-                            <thead><tr><th style="width:70px">Rang</th><th>Tireur</th><th style="text-align:right">Score</th></tr></thead>
-                            <tbody>`;
+            let html = `<div class="category-title">${catName}</div><table><tbody>`;
             
             sorted.forEach((s, i) => {
                 const rank = i + 1;
-                const rClass = rank === 1 ? "rank-1" : rank === 2 ? "rank-2" : rank === 3 ? "rank-3" : "";
+                const rClass = rank <= 3 ? "rank-" + rank : "";
                 const medal = rank === 1 ? "🥇 " : rank === 2 ? "🥈 " : rank === 3 ? "🥉 " : "";
                 html += `<tr>
                             <td class="rank ${rClass}">${medal}${rank}</td>
@@ -125,7 +120,7 @@
             content.innerHTML += html;
         });
 
-        document.getElementById('status').textContent = shooters.length + " tireurs chargés avec succès.";
+        document.getElementById('status').textContent = shooters.length + " tireurs chargés";
         startAutoScroll();
     }
 
