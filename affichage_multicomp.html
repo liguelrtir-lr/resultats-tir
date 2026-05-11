@@ -59,23 +59,22 @@
     const compId = params.get('comp');
 
     if (compId) {
-        // ON ÉCOUTE TOUTE LA BASE POUR TROUVER LE DOSSIER
         db.ref().on('value', (snapshot) => {
             const allData = snapshot.val();
             if (!allData) return;
 
-            // Recherche du dossier cible (racine ou competitions/)
             let targetData = allData[compId] || (allData.competitions ? allData.competitions[compId] : null);
 
             if (targetData) {
                 document.getElementById('compTitle').textContent = targetData.config ? targetData.config.name : compId;
                 
-                // On récupère les tireurs (shooters ou vrac)
                 let rawList = targetData.shooters || targetData.shootters || targetData;
-                const shooters = Object.values(rawList).filter(s => s && s.lastName);
+                const shooters = Object.values(rawList).filter(s => s && typeof s === 'object' && (s.lastName || s.firstName));
 
                 if (shooters.length > 0) {
                     renderCategories(shooters);
+                } else {
+                    document.getElementById('status').textContent = "Aucun tireur trouvé dans ce dossier.";
                 }
             } else {
                 document.getElementById('status').textContent = "ID " + compId + " non trouvé.";
@@ -87,17 +86,18 @@
         const content = document.getElementById('content');
         content.innerHTML = '';
 
-        // Groupement par discipline
         const grouped = {};
         shooters.forEach(s => {
-            const cat = s.discipline || s.category || "AUTRES";
+            // ON CHERCHE LA DISCIPLINE DANS TOUTES LES CLÉS POSSIBLES
+            const cat = s.discipline || s.category || s.disciplineName || s.event || "CLASSEMENT GÉNÉRAL";
             if (!grouped[cat]) grouped[cat] = [];
             grouped[cat].push(s);
         });
 
-        // Affichage de chaque bloc
-        Object.keys(grouped).sort().forEach(catName => {
-            const sorted = grouped[catName].sort((a,b) => (b.score || 0) - (a.score || 0));
+        const sortedCategories = Object.keys(grouped).sort();
+
+        sortedCategories.forEach(catName => {
+            const sorted = grouped[catName].sort((a,b) => (Number(b.score) || 0) - (Number(a.score) || 0));
             
             let html = `<div class="category-header">${catName}</div>
                         <table>
@@ -111,7 +111,7 @@
                 
                 html += `<tr>
                             <td class="rank ${rClass}">${medal}${rank}</td>
-                            <td>${s.firstName} <span style="text-transform:uppercase; font-weight:700;">${s.lastName}</span></td>
+                            <td>${s.firstName || ''} <span style="text-transform:uppercase; font-weight:700;">${s.lastName || ''}</span></td>
                             <td class="club">${s.club || '-'}</td>
                             <td class="score">${s.score || 0}</td>
                          </tr>`;
