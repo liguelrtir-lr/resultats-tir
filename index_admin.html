@@ -2,48 +2,73 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Centre de Contrôle — Résultats Tir</title>
+    <title>Centre de Contrôle — Ligue LR</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <style>
-        body { font-family: sans-serif; background: #1a2a30; color: white; text-align: center; padding: 20px; }
-        .header { display: flex; justify-content: space-between; align-items: center; max-width: 800px; margin: 0 auto 30px; }
-        h1 { margin: 0; font-size: 1.8rem; }
+        /* Fond sympa : dégradé sportif */
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); 
+            margin: 0; padding: 40px; 
+            color: #333;
+            min-height: 100vh;
+        }
         
-        .btn-create { 
-            background: #28a745; color: white; border: none; padding: 10px 20px; 
-            border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 1rem;
+        .container { 
+            max-width: 900px; margin: 0 auto; 
+            background: rgba(255, 255, 255, 0.95); 
+            padding: 30px; border-radius: 20px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3); 
         }
 
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; max-width: 1000px; margin: 0 auto; }
-        
-        .card { 
-            background: #243b45; padding: 20px; border-radius: 12px; border: 1px solid #34495e; 
-            text-align: left; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        h1 { text-align: center; color: #1e3c72; font-size: 2rem; margin-bottom: 30px; border-bottom: 2px solid #eee; padding-bottom: 15px; }
+
+        /* Formulaire de création */
+        .creation-box { 
+            background: #f8f9fa; padding: 20px; border-radius: 12px; 
+            display: flex; gap: 10px; margin-bottom: 40px; border: 1px solid #ddd;
         }
-        .card h2 { margin: 0 0 5px 0; color: #0fb8c9; }
-        .card .id { font-size: 0.8rem; color: #94a3b8; margin-bottom: 15px; }
-        .card .count { color: #2ecc71; font-weight: bold; margin-bottom: 20px; }
+        input { flex: 1; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; }
+        .btn-create { background: #007bff; color: white; border: none; padding: 0 20px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+
+        /* Liste des compétitions */
+        .comp-card { 
+            background: white; border: 1px solid #eee; padding: 20px; 
+            border-radius: 12px; margin-bottom: 15px; 
+            display: flex; justify-content: space-between; align-items: center;
+            transition: transform 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .comp-card:hover { transform: translateY(-3px); box-shadow: 0 6px 12px rgba(0,0,0,0.1); }
+        .comp-info h3 { margin: 0; color: #333; font-size: 1.2rem; }
         
+        /* Boutons d'actions */
+        .actions { display: flex; gap: 8px; }
         .btn { 
-            display: block; width: 100%; padding: 10px; margin: 8px 0; border: none; 
-            border-radius: 6px; cursor: pointer; text-decoration: none; text-align: center;
-            font-weight: bold; font-size: 0.9rem; color: white;
+            text-decoration: none; padding: 10px 15px; border-radius: 6px; 
+            font-size: 0.9rem; font-weight: bold; color: white; text-align: center;
         }
-        .btn-saisie { background: #0fb8c9; }
-        .btn-tv { background: #34495e; }
-        .btn-del { background: #e74c3c; margin-top: 15px; opacity: 0.7; }
+        .btn-saisie { background: #007bff; }
+        .btn-tv { background: #6f42c1; }
+        .btn-palmares { background: #28a745; }
+        .btn-del { background: #dc3545; border: none; cursor: pointer; }
+
+        .btn:hover { opacity: 0.85; }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <h1>🎯 Centre de Contrôle</h1>
-        <button class="btn-create" onclick="createNewComp()">+ Nouveau Dossier</button>
+<div class="container">
+    <h1>🎯 Gestion des Championnats</h1>
+
+    <div class="creation-box">
+        <input type="text" id="compName" placeholder="Ex: Régional TAR 2026, ISSF 10m...">
+        <button class="btn-create" onclick="creerComp()">+ Créer</button>
     </div>
 
-    <div id="compGrid" class="grid">
+    <div id="compList">
         </div>
+</div>
 
 <script>
     const firebaseConfig = {
@@ -54,57 +79,43 @@
         storageBucket: "resultats-tir-ligue-lr.firebasestorage.app",
         appId: "1:468808300974:web:563a14cc4477c10b28303f"
     };
-
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // CHARGEMENT DES COMPÉTITIONS
+    function creerComp() {
+        const name = document.getElementById('compName').value;
+        if (!name) return alert("Nom requis");
+        const id = name.replace(/\s+/g, '_').toLowerCase() + "_" + Date.now();
+        db.ref(id).set({ name: name, id: id });
+        document.getElementById('compName').value = '';
+    }
+
     db.ref().on('value', (snap) => {
-        const data = snap.val();
-        const grid = document.getElementById('compGrid');
-        grid.innerHTML = '';
-
-        if (!data) return;
-
-        Object.keys(data).forEach(id => {
-            if (id === 'competitions') return; // On ignore l'ancien dossier
-            
-            const comp = data[id];
-            const shooters = comp.shooters || comp;
-            const count = Object.values(shooters).filter(s => s && s.lastName).length;
-            const name = comp.config ? comp.config.name : id;
-
-            grid.innerHTML += `
-                <div class="card">
-                    <h2>${name}</h2>
-                    <div class="id">ID: ${id}</div>
-                    <div class="count">${count} tireur(s) détecté(s)</div>
-                    <a href="saisie_multicomp.html?comp=${id}" class="btn btn-saisie">Saisie</a>
-                    <a href="affichage_multicomp.html?comp=${id}" class="btn btn-tv">Affichage TV</a>
-                    <button onclick="deleteComp('${id}')" class="btn btn-del">Supprimer</button>
+        const data = snap.val() || {};
+        const list = document.getElementById('compList');
+        list.innerHTML = '';
+        
+        Object.keys(data).forEach(key => {
+            if (key === 'Ligue_Tireurs_Archive') return; // On n'affiche pas l'archive ici
+            const comp = data[key];
+            list.innerHTML += `
+                <div class="comp-card">
+                    <div class="comp-info">
+                        <h3>${comp.name}</h3>
+                    </div>
+                    <div class="actions">
+                        <a href="saisie_multicomp.html?comp=${key}" class="btn btn-saisie">Saisie</a>
+                        <a href="affichage_multicomp.html?comp=${key}" class="btn btn-tv" target="_blank">TV</a>
+                        <a href="classement_multicomp.html?comp=${key}" class="btn btn-palmares" target="_blank">Palmarès</a>
+                        <button onclick="supprimerComp('${key}')" class="btn btn-del">🗑️</button>
+                    </div>
                 </div>
             `;
         });
     });
 
-    // FONCTION POUR CRÉER UNE NOUVELLE COMPÉTITION
-    function createNewComp() {
-        const name = prompt("Nom de la compétition (ex: REGIONAUX MLAIC) :");
-        if (!name) return;
-        const id = prompt("ID Unique (ex: MLAIC_2026) - SANS ESPACES :").replace(/\s/g, '_');
-        if (!id) return;
-
-        db.ref(id + '/config').set({
-            name: name,
-            date: new Date().toISOString()
-        }).then(() => {
-            alert("Compétition créée ! Vous pouvez maintenant saisir des tireurs.");
-        });
-    }
-
-    // FONCTION SUPPRIMER
-    function deleteComp(id) {
-        if (confirm("Voulez-vous vraiment supprimer " + id + " ?")) {
+    function supprimerComp(id) {
+        if(confirm("Supprimer cette compétition et TOUS ses scores ?")) {
             db.ref(id).remove();
         }
     }
