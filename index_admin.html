@@ -3,174 +3,220 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🎯 Centre de Contrôle — Ligue LR Tir</title>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+  <title>🎯 Ligue LR - Administration</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
   <style>
     :root {
-      --bg: #050b14;
-      --accent: #00f2ff;
-      --accent-glow: rgba(0, 242, 255, 0.3);
-      --card-bg: rgba(255, 255, 255, 0.03);
-      --card-border: rgba(255, 255, 255, 0.08);
-      --text: #ffffff;
-      --text-muted: #8a99af;
+      --bg: #f0f4f8; /* Fond gris bleuté très clair, pro et reposant */
+      --sidebar: #1a2b3c; /* Bleu ardoise foncé pour le sérieux */
+      --accent: #2563eb; /* Bleu royal pour l'action principale */
+      --accent-hover: #1d4ed8;
+      --card-bg: #ffffff;
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      --danger: #dc2626;
+      --success: #16a34a;
     }
 
     * { margin:0; padding:0; box-sizing:border-box; }
 
     body {
       background: var(--bg);
-      background-image: 
-        radial-gradient(circle at 10% 20%, rgba(0, 242, 255, 0.05) 0%, transparent 40%),
-        radial-gradient(circle at 90% 80%, rgba(124, 58, 237, 0.08) 0%, transparent 40%);
-      color: var(--text);
-      font-family: 'Plus Jakarta Sans', sans-serif;
+      color: var(--text-main);
+      font-family: 'Inter', sans-serif;
+      display: flex;
       min-height: 100vh;
-      overflow-x: hidden;
     }
 
-    /* Formes décoratives animées en fond */
-    .glow-blob {
+    /* --- MENU LATÉRAL --- */
+    .sidebar {
+      width: 280px;
+      background: var(--sidebar);
+      color: white;
+      padding: 30px 20px;
+      display: flex;
+      flex-direction: column;
       position: fixed;
-      width: 400px; height: 400px;
+      height: 100vh;
+    }
+
+    .logo-area {
+      font-weight: 800;
+      font-size: 1.5em;
+      margin-bottom: 40px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-nav-main {
       background: var(--accent);
-      filter: blur(120px);
-      border-radius: 50%;
-      opacity: 0.05;
-      z-index: -1;
-      pointer-events: none;
+      color: white;
+      padding: 15px;
+      border: none;
+      border-radius: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s;
+      text-align: center;
+      margin-bottom: 20px;
     }
 
-    .container { max-width: 1200px; margin: 0 auto; padding: 40px 20px; }
+    .btn-nav-main:hover { background: var(--accent-hover); transform: translateY(-2px); }
 
-    header {
-      display: flex; justify-content: space-between; align-items: center;
-      margin-bottom: 50px;
-      background: rgba(255, 255, 255, 0.02);
-      padding: 20px 30px;
-      border-radius: 20px;
-      border: 1px solid var(--card-border);
-      backdrop-filter: blur(10px);
+    /* --- ZONE PRINCIPALE --- */
+    .main-content {
+      flex: 1;
+      margin-left: 280px;
+      padding: 40px 60px;
     }
 
-    h1 { font-weight: 800; font-size: 1.8em; letter-spacing: -1px; }
-    h1 span { color: var(--accent); text-shadow: 0 0 20px var(--accent-glow); }
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 40px;
+    }
 
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 25px; }
+    .section-title { font-weight: 800; font-size: 1.8em; letter-spacing: -0.5px; }
 
-    /* CARTES STYLE GLASSMORPHISM */
+    /* --- GRILLE DE CARTES ÉPURÉES --- */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 25px;
+    }
+
     .card {
       background: var(--card-bg);
-      backdrop-filter: blur(12px);
-      border: 1px solid var(--card-border);
-      border-radius: 24px;
-      padding: 28px;
-      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-      position: relative;
-      display: flex; flex-direction: column;
+      border-radius: 20px;
+      padding: 25px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      transition: 0.3s;
+      border: 1px solid transparent;
+      display: flex;
+      flex-direction: column;
     }
 
     .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
       border-color: var(--accent);
-      transform: translateY(-8px);
-      background: rgba(255, 255, 255, 0.05);
-      box-shadow: 0 20px 40px rgba(0,0,0,0.4), 0 0 20px rgba(0, 242, 255, 0.1);
     }
 
-    .card-type {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.65em;
-      color: var(--accent);
-      font-weight: 600;
+    .card-badge {
+      font-size: 0.7em;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 6px;
       text-transform: uppercase;
-      letter-spacing: 2px;
-      background: rgba(0, 242, 255, 0.1);
-      padding: 6px 12px;
-      border-radius: 8px;
+      background: #e2e8f0;
+      color: #475569;
       width: fit-content;
-      margin-bottom: 16px;
+      margin-bottom: 12px;
     }
 
-    .card-title { font-weight: 800; font-size: 1.4em; margin-bottom: 20px; line-height: 1.2; }
+    .card-title { font-weight: 700; font-size: 1.25em; margin-bottom: 8px; color: var(--sidebar); }
+    .card-code { font-family: 'JetBrains Mono', monospace; font-size: 0.8em; color: var(--text-muted); margin-bottom: 20px; }
 
-    .card-stats {
-      background: rgba(0, 0, 0, 0.2);
-      border-radius: 16px;
+    .card-stat-box {
+      background: #f8fafc;
+      border-radius: 12px;
       padding: 15px;
-      margin-bottom: 25px;
-      display: flex; justify-content: center; align-items: center; gap: 10px;
-      border: 1px solid rgba(255,255,255,0.03);
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
-    .stat-val { font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--accent); font-size: 1.3em; }
-    .stat-label { font-size: 0.8em; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+    .stat-label { font-size: 0.85em; font-weight: 600; color: var(--text-muted); }
+    .stat-number { font-size: 1.4em; font-weight: 800; color: var(--accent); }
 
-    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    /* --- BOUTONS D'ACTION CLAIRS --- */
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
 
-    .btn {
-      padding: 14px; border: none; border-radius: 14px; cursor: pointer;
-      font-weight: 700; font-size: 0.85em; transition: 0.3s;
-      display: flex; align-items: center; justify-content: center; gap: 8px;
+    .btn-action {
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid #e2e8f0;
+      background: white;
+      color: var(--text-main);
+      font-weight: 600;
+      font-size: 0.85em;
+      cursor: pointer;
+      transition: 0.2s;
       text-decoration: none;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
     }
 
-    .btn-primary { background: var(--accent); color: #000; box-shadow: 0 4px 15px var(--accent-glow); }
-    .btn-primary:hover { transform: scale(1.02); box-shadow: 0 8px 25px var(--accent-glow); }
+    .btn-action:hover { background: #f1f5f9; border-color: var(--accent); color: var(--accent); }
+    .btn-action.primary { background: var(--sidebar); color: white; border: none; }
+    .btn-action.primary:hover { background: #2c3e50; color: white; }
 
-    .btn-outline { background: rgba(255,255,255,0.05); color: #fff; border: 1px solid var(--card-border); }
-    .btn-outline:hover { background: rgba(255,255,255,0.1); border-color: #fff; }
-
-    .btn-danger {
-      grid-column: span 2; margin-top: 10px;
-      background: transparent; color: #ff5f5f; font-size: 0.75em; font-weight: 500;
+    .btn-delete {
+      grid-column: span 2;
+      margin-top: 10px;
+      color: var(--danger);
+      font-size: 0.8em;
+      border: none;
+      background: none;
       opacity: 0.6;
     }
-    .btn-danger:hover { opacity: 1; color: #ff3333; }
+    .btn-delete:hover { opacity: 1; text-decoration: underline; }
 
-    /* MODAL */
+    /* --- MODAL --- */
     .modal {
-      position: fixed; inset: 0; background: rgba(0, 0, 0, 0.8);
-      backdrop-filter: blur(15px); display: none; align-items: center; justify-content: center; z-index: 1000;
+      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5);
+      backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 1000;
     }
     .modal.active { display: flex; }
     .modal-content {
-      background: #0f172a; border: 1px solid var(--card-border);
-      padding: 40px; border-radius: 30px; width: 90%; max-width: 450px;
-      box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+      background: white; padding: 40px; border-radius: 24px; width: 90%; max-width: 450px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
     }
 
     input, select {
-      width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--card-border);
-      padding: 15px; border-radius: 12px; color: white; margin-bottom: 20px;
+      width: 100%; padding: 14px; margin-bottom: 20px; border-radius: 10px; border: 1px solid #cbd5e1;
       font-family: inherit; font-size: 1em;
     }
-    input:focus { border-color: var(--accent); outline: none; background: rgba(255,255,255,0.08); }
+    input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
 
-    #qrcode { background: white; padding: 15px; border-radius: 20px; display: inline-block; }
+    #qrcode { background: white; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; display: inline-block; }
   </style>
 </head>
 <body>
 
-  <div class="glow-blob" style="top: -100px; left: -100px;"></div>
-  <div class="glow-blob" style="bottom: 10%; right: -100px; background: #7c3aed;"></div>
+  <aside class="sidebar">
+    <div class="logo-area">🎯 Ligue LR</div>
+    <button class="btn-nav-main" onclick="openCreateModal()">+ Nouveau Championnat</button>
+    <div style="margin-top: auto; font-size: 0.8em; color: #94a3b8;">Saison 2026 — v3.0</div>
+  </aside>
 
-  <div class="container">
-    <header>
-      <h1>LIGUE <span>LR</span> TIR</h1>
-      <button class="btn btn-primary" onclick="openCreateModal()">＋ NOUVEAU CHAMPIONNAT</button>
-    </header>
+  <main class="main-content">
+    <div class="top-bar">
+      <div class="section-title">Tableau de bord</div>
+      <div id="clock" style="font-family: 'JetBrains Mono'; font-weight: 700; color: var(--text-muted);">00:00:00</div>
+    </div>
 
     <div class="grid" id="compGrid"></div>
-  </div>
+  </main>
 
   <div class="modal" id="createModal">
     <div class="modal-content">
-      <h2 style="margin-bottom:30px; font-weight: 800;">Nouvelle Compétition</h2>
-      <input type="text" id="newCompName" placeholder="Nom de la compétition">
+      <h2 style="margin-bottom:25px; font-weight: 800;">Configuration</h2>
+      <input type="text" id="newCompName" placeholder="Nom (ex: Championnat TAR)">
       <input type="text" id="newCompCode" placeholder="Code unique (ex: TAR_2024)">
       
       <select id="newCompType">
@@ -183,18 +229,18 @@
       </select>
 
       <div style="display:flex; gap:12px">
-        <button class="btn btn-outline" style="flex:1" onclick="closeCreateModal()">ANNULER</button>
-        <button class="btn btn-primary" style="flex:1" onclick="createComp()">CRÉER</button>
+        <button class="btn-action" style="flex:1" onclick="closeCreateModal()">Annuler</button>
+        <button class="btn-action primary" style="flex:1" onclick="createComp()">Créer</button>
       </div>
     </div>
   </div>
 
   <div class="modal" id="qrModal">
     <div class="modal-content" style="text-align:center">
-      <h2 id="qrTitle" style="margin-bottom:20px">Accès Live</h2>
+      <h2 id="qrTitle" style="margin-bottom:20px">Lien de partage</h2>
       <div id="qrcode"></div>
-      <p id="qrUrl" style="font-size:0.7em; color:var(--text-muted); word-break:break-all; margin: 20px 0;"></p>
-      <button class="btn btn-outline" style="width:100%" onclick="closeQrModal()">FERMER</button>
+      <p id="qrUrl" style="font-size:0.75em; color:var(--text-muted); word-break:break-all; margin: 20px 0;"></p>
+      <button class="btn-action" style="width:100%" onclick="closeQrModal()">Fermer</button>
     </div>
   </div>
 
@@ -210,7 +256,7 @@
 
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
-    const GITHUB_BASE = "https://liguelrtir-lr.github.io/resultats-tir"; // Vérifie bien cette URL
+    const GITHUB_BASE = "https://liguelrtir-lr.github.io/resultats-tir";
 
     function openCreateModal() { document.getElementById('createModal').classList.add('active'); }
     function closeCreateModal() { document.getElementById('createModal').classList.remove('active'); }
@@ -219,19 +265,12 @@
       const name = document.getElementById('newCompName').value.trim();
       const code = document.getElementById('newCompCode').value.trim().toUpperCase().replace(/\s/g, '_');
       const type = document.getElementById('newCompType').value;
-      if (!name || !code) return alert("Nom et Code obligatoires !");
-
-      database.ref(code + '/config').set({ name: name, type: type }).then(() => {
-        closeCreateModal();
-        document.getElementById('newCompName').value = '';
-        document.getElementById('newCompCode').value = '';
-      });
+      if (!name || !code) return alert("Champs requis");
+      database.ref(code + '/config').set({ name: name, type: type }).then(() => closeCreateModal());
     }
 
     function deleteComp(code, name) {
-      if (confirm(`🛑 SUPPRIMER DÉFINITIVEMENT ?\n\n"${name}" sera effacé du serveur Firebase.`)) {
-        database.ref(code).remove();
-      }
+      if (confirm(`⚠️ Supprimer définitivement "${name}" ?`)) database.ref(code).remove();
     }
 
     function openQr(code) {
@@ -246,7 +285,6 @@
 
     function closeQrModal() { document.getElementById('qrModal').classList.remove('active'); }
 
-    // Rendu en temps réel
     database.ref().on('value', snap => {
       const grid = document.getElementById('compGrid');
       grid.innerHTML = '';
@@ -260,23 +298,26 @@
           const card = document.createElement('div');
           card.className = 'card';
           card.innerHTML = `
-            <div class="card-type">${config.type || 'MULTI'}</div>
+            <div class="card-badge">${config.type || 'MULTI'}</div>
             <div class="card-title">${config.name}</div>
-            <div class="card-stats">
-               <span class="stat-label">Tireurs :</span>
-               <span class="stat-val">${shooterCount}</span>
+            <div class="card-code">#${code}</div>
+            <div class="card-stat-box">
+               <span class="stat-label">Tireurs enregistrés</span>
+               <span class="stat-number">${shooterCount}</span>
             </div>
             <div class="actions">
-              <a href="saisie_multicomp.html?comp=${code}" class="btn btn-primary">⌨️ SAISIE</a>
-              <button onclick="openQr('${code}')" class="btn btn-outline">QR CODE</button>
-              <a href="affichage_multicomp.html?comp=${code}" target="_blank" class="btn btn-outline" style="grid-column: span 2">📺 VOIR L'AFFICHAGE TV</a>
-              <button onclick="deleteComp('${code}', '${config.name}')" class="btn btn-danger">🗑️ Supprimer du serveur</button>
+              <a href="saisie_multicomp.html?comp=${code}" class="btn-action primary">Saisie</a>
+              <button onclick="openQr('${code}')" class="btn-action">QR Code</button>
+              <a href="affichage_multicomp.html?comp=${code}" target="_blank" class="btn-action" style="grid-column: span 2">Voir l'affichage TV</a>
+              <button onclick="deleteComp('${code}', '${config.name}')" class="btn-delete">Supprimer du serveur</button>
             </div>
           `;
           grid.appendChild(card);
         }
       });
     });
+
+    setInterval(() => { document.getElementById('clock').textContent = new Date().toLocaleTimeString(); }, 1000);
   </script>
 </body>
 </html>
