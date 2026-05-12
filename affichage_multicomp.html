@@ -2,131 +2,204 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>LIVE — Ligue LR</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Affichage Live — Ligue LR</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+
     <style>
         :root {
-            --bg: #ffffff;
-            --accent: #007bff;
-            --gold: #fff9db; --gold-b: #fcc419;
-            --silver: #f1f3f5; --silver-b: #adb5bd;
-            --bronze: #fff4e6; --bronze-b: #fd7e14;
+            --bg: #050b14;
+            --surface: #0f172a;
+            --accent: #00f2ff;
+            --text: #ffffff;
         }
-        body { font-family: 'Roboto', sans-serif; background: var(--bg); color: #212529; margin: 0; overflow: hidden; }
-        
-        /* HEADER FIN */
-        .header { background: #f8f9fa; padding: 12px; text-align: center; border-bottom: 2px solid var(--accent); box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        h1 { font-family: 'Oswald', sans-serif; margin: 0; font-size: 2rem; text-transform: uppercase; color: var(--accent); letter-spacing: 1px; }
 
-        .scroll-container { height: calc(100vh - 75px); overflow-y: hidden; padding: 0 25px; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            margin: 0;
+            overflow: hidden; /* Important pour le scroll auto */
+            height: 100vh;
+        }
 
-        /* CATEGORIE FIXE (STICKY) */
-        .cat-header { position: sticky; top: 0; background: var(--bg); padding: 12px 0; z-index: 50; }
-        .cat-title { background: #e9ecef; color: var(--accent); padding: 10px 20px; border-radius: 4px; font-family: 'Oswald', sans-serif; font-size: 1.6rem; border-left: 6px solid var(--accent); text-align: left; }
+        /* BANDEAU DU HAUT AMÉLIORÉ */
+        .header {
+            background: var(--surface);
+            padding: 20px 0;
+            text-align: center;
+            border-bottom: 3px solid var(--accent);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
 
-        table { width: 100%; border-collapse: separate; border-spacing: 0 4px; margin-bottom: 40px; }
-        td { padding: 12px; font-size: 1.3rem; border-top: 1px solid #eee; border-bottom: 1px solid #eee; }
+        .header-content {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 40px; /* Espace entre les armes et le texte */
+        }
 
-        /* MÉDAILLES LUMINEUSES */
-        .m1 { background: var(--gold) !important; border-color: var(--gold-b) !important; font-weight: bold; }
-        .m1 .rank, .m1 .score { color: #d4a017; }
+        .weapon-icon {
+            font-size: 4rem; /* Très gros pour TV */
+            filter: drop-shadow(0 0 15px var(--accent));
+        }
 
-        .m2 { background: var(--silver) !important; border-color: var(--silver-b) !important; }
-        .m2 .rank, .m2 .score { color: #7f8c8d; }
+        .icon-right {
+            transform: scaleX(-1); /* Retourne l'arme de droite */
+        }
 
-        .m3 { background: var(--bronze) !important; border-color: var(--bronze-b) !important; }
-        .m3 .rank, .m3 .score { color: #a0522d; }
+        h1 {
+            font-size: 3.5rem;
+            margin: 0;
+            text-transform: uppercase;
+            font-weight: 800;
+            letter-spacing: -1px;
+        }
 
-        .rank { width: 60px; text-align: center; font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 1.4rem; color: #ccc; }
-        .score { text-align: right; font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 1.8rem; color: var(--accent); padding-right: 25px; }
-        .club { color: #888; font-size: 0.95rem; text-transform: uppercase; margin-top: 2px; }
+        /* TABLEAU ET SCROLL */
+        .results-container {
+            padding: 20px;
+            margin-top: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 10px;
+        }
+
+        th {
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            text-align: left;
+            font-size: 1.2rem;
+            color: var(--accent);
+            text-transform: uppercase;
+        }
+
+        tr {
+            background: rgba(255,255,255,0.02);
+            transition: 0.3s;
+        }
+
+        td {
+            padding: 20px 15px;
+            font-size: 1.5rem;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .rank { font-family: 'JetBrains Mono'; font-weight: 800; color: var(--accent); }
+        .score { font-family: 'JetBrains Mono'; font-weight: 800; font-size: 1.8rem; text-align: right; }
     </style>
 </head>
 <body>
 
-<div class="header"><h1 id="compTitle">RÉSULTATS LIVE</h1></div>
-<div class="scroll-container" id="scrollBox"><div id="content"></div></div>
+    <div class="header">
+        <div class="header-content">
+            <span id="iconLeft" class="weapon-icon">🎯</span>
+            <h1 id="compName">CHARGEMENT...</h1>
+            <span id="iconRight" class="weapon-icon icon-right">🎯</span>
+        </div>
+    </div>
 
-<script>
-    const firebaseConfig = {
-        apiKey: "AIzaSyAvfMRtRrhh_e-27xHlwIx9c5DIdUQm6HM",
-        authDomain: "resultats-tir-ligue-lr.firebaseapp.com",
-        databaseURL: "https://resultats-tir-ligue-lr-default-rtdb.europe-west1.firebasedatabase.app",
-        projectId: "resultats-tir-ligue-lr",
-        storageBucket: "resultats-tir-ligue-lr.firebasestorage.app",
-        appId: "1:468808300974:web:563a14cc4477c10b28303f"
-    };
+    <div class="results-container" id="scrollContainer">
+        <table id="resultsTable">
+            <thead>
+                <tr>
+                    <th width="80">Pos</th>
+                    <th>Nom du Tireur / Club</th>
+                    <th width="150" style="text-align:right">Total</th>
+                </tr>
+            </thead>
+            <tbody id="resultsBody">
+                </tbody>
+        </table>
+    </div>
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-    const params = new URLSearchParams(window.location.search);
-    let compId = params.get('comp');
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAvfMRtRrhh_e-27xHlwIx9c5DIdUQm6HM",
+            authDomain: "resultats-tir-ligue-lr.firebaseapp.com",
+            databaseURL: "https://resultats-tir-ligue-lr-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "resultats-tir-ligue-lr",
+            storageBucket: "resultats-tir-ligue-lr.firebasestorage.app",
+            appId: "1:468808300974:web:563a14cc4477c10b28303f"
+        };
 
-    if (compId) {
-        // Lecture directe de la racine (plus de "competitions/")
-        db.ref(compId).on('value', (snap) => {
-            const data = snap.val();
-            if (!data) return;
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
 
-            document.getElementById('compTitle').textContent = data.config ? data.config.name : compId;
-            
-            // Extraction des tireurs (shooters ou vrac)
-            let raw = data.shooters || data;
-            let list = Object.values(raw).filter(s => s && typeof s === 'object' && s.lastName);
+        // Récupération du code compétition dans l'URL
+        const params = new URLSearchParams(window.location.search);
+        const compId = params.get('comp');
 
-            if (list.length > 0) {
-                render(list);
-            }
-        });
-    }
+        if (!compId) {
+            document.getElementById('compName').textContent = "ERREUR : AUCUN CODE";
+        } else {
+            database.ref(compId).on('value', snap => {
+                const data = snap.val();
+                if (!data) return;
 
-    function render(shooters) {
-        const content = document.getElementById('content');
-        content.innerHTML = '';
-        const groups = {};
+                // 1. MISE À JOUR DU TITRE ET DES ARMES
+                const config = data.config || {};
+                document.getElementById('compName').textContent = config.name || "SANS TITRE";
 
-        // Tri par discipline
-        shooters.forEach(s => {
-            let cat = s.discipline || s.category || "DIVERS";
-            if (!groups[cat]) groups[cat] = [];
-            groups[cat].push(s);
-        });
+                // Logique des armes selon le type
+                let emoji = "🎯"; // Cible par défaut
+                const type = config.type;
+                if (type === "ISSF10" || type === "EDT") emoji = "🔫"; 
+                if (type === "TAR" || type === "2550") emoji = "🔫"; // Tu peux changer pour une autre icône si besoin
+                if (type === "MLAIC") emoji = "💨"; 
 
-        // Affichage
-        Object.keys(groups).sort().forEach(catName => {
-            const sorted = groups[catName].sort((a,b) => (Number(b.score) || 0) - (Number(a.score) || 0));
-            let html = `<div class="cat-header"><div class="cat-title">${catName}</div></div><table><tbody>`;
-            
-            sorted.forEach((s, i) => {
-                const rank = i + 1;
-                const m = rank === 1 ? "m1" : rank === 2 ? "m2" : rank === 3 ? "m3" : "";
-                html += `<tr class="${m}">
-                    <td class="rank">${rank}</td>
-                    <td>
-                        <div style="font-weight:700;">${s.firstName} ${s.lastName.toUpperCase()}</div>
-                        <div class="club">${s.club || '-'}</div>
-                    </td>
-                    <td class="score">${s.score || 0}</td>
-                </tr>`;
+                document.getElementById('iconLeft').textContent = emoji;
+                document.getElementById('iconRight').textContent = emoji;
+
+                // 2. MISE À JOUR DES SCORES
+                const shooters = data.shooters || {};
+                const list = Object.keys(shooters).map(id => shooters[id]);
+                
+                // Tri par score décroissant
+                list.sort((a, b) => (parseFloat(b.total) || 0) - (parseFloat(a.total) || 0));
+
+                const body = document.getElementById('resultsBody');
+                body.innerHTML = '';
+                list.forEach((s, index) => {
+                    const row = `
+                        <tr>
+                            <td class="rank">${index + 1}</td>
+                            <td>
+                                <strong>${s.nom.toUpperCase()}</strong><br>
+                                <span style="font-size:0.8em; color:#8a99af">${s.club || ''}</span>
+                            </td>
+                            <td class="score">${s.total || '0'}</td>
+                        </tr>
+                    `;
+                    body.innerHTML += row;
+                });
             });
-            html += `</tbody></table>`;
-            content.innerHTML += html;
-        });
-        startAutoScroll();
-    }
+        }
 
-    function startAutoScroll() {
-        const box = document.getElementById('scrollBox');
-        if (window.itv) clearInterval(window.itv);
-        window.itv = setInterval(() => {
-            box.scrollTop += 1;
-            if (box.scrollTop + box.clientHeight >= box.scrollHeight - 1) {
-                setTimeout(() => { box.scrollTop = 0; }, 4000);
+        // --- SYSTÈME DE SCROLL AUTOMATIQUE ---
+        function autoScroll() {
+            const container = document.documentElement;
+            const scrollHeight = container.scrollHeight;
+            const clientHeight = container.clientHeight;
+            
+            if (scrollHeight > clientHeight) {
+                let current = window.scrollY;
+                if (current + clientHeight >= scrollHeight) {
+                    setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 3000);
+                } else {
+                    window.scrollBy({ top: 1, behavior: 'auto' });
+                }
             }
-        }, 40);
-    }
-</script>
+        }
+        setInterval(autoScroll, 50); // Vitesse du scroll
+    </script>
 </body>
 </html>
