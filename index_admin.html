@@ -4,93 +4,197 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>🎯 Centre de Contrôle — Ligue LR Tir</title>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Syne:wght@800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
   <style>
     :root {
-      --bg: #0e2228; --surface: #153039; --border: #224f5e;
-      --accent: #0fb8c9; --text: #ffffff; --text2: #94a3b8; --red: #ef4444;
+      --bg: #050b14;
+      --accent: #00f2ff;
+      --accent-glow: rgba(0, 242, 255, 0.3);
+      --card-bg: rgba(255, 255, 255, 0.03);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text: #ffffff;
+      --text-muted: #8a99af;
     }
-    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; padding: 20px; margin:0; }
-    .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
-    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
-    h1 { font-family: 'Syne', sans-serif; text-transform: uppercase; margin:0; }
-    h1 span { color: var(--accent); }
 
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
-    
-    .card { 
-      background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px; 
-      transition: 0.3s; position: relative; display: flex; flex-direction: column;
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      background: var(--bg);
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(0, 242, 255, 0.05) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(124, 58, 237, 0.08) 0%, transparent 40%);
+      color: var(--text);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
     }
-    .card:hover { border-color: var(--accent); transform: translateY(-3px); }
-    
-    .card-type { font-size: 0.7em; color: var(--accent); font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px; background: rgba(15, 184, 201, 0.1); padding: 4px 8px; border-radius: 4px; align-self: flex-start; }
-    .card-title { font-weight: bold; font-size: 1.3em; margin-bottom: 15px; color: #fff; line-height: 1.2; }
-    
-    .card-stats { background: rgba(0,0,0,0.2); padding: 12px; border-radius: 10px; margin-bottom: 20px; text-align: center; border: 1px solid var(--border); }
-    .stat-val { font-weight: bold; color: #18d9a0; font-size: 1.2em; }
 
-    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: auto; }
-    .btn { padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; text-align: center; text-decoration: none; font-size: 0.85em; transition: 0.2s; }
-    .btn-primary { background: var(--accent); color: var(--bg); }
-    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
-    .btn-danger { background: rgba(239, 68, 68, 0.1); color: var(--red); border: 1px solid rgba(239, 68, 68, 0.2); grid-column: span 2; margin-top: 5px; }
-    .btn-danger:hover { background: var(--red); color: white; }
+    /* Formes décoratives animées en fond */
+    .glow-blob {
+      position: fixed;
+      width: 400px; height: 400px;
+      background: var(--accent);
+      filter: blur(120px);
+      border-radius: 50%;
+      opacity: 0.05;
+      z-index: -1;
+      pointer-events: none;
+    }
 
-    /* Modal */
-    .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(6px); display: none; align-items: center; justify-content: center; z-index: 1000; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 40px 20px; }
+
+    header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 50px;
+      background: rgba(255, 255, 255, 0.02);
+      padding: 20px 30px;
+      border-radius: 20px;
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(10px);
+    }
+
+    h1 { font-weight: 800; font-size: 1.8em; letter-spacing: -1px; }
+    h1 span { color: var(--accent); text-shadow: 0 0 20px var(--accent-glow); }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 25px; }
+
+    /* CARTES STYLE GLASSMORPHISM */
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      padding: 28px;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      position: relative;
+      display: flex; flex-direction: column;
+    }
+
+    .card:hover {
+      border-color: var(--accent);
+      transform: translateY(-8px);
+      background: rgba(255, 255, 255, 0.05);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4), 0 0 20px rgba(0, 242, 255, 0.1);
+    }
+
+    .card-type {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65em;
+      color: var(--accent);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      background: rgba(0, 242, 255, 0.1);
+      padding: 6px 12px;
+      border-radius: 8px;
+      width: fit-content;
+      margin-bottom: 16px;
+    }
+
+    .card-title { font-weight: 800; font-size: 1.4em; margin-bottom: 20px; line-height: 1.2; }
+
+    .card-stats {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 16px;
+      padding: 15px;
+      margin-bottom: 25px;
+      display: flex; justify-content: center; align-items: center; gap: 10px;
+      border: 1px solid rgba(255,255,255,0.03);
+    }
+
+    .stat-val { font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--accent); font-size: 1.3em; }
+    .stat-label { font-size: 0.8em; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+
+    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .btn {
+      padding: 14px; border: none; border-radius: 14px; cursor: pointer;
+      font-weight: 700; font-size: 0.85em; transition: 0.3s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      text-decoration: none;
+    }
+
+    .btn-primary { background: var(--accent); color: #000; box-shadow: 0 4px 15px var(--accent-glow); }
+    .btn-primary:hover { transform: scale(1.02); box-shadow: 0 8px 25px var(--accent-glow); }
+
+    .btn-outline { background: rgba(255,255,255,0.05); color: #fff; border: 1px solid var(--card-border); }
+    .btn-outline:hover { background: rgba(255,255,255,0.1); border-color: #fff; }
+
+    .btn-danger {
+      grid-column: span 2; margin-top: 10px;
+      background: transparent; color: #ff5f5f; font-size: 0.75em; font-weight: 500;
+      opacity: 0.6;
+    }
+    .btn-danger:hover { opacity: 1; color: #ff3333; }
+
+    /* MODAL */
+    .modal {
+      position: fixed; inset: 0; background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(15px); display: none; align-items: center; justify-content: center; z-index: 1000;
+    }
     .modal.active { display: flex; }
-    .modal-content { background: var(--surface); padding: 30px; border-radius: 20px; width: 90%; max-width: 400px; border: 1px solid var(--border); }
-    input, select { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: white; box-sizing: border-box; }
-    
-    #qrcode { background: white; padding: 15px; border-radius: 10px; margin: 15px 0; display: inline-block; }
+    .modal-content {
+      background: #0f172a; border: 1px solid var(--card-border);
+      padding: 40px; border-radius: 30px; width: 90%; max-width: 450px;
+      box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+    }
+
+    input, select {
+      width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--card-border);
+      padding: 15px; border-radius: 12px; color: white; margin-bottom: 20px;
+      font-family: inherit; font-size: 1em;
+    }
+    input:focus { border-color: var(--accent); outline: none; background: rgba(255,255,255,0.08); }
+
+    #qrcode { background: white; padding: 15px; border-radius: 20px; display: inline-block; }
   </style>
 </head>
 <body>
 
+  <div class="glow-blob" style="top: -100px; left: -100px;"></div>
+  <div class="glow-blob" style="bottom: 10%; right: -100px; background: #7c3aed;"></div>
+
   <div class="container">
     <header>
-      <h1>Ligue <span>LR</span></h1>
-      <button class="btn btn-primary" onclick="openCreateModal()">＋ Nouveau Championnat</button>
+      <h1>LIGUE <span>LR</span> TIR</h1>
+      <button class="btn btn-primary" onclick="openCreateModal()">＋ NOUVEAU CHAMPIONNAT</button>
     </header>
 
-    <div class="grid" id="compGrid">
-      </div>
+    <div class="grid" id="compGrid"></div>
   </div>
 
   <div class="modal" id="createModal">
     <div class="modal-content">
-      <h2 style="margin-top:0">Créer un Championnat</h2>
-      <input type="text" id="newCompName" placeholder="Nom (ex: Départementaux TAR)">
+      <h2 style="margin-bottom:30px; font-weight: 800;">Nouvelle Compétition</h2>
+      <input type="text" id="newCompName" placeholder="Nom de la compétition">
       <input type="text" id="newCompCode" placeholder="Code unique (ex: TAR_2024)">
       
-      <label style="font-size: 0.8em; color: var(--text2)">Type de discipline :</label>
       <select id="newCompType">
         <option value="ISSF10">ISSF 10 Mètres</option>
         <option value="EDT">École de Tir (EDT)</option>
         <option value="MLAIC">Armes Anciennes (MLAIC)</option>
         <option value="TAR">TAR (Armes Réglementaires)</option>
         <option value="2550">ISSF 25/50 Mètres</option>
-        <option value="AMICAL">Concours Amical / Multi</option>
+        <option value="AMICAL">Amical / Multi</option>
       </select>
 
-      <div style="display:flex; gap:10px">
-        <button class="btn btn-outline" style="flex:1" onclick="closeCreateModal()">Annuler</button>
-        <button class="btn btn-primary" style="flex:1" onclick="createComp()">Créer</button>
+      <div style="display:flex; gap:12px">
+        <button class="btn btn-outline" style="flex:1" onclick="closeCreateModal()">ANNULER</button>
+        <button class="btn btn-primary" style="flex:1" onclick="createComp()">CRÉER</button>
       </div>
     </div>
   </div>
 
   <div class="modal" id="qrModal">
     <div class="modal-content" style="text-align:center">
-      <h2 id="qrTitle" style="margin-top:0">Accès Public</h2>
+      <h2 id="qrTitle" style="margin-bottom:20px">Accès Live</h2>
       <div id="qrcode"></div>
-      <p id="qrUrl" style="font-size:0.7em; color:var(--accent); word-break:break-all; margin-bottom:20px"></p>
-      <button class="btn btn-outline" style="width:100%" onclick="closeQrModal()">Fermer</button>
+      <p id="qrUrl" style="font-size:0.7em; color:var(--text-muted); word-break:break-all; margin: 20px 0;"></p>
+      <button class="btn btn-outline" style="width:100%" onclick="closeQrModal()">FERMER</button>
     </div>
   </div>
 
@@ -106,7 +210,7 @@
 
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
-    const GITHUB_BASE = "https://ligue-tir-lr.github.io/resultats";
+    const GITHUB_BASE = "https://liguelrtir-lr.github.io/resultats-tir"; // Vérifie bien cette URL
 
     function openCreateModal() { document.getElementById('createModal').classList.add('active'); }
     function closeCreateModal() { document.getElementById('createModal').classList.remove('active'); }
@@ -115,7 +219,7 @@
       const name = document.getElementById('newCompName').value.trim();
       const code = document.getElementById('newCompCode').value.trim().toUpperCase().replace(/\s/g, '_');
       const type = document.getElementById('newCompType').value;
-      if (!name || !code) return alert("Remplis le nom et le code !");
+      if (!name || !code) return alert("Nom et Code obligatoires !");
 
       database.ref(code + '/config').set({ name: name, type: type }).then(() => {
         closeCreateModal();
@@ -125,8 +229,8 @@
     }
 
     function deleteComp(code, name) {
-      if (confirm(`🛑 SUPPRESSION DÉFINITIVE 🛑\n\nVeux-tu vraiment effacer "${name}" ?\nCela supprimera TOUS les scores sur Firebase.`)) {
-        database.ref(code).remove().then(() => alert("Supprimé !"));
+      if (confirm(`🛑 SUPPRIMER DÉFINITIVEMENT ?\n\n"${name}" sera effacé du serveur Firebase.`)) {
+        database.ref(code).remove();
       }
     }
 
@@ -142,7 +246,7 @@
 
     function closeQrModal() { document.getElementById('qrModal').classList.remove('active'); }
 
-    // ÉCOUTE FIREBASE EN TEMPS RÉEL
+    // Rendu en temps réel
     database.ref().on('value', snap => {
       const grid = document.getElementById('compGrid');
       grid.innerHTML = '';
@@ -151,8 +255,6 @@
 
       Object.keys(data).forEach(code => {
         const config = data[code].config;
-        
-        // FILTRE : On n'affiche la carte QUE si elle a un nom (évite les Undefined)
         if (config && config.name) {
           const shooterCount = data[code].shooters ? Object.keys(data[code].shooters).length : 0;
           const card = document.createElement('div');
@@ -161,13 +263,14 @@
             <div class="card-type">${config.type || 'MULTI'}</div>
             <div class="card-title">${config.name}</div>
             <div class="card-stats">
-               <span class="stat-val">${shooterCount}</span> tireur(s)
+               <span class="stat-label">Tireurs :</span>
+               <span class="stat-val">${shooterCount}</span>
             </div>
             <div class="actions">
-              <a href="saisie_multicomp.html?comp=${code}" class="btn btn-primary">Saisie</a>
-              <button onclick="openQr('${code}')" class="btn btn-outline">QR Code</button>
-              <a href="affichage_multicomp.html?comp=${code}" target="_blank" class="btn btn-outline" style="grid-column: span 2">📺 Affichage TV</a>
-              <button onclick="deleteComp('${code}', '${config.name}')" class="btn btn-danger">🗑️ Supprimer définitivement</button>
+              <a href="saisie_multicomp.html?comp=${code}" class="btn btn-primary">⌨️ SAISIE</a>
+              <button onclick="openQr('${code}')" class="btn btn-outline">QR CODE</button>
+              <a href="affichage_multicomp.html?comp=${code}" target="_blank" class="btn btn-outline" style="grid-column: span 2">📺 VOIR L'AFFICHAGE TV</a>
+              <button onclick="deleteComp('${code}', '${config.name}')" class="btn btn-danger">🗑️ Supprimer du serveur</button>
             </div>
           `;
           grid.appendChild(card);
