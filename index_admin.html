@@ -1,124 +1,179 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <title>Centre de Contrôle — Ligue LR</title>
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-    <style>
-        /* Fond sympa : dégradé sportif */
-        body { 
-            font-family: 'Segoe UI', sans-serif; 
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); 
-            margin: 0; padding: 40px; 
-            color: #333;
-            min-height: 100vh;
-        }
-        
-        .container { 
-            max-width: 900px; margin: 0 auto; 
-            background: rgba(255, 255, 255, 0.95); 
-            padding: 30px; border-radius: 20px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3); 
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🎯 Centre de Contrôle — Ligue LR Tir</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Syne:wght@800&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
-        h1 { text-align: center; color: #1e3c72; font-size: 2rem; margin-bottom: 30px; border-bottom: 2px solid #eee; padding-bottom: 15px; }
+  <style>
+    :root {
+      --bg: #0e2228; --surface: #153039; --border: #224f5e;
+      --accent: #0fb8c9; --text: #ffffff; --text2: #94a3b8; --red: #ef4444;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; padding: 20px; margin:0; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
+    h1 { font-family: 'Syne', sans-serif; text-transform: uppercase; margin:0; }
+    h1 span { color: var(--accent); }
 
-        /* Formulaire de création */
-        .creation-box { 
-            background: #f8f9fa; padding: 20px; border-radius: 12px; 
-            display: flex; gap: 10px; margin-bottom: 40px; border: 1px solid #ddd;
-        }
-        input { flex: 1; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; }
-        .btn-create { background: #007bff; color: white; border: none; padding: 0 20px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+    
+    .card { 
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px; 
+      transition: 0.3s; position: relative; display: flex; flex-direction: column;
+    }
+    .card:hover { border-color: var(--accent); transform: translateY(-3px); }
+    
+    .card-type { font-size: 0.7em; color: var(--accent); font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px; background: rgba(15, 184, 201, 0.1); padding: 4px 8px; border-radius: 4px; align-self: flex-start; }
+    .card-title { font-weight: bold; font-size: 1.3em; margin-bottom: 15px; color: #fff; line-height: 1.2; }
+    
+    .card-stats { background: rgba(0,0,0,0.2); padding: 12px; border-radius: 10px; margin-bottom: 20px; text-align: center; border: 1px solid var(--border); }
+    .stat-val { font-weight: bold; color: #18d9a0; font-size: 1.2em; }
 
-        /* Liste des compétitions */
-        .comp-card { 
-            background: white; border: 1px solid #eee; padding: 20px; 
-            border-radius: 12px; margin-bottom: 15px; 
-            display: flex; justify-content: space-between; align-items: center;
-            transition: transform 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        }
-        .comp-card:hover { transform: translateY(-3px); box-shadow: 0 6px 12px rgba(0,0,0,0.1); }
-        .comp-info h3 { margin: 0; color: #333; font-size: 1.2rem; }
-        
-        /* Boutons d'actions */
-        .actions { display: flex; gap: 8px; }
-        .btn { 
-            text-decoration: none; padding: 10px 15px; border-radius: 6px; 
-            font-size: 0.9rem; font-weight: bold; color: white; text-align: center;
-        }
-        .btn-saisie { background: #007bff; }
-        .btn-tv { background: #6f42c1; }
-        .btn-palmares { background: #28a745; }
-        .btn-del { background: #dc3545; border: none; cursor: pointer; }
+    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: auto; }
+    .btn { padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; text-align: center; text-decoration: none; font-size: 0.85em; transition: 0.2s; }
+    .btn-primary { background: var(--accent); color: var(--bg); }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn-danger { background: rgba(239, 68, 68, 0.1); color: var(--red); border: 1px solid rgba(239, 68, 68, 0.2); grid-column: span 2; margin-top: 5px; }
+    .btn-danger:hover { background: var(--red); color: white; }
 
-        .btn:hover { opacity: 0.85; }
-    </style>
+    /* Modal */
+    .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(6px); display: none; align-items: center; justify-content: center; z-index: 1000; }
+    .modal.active { display: flex; }
+    .modal-content { background: var(--surface); padding: 30px; border-radius: 20px; width: 90%; max-width: 400px; border: 1px solid var(--border); }
+    input, select { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: white; box-sizing: border-box; }
+    
+    #qrcode { background: white; padding: 15px; border-radius: 10px; margin: 15px 0; display: inline-block; }
+  </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>🎯 Gestion des Championnats</h1>
+  <div class="container">
+    <header>
+      <h1>Ligue <span>LR</span></h1>
+      <button class="btn btn-primary" onclick="openCreateModal()">＋ Nouveau Championnat</button>
+    </header>
 
-    <div class="creation-box">
-        <input type="text" id="compName" placeholder="Ex: Régional TAR 2026, ISSF 10m...">
-        <button class="btn-create" onclick="creerComp()">+ Créer</button>
+    <div class="grid" id="compGrid">
+      </div>
+  </div>
+
+  <div class="modal" id="createModal">
+    <div class="modal-content">
+      <h2 style="margin-top:0">Créer un Championnat</h2>
+      <input type="text" id="newCompName" placeholder="Nom (ex: Départementaux TAR)">
+      <input type="text" id="newCompCode" placeholder="Code unique (ex: TAR_2024)">
+      
+      <label style="font-size: 0.8em; color: var(--text2)">Type de discipline :</label>
+      <select id="newCompType">
+        <option value="ISSF10">ISSF 10 Mètres</option>
+        <option value="EDT">École de Tir (EDT)</option>
+        <option value="MLAIC">Armes Anciennes (MLAIC)</option>
+        <option value="TAR">TAR (Armes Réglementaires)</option>
+        <option value="2550">ISSF 25/50 Mètres</option>
+        <option value="AMICAL">Concours Amical / Multi</option>
+      </select>
+
+      <div style="display:flex; gap:10px">
+        <button class="btn btn-outline" style="flex:1" onclick="closeCreateModal()">Annuler</button>
+        <button class="btn btn-primary" style="flex:1" onclick="createComp()">Créer</button>
+      </div>
     </div>
+  </div>
 
-    <div id="compList">
-        </div>
-</div>
+  <div class="modal" id="qrModal">
+    <div class="modal-content" style="text-align:center">
+      <h2 id="qrTitle" style="margin-top:0">Accès Public</h2>
+      <div id="qrcode"></div>
+      <p id="qrUrl" style="font-size:0.7em; color:var(--accent); word-break:break-all; margin-bottom:20px"></p>
+      <button class="btn btn-outline" style="width:100%" onclick="closeQrModal()">Fermer</button>
+    </div>
+  </div>
 
-<script>
+  <script>
     const firebaseConfig = {
-        apiKey: "AIzaSyAvfMRtRrhh_e-27xHlwIx9c5DIdUQm6HM",
-        authDomain: "resultats-tir-ligue-lr.firebaseapp.com",
-        databaseURL: "https://resultats-tir-ligue-lr-default-rtdb.europe-west1.firebasedatabase.app",
-        projectId: "resultats-tir-ligue-lr",
-        storageBucket: "resultats-tir-ligue-lr.firebasestorage.app",
-        appId: "1:468808300974:web:563a14cc4477c10b28303f"
+      apiKey: "AIzaSyAvfMRtRrhh_e-27xHlwIx9c5DIdUQm6HM",
+      authDomain: "resultats-tir-ligue-lr.firebaseapp.com",
+      databaseURL: "https://resultats-tir-ligue-lr-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "resultats-tir-ligue-lr",
+      storageBucket: "resultats-tir-ligue-lr.firebasestorage.app",
+      appId: "1:468808300974:web:563a14cc4477c10b28303f"
     };
+
     firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+    const database = firebase.database();
+    const GITHUB_BASE = "https://ligue-tir-lr.github.io/resultats";
 
-    function creerComp() {
-        const name = document.getElementById('compName').value;
-        if (!name) return alert("Nom requis");
-        const id = name.replace(/\s+/g, '_').toLowerCase() + "_" + Date.now();
-        db.ref(id).set({ name: name, id: id });
-        document.getElementById('compName').value = '';
+    function openCreateModal() { document.getElementById('createModal').classList.add('active'); }
+    function closeCreateModal() { document.getElementById('createModal').classList.remove('active'); }
+
+    function createComp() {
+      const name = document.getElementById('newCompName').value.trim();
+      const code = document.getElementById('newCompCode').value.trim().toUpperCase().replace(/\s/g, '_');
+      const type = document.getElementById('newCompType').value;
+      if (!name || !code) return alert("Remplis le nom et le code !");
+
+      database.ref(code + '/config').set({ name: name, type: type }).then(() => {
+        closeCreateModal();
+        document.getElementById('newCompName').value = '';
+        document.getElementById('newCompCode').value = '';
+      });
     }
 
-    db.ref().on('value', (snap) => {
-        const data = snap.val() || {};
-        const list = document.getElementById('compList');
-        list.innerHTML = '';
+    function deleteComp(code, name) {
+      if (confirm(`🛑 SUPPRESSION DÉFINITIVE 🛑\n\nVeux-tu vraiment effacer "${name}" ?\nCela supprimera TOUS les scores sur Firebase.`)) {
+        database.ref(code).remove().then(() => alert("Supprimé !"));
+      }
+    }
+
+    function openQr(code) {
+      const url = `${GITHUB_BASE}/affichage_multicomp.html?comp=${code}`;
+      document.getElementById('qrTitle').textContent = code;
+      document.getElementById('qrUrl').textContent = url;
+      const qrContainer = document.getElementById('qrcode');
+      qrContainer.innerHTML = '';
+      new QRCode(qrContainer, { text: url, width: 200, height: 200 });
+      document.getElementById('qrModal').classList.add('active');
+    }
+
+    function closeQrModal() { document.getElementById('qrModal').classList.remove('active'); }
+
+    // ÉCOUTE FIREBASE EN TEMPS RÉEL
+    database.ref().on('value', snap => {
+      const grid = document.getElementById('compGrid');
+      grid.innerHTML = '';
+      const data = snap.val();
+      if (!data) return;
+
+      Object.keys(data).forEach(code => {
+        const config = data[code].config;
         
-        Object.keys(data).forEach(key => {
-            if (key === 'Ligue_Tireurs_Archive') return; // On n'affiche pas l'archive ici
-            const comp = data[key];
-            list.innerHTML += `
-                <div class="comp-card">
-                    <div class="comp-info">
-                        <h3>${comp.name}</h3>
-                    </div>
-                    <div class="actions">
-                        <a href="saisie_multicomp.html?comp=${key}" class="btn btn-saisie">Saisie</a>
-                        <a href="affichage_multicomp.html?comp=${key}" class="btn btn-tv" target="_blank">TV</a>
-                        <a href="classement_multicomp.html?comp=${key}" class="btn btn-palmares" target="_blank">Palmarès</a>
-                        <button onclick="supprimerComp('${key}')" class="btn btn-del">🗑️</button>
-                    </div>
-                </div>
-            `;
-        });
-    });
-
-    function supprimerComp(id) {
-        if(confirm("Supprimer cette compétition et TOUS ses scores ?")) {
-            db.ref(id).remove();
+        // FILTRE : On n'affiche la carte QUE si elle a un nom (évite les Undefined)
+        if (config && config.name) {
+          const shooterCount = data[code].shooters ? Object.keys(data[code].shooters).length : 0;
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.innerHTML = `
+            <div class="card-type">${config.type || 'MULTI'}</div>
+            <div class="card-title">${config.name}</div>
+            <div class="card-stats">
+               <span class="stat-val">${shooterCount}</span> tireur(s)
+            </div>
+            <div class="actions">
+              <a href="saisie_multicomp.html?comp=${code}" class="btn btn-primary">Saisie</a>
+              <button onclick="openQr('${code}')" class="btn btn-outline">QR Code</button>
+              <a href="affichage_multicomp.html?comp=${code}" target="_blank" class="btn btn-outline" style="grid-column: span 2">📺 Affichage TV</a>
+              <button onclick="deleteComp('${code}', '${config.name}')" class="btn btn-danger">🗑️ Supprimer définitivement</button>
+            </div>
+          `;
+          grid.appendChild(card);
         }
-    }
-</script>
+      });
+    });
+  </script>
 </body>
 </html>
