@@ -20,10 +20,10 @@
         .header { background: #f8f9fa; padding: 12px; text-align: center; border-bottom: 2px solid var(--accent); box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
         h1 { font-family: 'Oswald', sans-serif; margin: 0; font-size: 2rem; text-transform: uppercase; color: var(--accent); letter-spacing: 1px; }
 
-        /* NOUVEAU : BADGE PROVISOIRE */
+        /* BADGE PROVISOIRE */
         .provisoire {
             display: inline-block;
-            background-color: #ff9800; /* Orange vif */
+            background-color: #ff9800;
             color: white;
             font-family: 'Oswald', sans-serif;
             padding: 4px 15px;
@@ -34,7 +34,6 @@
             animation: clignote 2s infinite;
         }
         
-        /* Effet de pulsation douce pour attirer l'attention */
         @keyframes clignote {
             0% { opacity: 1; }
             50% { opacity: 0.5; }
@@ -74,7 +73,6 @@
 <div class="scroll-container" id="scrollBox"><div id="content"></div></div>
 
 <script>
-    // Vos véritables identifiants de connexion sont conservés
     const firebaseConfig = {
         apiKey: "AIzaSyAvfMRtRrhh_e-27xHlwIx9c5DIdUQm6HM",
         authDomain: "resultats-tir-ligue-lr.firebaseapp.com",
@@ -114,6 +112,16 @@
         shooters.forEach(s => {
             let disc = (s.discipline) ? String(s.discipline).trim() : "";
             let cat = (s.category) ? String(s.category).trim() : "Catégorie inconnue";
+            
+            // CORRECTION LOGIQUE DES ANCIENNES DENOMINATIONS SAISIES PAR ERREUR :
+            // Si le système trouve une ancienne tournure de phrase, il la traduit automatiquement vers la officielle
+            if (disc === "250 - Pistolet Percussion Centrale") {
+                disc = "251 - Pistolet Percussion Centrale";
+            } else if (disc === "251 - Pistolet 25m") {
+                disc = "252 - Pistolet 25m";
+            } else if (disc === "252 - Pistolet Vitesse 25m") {
+                disc = "253 - Pistolet Vitesse 25m";
+            }
             
             let groupName = disc ? `${disc} - ${cat}` : cat;
 
