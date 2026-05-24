@@ -5,7 +5,7 @@
     <title>LIVE — Ligue LR</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght=500;700&family=Roboto:wght=400;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg: #ffffff;
@@ -50,7 +50,92 @@
 <div class="scroll-container" id="scrollBox"><div id="content"></div></div>
 
 <script>
+    // Vos véritables identifiants de connexion d'origine restaurés ici :
     const firebaseConfig = {
         apiKey: "AIzaSyAvfMRtRrhh_e-27xHlwIx9c5DIdUQm6HM",
         authDomain: "resultats-tir-ligue-lr.firebaseapp.com",
-        databaseURL: "https://resultats-tir-ligue-lr-default-rtdb.europe-west1.firebasedatabase.
+        databaseURL: "https://resultats-tir-ligue-lr-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "resultats-tir-ligue-lr",
+        storageBucket: "resultats-tir-ligue-lr.firebasestorage.app",
+        appId: "1:468808300974:web:563a14cc4477c10b28303f"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const params = new URLSearchParams(window.location.search);
+    let compId = params.get('comp');
+
+    if (compId) {
+        db.ref(compId).on('value', (snap) => {
+            const data = snap.val();
+            if (!data) return;
+
+            document.getElementById('compTitle').textContent = data.config ? data.config.name : compId;
+            
+            let raw = data.shooters || data;
+            let list = Object.values(raw).filter(s => s && typeof s === 'object' && s.lastName);
+
+            if (list.length > 0) {
+                render(list);
+            }
+        });
+    }
+
+    function render(shooters) {
+        const content = document.getElementById('content');
+        content.innerHTML = '';
+        const groups = {};
+
+        // REGROUPEMENT CORRIGÉ : On combine la discipline et la catégorie de manière sécurisée
+        shooters.forEach(s => {
+            let disc = (s.discipline) ? String(s.discipline).trim() : "";
+            let cat = (s.category) ? String(s.category).trim() : "Catégorie inconnue";
+            
+            // Si le tireur a une discipline, on l'ajoute au titre, sinon on ne met que la catégorie
+            let groupName = disc ? `${disc} - ${cat}` : cat;
+
+            if (!groups[groupName]) groups[groupName] = [];
+            groups[groupName].push(s);
+        });
+
+        // Affichage des tableaux successifs par ordre alphabétique des groupes créés
+        Object.keys(groups).sort().forEach(groupName => {
+            const sorted = groups[groupName].sort((a,b) => (Number(b.score) || 0) - (Number(a.score) || 0));
+            let html = `<div class="cat-header"><div class="cat-title">${groupName.toUpperCase()}</div></div><table><tbody>`;
+            
+            sorted.forEach((s, i) => {
+                const rank = i + 1;
+                const m = rank === 1 ? "m1" : rank === 2 ? "m2" : rank === 3 ? "m3" : "";
+                
+                let prenom = s.firstName ? s.firstName : "";
+                let nom = s.lastName ? s.lastName.toUpperCase() : "INCONNU";
+                let club = s.club ? s.club : "-";
+
+                html += `<tr class="${m}">
+                    <td class="rank">${rank}</td>
+                    <td>
+                        <div style="font-weight:700;">${prenom} ${nom}</div>
+                        <div class="club">${club}</div>
+                    </td>
+                    <td class="score">${s.score || 0}</td>
+                </tr>`;
+            });
+            html += `</tbody></table>`;
+            content.innerHTML += html;
+        });
+        startAutoScroll();
+    }
+
+    function startAutoScroll() {
+        const box = document.getElementById('scrollBox');
+        if (window.itv) clearInterval(window.itv);
+        window.itv = setInterval(() => {
+            box.scrollTop += 1;
+            if (box.scrollTop + box.clientHeight >= box.scrollHeight - 1) {
+                setTimeout(() => { box.scrollTop = 0; }, 4000);
+            }
+        }, 40);
+    }
+</script>
+</body>
+</html>
