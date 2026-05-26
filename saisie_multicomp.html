@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Saisie Officielle Ligue LR — v1.33</title>
+    <title>Saisie Officielle Ligue LR — v1.34</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <style>
@@ -32,7 +32,7 @@
 <body>
 
 <div class="container">
-    <div class="version-tag">VERSION 1.33 (Filtre Catégories Actif)</div>
+    <div class="version-tag">VERSION 1.34 (Paratir = S1)</div>
     <header>
         <h1 style="margin:0; color:#007bff;">🎯 Saisie des Résultats</h1>
         <div style="display: flex; align-items: center; gap: 20px;">
@@ -102,7 +102,6 @@
 </script>
 
 <script>
-    // Dictionnaire des données de base
     const dataRef = {
         TAR: { disc: ["810 - Fusil Répétition manuelle", "811 - Fusils Modifiés Gros Calibre", "812 - Fusils Modifiés Petit Calibre", "813 - Challenges Armes à rép.", "815 - FSA - Gros Calibre", "816 - FSA - Petit Calibre", "820 - Carabine 22 lr", "821 - Carabine 22 semi-auto", "822 - Car. 22lr Assis", "823 - Carabine Match 22lr", "830 - Pistolet / Revolver", "831 - Pistolet Vitesse Réglementaire", "832 - Armes de poing Authentiques"], cats: ["Senior"] },
         ISSF10: { disc: ["100 - Pistolet 10m", "102 - Pistolet Vitesse 10m", "103 - Pistolet Standard 10m", "104 - Carabine 10m", "107 - Arbalète Match 10m", "109 - Cible Mobile 10m", "110 - Cible Mobile Mixte 10m", "025 - Arbalète Field 18m", "171 - HP R1/R2 Car. 10m", "173 - HP R3 Car. 10m", "174 - HP R4 Car. 10m", "175 - HP R5 Car. 10m", "177 - HP VIS Car. 10m deb.", "178 - HP VIP Car. 10m couchée", "181 - HP P1/P2 Pist. 10m", "183 - HP F5 Pist. Vitesse 10m", "184 - HP P5 Pist. Standard 10m"], cats: ["Minime F", "Minime G", "Cadet F", "Cadet G", "Junior Fille", "Junior Garçon", "Dame 1", "Dame 2", "Dame 3", "Senior 1", "Senior 2", "Senior 3"] },
@@ -139,26 +138,26 @@
     function updateMenus() {
         const type = document.getElementById('typeSelector').value;
         document.getElementById('newDiscipline').innerHTML = dataRef[type].disc.map(d => `<option value="${d}">${d}</option>`).join('');
-        updateCategories(); // Lance la mise à jour des catégories selon la discipline sélectionnée par défaut
+        updateCategories();
     }
 
     function updateCategories() {
         const type = document.getElementById('typeSelector').value;
         const discValue = document.getElementById('newDiscipline').value || "";
         
-        let cats = dataRef[type].cats; // Catégories par défaut de la famille
+        let cats = dataRef[type].cats; 
         
-        // FILTRES INTELLIGENTS POUR LE 25/50m (Adaptation au PDF)
+        // FILTRES INTELLIGENTS POUR LE 25/50m
         if (type === "ISSF2550") {
             if (discValue.startsWith("501")) {
                 // Carabine 60BC : Autorise Minimes et Dame 3
                 cats = ["Minime F", "Minime G", "Cadet F", "Cadet G", "Junior Fille", "Junior Garçon", "Dame 1", "Dame 2", "Dame 3", "Senior 1", "Senior 2", "Senior 3"];
             } else if (discValue.match(/^(250|251|252|253|500|502)/)) {
-                // Pistolet et 3x20 : De Cadet à Senior 3 (Pas de Minimes, pas de D3)
+                // Pistolet et 3x20 : De Cadet à Senior 3
                 cats = ["Cadet F", "Cadet G", "Junior Fille", "Junior Garçon", "Dame 1", "Dame 2", "Senior 1", "Senior 2", "Senior 3"];
             } else if (discValue.match(/^(27|57)/)) {
-                // Paratir : Catégories génériques adultes
-                cats = ["Dame 1", "Senior 1"]; 
+                // Paratir : UNIQUEMENT Senior 1
+                cats = ["Senior 1"]; 
             }
         }
         
@@ -225,7 +224,6 @@
         document.getElementById('formTireur').style.borderColor = '#ffc107';
         window.scrollTo(0,0);
         
-        // Force la mise à jour des menus pour correspondre à l'édition
         document.getElementById('newDiscipline').value = s.discipline;
         updateCategories();
         document.getElementById('newCategorie').value = s.category;
