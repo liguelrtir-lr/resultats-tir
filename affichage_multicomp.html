@@ -2,114 +2,185 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>LIVE — Ligue LR</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏆 Ligue LR — Palmarès en Direct</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght=500;700&family=Roboto:wght=400;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #ffffff;
-            --accent: #007bff;
-            --gold: #fff9db; --gold-b: #fcc419;
-            --silver: #f1f3f5; --silver-b: #adb5bd;
-            --bronze: #fff4e6; --bronze-b: #fd7e14;
-        }
-        body { font-family: 'Roboto', sans-serif; background: var(--bg); color: #212529; margin: 0; overflow: hidden; }
-        
-        /* HEADER */
-        .header { background: #f8f9fa; padding: 12px; text-align: center; border-bottom: 2px solid var(--accent); box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        h1 { font-family: 'Oswald', sans-serif; margin: 0; font-size: 2rem; text-transform: uppercase; color: var(--accent); letter-spacing: 1px; }
-
-        /* BADGE PROVISOIRE */
-        .provisoire {
-            display: inline-block;
-            background-color: #ff9800;
-            color: white;
-            font-family: 'Oswald', sans-serif;
-            padding: 4px 15px;
-            border-radius: 4px;
-            font-size: 1.1rem;
-            margin-top: 5px;
-            letter-spacing: 1px;
-            animation: clignote 2s infinite;
-        }
-        
-        @keyframes clignote {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
+            --primary-bordeaux: #4a2c40; /* Rose sombre / Lie de vin assorti à l'admin */
+            --bg-pastel: #f8fafc;
+            --text-dark: #0f172a;
+            --text-light: #64748b;
         }
 
-        /* BARRE DE CONTROLE IMPRESSION */
-        .print-controls {
-            background: #e9ecef;
-            padding: 6px 12px;
-            margin-top: 10px;
-            border-radius: 6px;
-            display: inline-flex;
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg-pastel);
+            color: var(--text-dark);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        /* BANDEAU EN-TÊTE AVEC LOGOS ENCADRÉS */
+        header {
+            display: flex;
             align-items: center;
-            gap: 10px;
-            border: 1px solid #ced4da;
+            justify-content: space-between;
+            background: var(--primary-bordeaux);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 25px rgba(74, 44, 64, 0.15);
         }
-        .btn-print-all { background: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-family: 'Roboto', sans-serif; }
-        .btn-print-sel { background: #007bff; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-family: 'Roboto', sans-serif; }
-        #printSelect { padding: 5px; border-radius: 4px; border: 1px solid #ced4da; font-family: 'Roboto', sans-serif; }
 
-        .scroll-container { height: calc(100vh - 95px); overflow-y: hidden; padding: 0 25px; }
+        .header-logo {
+            height: 75px;
+            width: auto;
+            object-fit: contain;
+        }
 
-        /* CATEGORIE FIXE (STICKY) */
-        .cat-header { position: sticky; top: 0; background: var(--bg); padding: 12px 0; z-index: 50; }
-        .cat-title { background: #e9ecef; color: var(--accent); padding: 10px 20px; border-radius: 4px; font-family: 'Oswald', sans-serif; font-size: 1.6rem; border-left: 6px solid var(--accent); text-align: left; }
+        .header-center {
+            text-align: center;
+            flex: 1;
+        }
 
-        table { width: 100%; border-collapse: separate; border-spacing: 0 4px; margin-bottom: 40px; }
-        td { padding: 12px; font-size: 1.3rem; border-top: 1px solid #eee; border-bottom: 1px solid #eee; }
+        .header-center h1 {
+            margin: 0;
+            font-size: 2.2rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
 
-        /* MÉDAILLES LUMINEUSES */
-        .m1 { background: var(--gold) !important; border-color: var(--gold-b) !important; font-weight: bold; }
-        .m1 .rank, .m1 .score { color: #d4a017; }
+        .comp-name {
+            margin-top: 5px;
+            font-size: 1.1rem;
+            color: #ffb8d9;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
 
-        .m2 { background: var(--silver) !important; border-color: var(--silver-b) !important; }
-        .m2 .rank, .m2 .score { color: #7f8c8d; }
+        /* BLOCS DISCIPLINE */
+        .discipline-section {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 35px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 10px 15px -3px rgba(0, 0, 0, 0.03);
+            border: 1px solid #edf2f7;
+        }
 
-        .m3 { background: var(--bronze) !important; border-color: var(--bronze-b) !important; }
-        .m3 .rank, .m3 .score { color: #a0522d; }
+        .discipline-title {
+            color: var(--primary-bordeaux);
+            border-bottom: 3px solid var(--primary-bordeaux);
+            padding-bottom: 10px;
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 1.6rem;
+            font-weight: 800;
+        }
 
-        .rank { width: 60px; text-align: center; font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 1.4rem; color: #ccc; }
-        .score { text-align: right; font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 1.8rem; color: var(--accent); padding-right: 25px; }
-        .club { color: #888; font-size: 0.95rem; text-transform: uppercase; margin-top: 2px; }
+        /* BLOCS CATÉGORIES */
+        .category-block {
+            margin-bottom: 25px;
+        }
 
-        /* REGLES SPECIALES POUR L'IMPRESSION PAPIER */
-        @media print {
-            body { overflow: visible !important; background: white !important; color: black !important; }
-            .scroll-container { height: auto !important; overflow: visible !important; padding: 0 !important; }
-            .header, .print-controls, .provisoire { display: none !important; } /* Cache les boutons et les fioritures */
-            
-            .print-group { page-break-after: always; } /* Un saut de page automatique après chaque catégorie */
-            .print-group:last-child { page-break-after: avoid; }
-            
-            .cat-header { position: static !important; padding: 5px 0 !important; }
-            .cat-title { background: #f0f0f0 !important; color: black !important; border-left: 6px solid #333 !important; font-size: 1.4rem !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            table, tr { page-break-inside: avoid; }
-            .m1, .m2, .m3 { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .category-title {
+            background: #f1f5f9;
+            color: #475569;
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+            width: fit-content;
+        }
+
+        /* TABLEAU DES CLASSEMENTS */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+
+        th {
+            text-align: left;
+            color: var(--text-light);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            padding: 10px 12px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        td {
+            padding: 14px 12px;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 1rem;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .rank-cell {
+            font-weight: 800;
+            width: 50px;
+            color: var(--text-light);
+        }
+
+        tr:nth-child(1) .rank-cell { color: #d97706; font-size: 1.2rem; } /* Or */
+        tr:nth-child(2) .rank-cell { color: #475569; font-size: 1.1rem; } /* Argent */
+        tr:nth-child(3) .rank-cell { color: #b45309; font-size: 1.05rem; } /* Bronze */
+
+        .name-cell {
+            font-weight: 600;
+        }
+
+        .club-cell {
+            color: var(--text-light);
+        }
+
+        .score-cell {
+            text-align: right;
+            font-weight: 800;
+            font-size: 1.15rem;
+            color: var(--primary-bordeaux);
+            width: 100px;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 5px;
+            color: var(--text-light);
+            font-style: italic;
         }
     </style>
 </head>
 <body>
 
-<div class="header">
-    <h1 id="compTitle">RÉSULTATS LIVE</h1>
-    <div class="provisoire">RÉSULTATS PROVISOIRES</div>
-    
-    <div class="print-controls">
-        <button onclick="triggerPrint('all')" class="btn-print-all">🖨️ Imprimer l'Intégral</button>
-        <select id="printSelect"></select>
-        <button onclick="triggerPrint(document.getElementById('printSelect').value)" class="btn-print-sel">🖨️ Imprimer la Sélection</button>
+<div class="container">
+    <header>
+        <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
+        <div class="header-center">
+            <h1>🏆 PALMARÈS EN DIRECT</h1>
+            <div id="compTitle" class="comp-name">Chargement de la compétition...</div>
+        </div>
+        <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
+    </header>
+
+    <div id="resultsContainer">
+        <div class="no-data" style="padding: 40px; font-size: 1.2rem;">Connexion au serveur de résultats en cours...</div>
     </div>
 </div>
 
-<div class="scroll-container" id="scrollBox"><div id="content"></div></div>
-
 <script>
+    // Configuration Firebase identique aux autres modules
     const firebaseConfig = {
         apiKey: "AIzaSyAvfMRtRrhh_e-27xHlwIx9c5DIdUQm6HM",
         authDomain: "resultats-tir-ligue-lr.firebaseapp.com",
@@ -121,123 +192,94 @@
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-    const params = new URLSearchParams(window.location.search);
-    let compId = params.get('comp');
+    const compId = new URLSearchParams(window.location.search).get('comp');
 
-    if (compId) {
-        db.ref(compId).on('value', (snap) => {
-            const data = snap.val();
-            if (!data) return;
-
-            document.getElementById('compTitle').textContent = data.config ? data.config.name : compId;
-            
-            let raw = data.shooters || data;
-            let list = Object.values(raw).filter(s => s && typeof s === 'object' && s.lastName);
-
-            if (list.length > 0) {
-                render(list);
-            }
-        });
-    }
-
-    function render(shooters) {
-        const content = document.getElementById('content');
-        content.innerHTML = '';
-        const groups = {};
-
-        // Tri automatique par Discipline + Catégorie
-        shooters.forEach(s => {
-            let disc = (s.discipline) ? String(s.discipline).trim() : "";
-            let cat = (s.category) ? String(s.category).trim() : "Catégorie inconnue";
-            
-            // Correction à la volée des anciennes saisies
-            if (disc === "250 - Pistolet Percussion Centrale") {
-                disc = "251 - Pistolet Percussion Centrale";
-            } else if (disc === "251 - Pistolet 25m") {
-                disc = "252 - Pistolet 25m";
-            } else if (disc === "252 - Pistolet Vitesse 25m") {
-                disc = "253 - Pistolet Vitesse 25m";
-            }
-            
-            let groupName = disc ? `${disc} - ${cat}` : cat;
-
-            if (!groups[groupName]) groups[groupName] = [];
-            groups[groupName].push(s);
-        });
-
-        // Mise à jour dynamique du menu déroulant d'impression
-        const printSelect = document.getElementById('printSelect');
-        const savedValue = printSelect ? printSelect.value : 'all';
-        if (printSelect) {
-            printSelect.innerHTML = '<option value="all">-- Choisir une catégorie --</option>';
-            Object.keys(groups).sort().forEach(groupName => {
-                printSelect.innerHTML += `<option value="${groupName}">${groupName.toUpperCase()}</option>`;
-            });
-            if (groups[savedValue] || savedValue === 'all') {
-                printSelect.value = savedValue;
-            }
-        }
-
-        // Affichage des tableaux successifs
-        Object.keys(groups).sort().forEach(groupName => {
-            const sorted = groups[groupName].sort((a,b) => (Number(b.score) || 0) - (Number(a.score) || 0));
-            
-            // Enveloppe d'impression par groupe
-            let html = `<div class="print-group" data-group="${groupName}">`;
-            html += `<div class="cat-header"><div class="cat-title">${groupName.toUpperCase()}</div></div><table><tbody>`;
-            
-            sorted.forEach((s, i) => {
-                const rank = i + 1;
-                const m = rank === 1 ? "m1" : rank === 2 ? "m2" : rank === 3 ? "m3" : "";
-                
-                let prenom = s.firstName ? s.firstName : "";
-                let nom = s.lastName ? s.lastName.toUpperCase() : "INCONNU";
-                let club = s.club ? s.club : "-";
-
-                html += `<tr class="${m}">
-                    <td class="rank">${rank}</td>
-                    <td>
-                        <div style="font-weight:700;">${prenom} ${nom}</div>
-                        <div class="club">${club}</div>
-                    </td>
-                    <td class="score">${s.score || 0}</td>
-                </tr>`;
-            });
-            html += `</tbody></table></div>`;
-            content.innerHTML += html;
-        });
-        startAutoScroll();
-    }
-
-    // Gestion intelligente du masquage avant l'ouverture de la boîte de dialogue d'impression
-    function triggerPrint(targetGroup) {
-        const groups = document.querySelectorAll('.print-group');
-        
-        groups.forEach(g => {
-            if (targetGroup === 'all' || g.getAttribute('data-group') === targetGroup) {
-                g.style.display = 'block';
+    if (!compId) {
+        document.getElementById('resultsContainer').innerHTML = `<div class="no-data" style="color:red; font-weight:bold; padding:40px;">⚠️ Erreur : Aucune compétition spécifiée dans l'adresse.</div>`;
+    } else {
+        // 1. Récupération du nom de la compétition
+        db.ref(compId + '/config').on('value', snap => {
+            const config = snap.val();
+            if (config && config.name) {
+                document.getElementById('compTitle').textContent = config.name;
             } else {
-                g.style.display = 'none';
+                document.getElementById('compTitle').textContent = "Championnat en cours";
             }
         });
-        
-        window.print();
-        
-        // Restaure l'affichage global pour l'écran live dès que la fenêtre d'impression se ferme
-        groups.forEach(g => {
-            g.style.display = 'block';
-        });
-    }
 
-    function startAutoScroll() {
-        const box = document.getElementById('scrollBox');
-        if (window.itv) clearInterval(window.itv);
-        window.itv = setInterval(() => {
-            box.scrollTop += 1;
-            if (box.scrollTop + box.clientHeight >= box.scrollHeight - 1) {
-                setTimeout(() => { box.scrollTop = 0; }, 4000);
+        // 2. Récupération et traitement des scores en temps réel
+        db.ref(compId + '/shooters').on('value', snap => {
+            const data = snap.val() || {};
+            const shooters = Object.keys(data).map(key => data[key]);
+
+            if (shooters.length === 0) {
+                document.getElementById('resultsContainer').innerHTML = `<div class="no-data" style="padding:40px;">Aucun tireur enregistré pour le moment.</div>`;
+                return;
             }
-        }, 40);
+
+            // Regroupement par discipline puis par catégorie
+            const tree = {};
+            shooters.forEach(s => {
+                const disc = s.discipline || "Sans Discipline";
+                const cat = s.category || "Général";
+                
+                if (!tree[disc]) tree[disc] = {};
+                if (!tree[disc][cat]) tree[disc][cat] = [];
+                
+                tree[disc][cat].push(s);
+            });
+
+            // Construction de la page de palmarès
+            let html = '';
+            
+            // Tri alphabétique des disciplines
+            const sortedDisciplines = Object.keys(tree).sort();
+
+            sortedDisciplines.forEach(disc => {
+                html += `<div class="discipline-section">`;
+                html += `<h2 class="discipline-title">🎯 ${disc}</h2>`;
+
+                // Tri alphabétique des catégories au sein de la discipline
+                const sortedCategories = Object.keys(tree[disc]).sort();
+
+                sortedCategories.forEach(cat => {
+                    html += `<div class="category-block">`;
+                    html += `<div class="category-title">👥 ${cat}</div>`;
+                    html += `<table>
+                                <thead>
+                                    <tr>
+                                        <th style="width: 50px;">Pl.</th>
+                                        <th>Nom Prénom</th>
+                                        <th>Club</th>
+                                        <th style="text-align: right; width: 100px;">Score</th>
+                                    </tr>
+                                </thead>
+                                <tbody>`;
+
+                    // Tri des tireurs par score décroissant
+                    const rankedShooters = tree[disc][cat].sort((a, b) => (b.score || 0) - (a.score || 0));
+
+                    rankedShooters.forEach((s, index) => {
+                        // Affichage du score formaté (gestion des décimales pour la carabine si besoin)
+                        const displayScore = s.score !== undefined ? s.score : 0;
+                        const medal = (index === 0) ? "🥇 " : (index === 1) ? "🥈 " : (index === 2) ? "🥉 " : "";
+
+                        html += `<tr>
+                                    <td class="rank-cell">${index + 1}</td>
+                                    <td class="name-cell">${medal}${s.lastName} ${s.firstName}</td>
+                                    <td class="club-cell">${s.club || '-'}</td>
+                                    <td class="score-cell">${displayScore}</td>
+                                 </tr>`;
+                    });
+
+                    html += `</tbody></table></div>`;
+                });
+
+                html += `</div>`;
+            });
+
+            document.getElementById('resultsContainer').innerHTML = html;
+        });
     }
 </script>
 </body>
