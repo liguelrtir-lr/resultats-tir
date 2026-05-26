@@ -8,7 +8,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <style>
         :root {
-            --primary-bordeaux: #4a2c40; /* Rose sombre / Lie de vin */
+            --primary-bordeaux: #4a2c40; 
             --bg-pastel: #f8fafc;
             --text-dark: #0f172a;
             --text-light: #64748b;
@@ -38,7 +38,6 @@
             border-radius: 20px;
             margin-bottom: 30px;
             box-shadow: 0 10px 25px rgba(74, 44, 64, 0.15);
-            /* Lignes pour accrocher le bandeau */
             position: sticky;
             top: 10px;
             z-index: 100;
@@ -62,6 +61,14 @@
             letter-spacing: -0.5px;
         }
 
+        .version-tag {
+            font-size: 0.65em;
+            opacity: 0.7;
+            margin-top: -3px;
+            margin-bottom: 5px;
+            font-weight: normal;
+        }
+
         .comp-name {
             margin-top: 5px;
             font-size: 1.1rem;
@@ -72,7 +79,7 @@
 
         /* ESPACE VIDE À LA FIN POUR VOIR LES DERNIERS RÉSULTATS */
         #resultsContainer {
-            padding-bottom: 60vh; /* Ajoute un demi-écran de vide à la fin */
+            padding-bottom: 60vh; 
         }
 
         /* BLOCS DISCIPLINE */
@@ -85,7 +92,7 @@
             border: 1px solid #edf2f7;
         }
 
-        /* L'EFFET AIMANT POUR LA DISCIPLINE (S'ACCROCHE SOUS LE BANDEAU) */
+        /* L'EFFET AIMANT POUR LA DISCIPLINE */
         .discipline-title {
             color: var(--primary-bordeaux);
             border-bottom: 3px solid var(--primary-bordeaux);
@@ -95,9 +102,9 @@
             font-size: 1.6rem;
             font-weight: 800;
             position: sticky;
-            top: 145px; /* S'accroche juste en dessous du grand bandeau bordeaux */
+            top: 145px; 
             background: white; 
-            z-index: 90; /* Passe en dessous du bandeau principal mais au-dessus des tireurs */
+            z-index: 90; 
             box-shadow: 0 10px 10px -10px rgba(0,0,0,0.1);
         }
 
@@ -180,6 +187,7 @@
         <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
         <div class="header-center">
             <h1>🏆 PALMARÈS PROVISOIRE</h1>
+            <div class="version-tag">v1.1</div>
             <div id="compTitle" class="comp-name">Chargement...</div>
         </div>
         <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
@@ -223,8 +231,15 @@
 
             const tree = {};
             shooters.forEach(s => {
-                const disc = s.discipline || "Sans Discipline";
-                const cat = s.category || "Général";
+                // NETTOYAGE : Enlève les espaces en trop avec .trim()
+                let disc = s.discipline ? s.discipline.trim() : "Sans Discipline";
+                let cat = s.category ? s.category.trim() : "Général";
+                
+                // NETTOYAGE : Force la première lettre en majuscule (corrige "standard" vs "Standard")
+                if(cat.length > 0) {
+                    cat = cat.charAt(0).toUpperCase() + cat.slice(1);
+                }
+
                 if (!tree[disc]) tree[disc] = {};
                 if (!tree[disc][cat]) tree[disc][cat] = [];
                 tree[disc][cat].push(s);
@@ -280,30 +295,24 @@
     function startAutoScroll() {
         setInterval(() => {
             if (isScrolling) {
-                // Si on arrive tout en bas de la page
                 if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 5) {
-                    isScrolling = false; // On met en pause
+                    isScrolling = false; 
                     
-                    // On attend 3 secondes en bas
                     setTimeout(() => {
-                        // On remonte tout en haut en douceur
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                         
-                        // On attend 2 secondes en haut avant de recommencer
                         setTimeout(() => { 
                             isScrolling = true; 
                         }, 2000);
                         
                     }, 3000); 
                 } else {
-                    // Sinon, on descend d'un pixel
                     window.scrollBy(0, 1);
                 }
             }
-        }, 20); // Vitesse : 20 millisecondes. 
+        }, 20); // Vitesse : 20 millisecondes
     }
 
-    // On lance le défilement 4 secondes après l'ouverture de la page
     setTimeout(startAutoScroll, 4000);
 </script>
 </body>
