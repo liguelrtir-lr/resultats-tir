@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Saisie Officielle Ligue LR — v1.32</title>
+    <title>Saisie Officielle Ligue LR — v1.33</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <style>
@@ -32,7 +32,7 @@
 <body>
 
 <div class="container">
-    <div class="version-tag">VERSION 1.32 (Ajout Dames 3 - 25/50m)</div>
+    <div class="version-tag">VERSION 1.33 (Filtre Catégories Actif)</div>
     <header>
         <h1 style="margin:0; color:#007bff;">🎯 Saisie des Résultats</h1>
         <div style="display: flex; align-items: center; gap: 20px;">
@@ -44,10 +44,10 @@
     <div class="import-group" id="importBlock">
         <h3 style="margin-top:0; color: #2e7d32;">⚡ Importation Rapide (Copier-Coller Excel)</h3>
         <p style="font-size: 0.9rem; color: #444; margin-bottom: 10px;">
-            Copiez vos colonnes depuis votre fichier Excel et collez-les ci-dessous.<br>
+            Copiez vos colonnes depuis Excel et collez-les ci-dessous.<br>
             <b>Ordre attendu :</b> NOM | Prénom | Club | Code Discipline (ex: 250) | Catégorie (ex: Senior 1)
         </p>
-        <textarea id="importArea" rows="4" style="font-family: monospace;" placeholder="DUPONT&#9;Jean&#9;ST BEZIERS&#9;250&#9;Senior 1&#10;MARTIN&#9;Paul&#9;SMT THUIR&#9;501&#9;Cadet G"></textarea>
+        <textarea id="importArea" rows="4" style="font-family: monospace;" placeholder="DUPONT&#9;Jean&#9;ST BEZIERS&#9;250&#9;Senior 1"></textarea>
         <button type="button" class="btn-add btn-import" onclick="processImport()" style="margin-top: 10px;">🚀 Lancer l'importation automatique</button>
     </div>
 
@@ -73,7 +73,7 @@
             <div><label>Club</label><input type="text" id="newClub" autocomplete="off"></div>
         </div>
         <div class="form-row">
-            <div><label>Discipline</label><select id="newDiscipline"></select></div>
+            <div><label>Discipline</label><select id="newDiscipline" onchange="updateCategories()"></select></div>
             <div><label>Catégorie</label><select id="newCategorie"></select></div>
         </div>
         
@@ -102,10 +102,11 @@
 </script>
 
 <script>
+    // Dictionnaire des données de base
     const dataRef = {
         TAR: { disc: ["810 - Fusil Répétition manuelle", "811 - Fusils Modifiés Gros Calibre", "812 - Fusils Modifiés Petit Calibre", "813 - Challenges Armes à rép.", "815 - FSA - Gros Calibre", "816 - FSA - Petit Calibre", "820 - Carabine 22 lr", "821 - Carabine 22 semi-auto", "822 - Car. 22lr Assis", "823 - Carabine Match 22lr", "830 - Pistolet / Revolver", "831 - Pistolet Vitesse Réglementaire", "832 - Armes de poing Authentiques"], cats: ["Senior"] },
         ISSF10: { disc: ["100 - Pistolet 10m", "102 - Pistolet Vitesse 10m", "103 - Pistolet Standard 10m", "104 - Carabine 10m", "107 - Arbalète Match 10m", "109 - Cible Mobile 10m", "110 - Cible Mobile Mixte 10m", "025 - Arbalète Field 18m", "171 - HP R1/R2 Car. 10m", "173 - HP R3 Car. 10m", "174 - HP R4 Car. 10m", "175 - HP R5 Car. 10m", "177 - HP VIS Car. 10m deb.", "178 - HP VIP Car. 10m couchée", "181 - HP P1/P2 Pist. 10m", "183 - HP F5 Pist. Vitesse 10m", "184 - HP P5 Pist. Standard 10m"], cats: ["Minime F", "Minime G", "Cadet F", "Cadet G", "Junior Fille", "Junior Garçon", "Dame 1", "Dame 2", "Dame 3", "Senior 1", "Senior 2", "Senior 3"] },
-        ISSF2550: { disc: ["250 - Pistolet Standard 25m", "251 - Pistolet Percussion Centrale", "252 - Pistolet 25m", "253 - Pistolet Vitesse 25m", "271 - HP - P3 - Pistolet 25m (SH1)", "272 - HP - P4 - Pistolet 50m (SH1)", "273 - HP - F10 Pistolet Standard 25m (SH1)", "500 - Pistolet 50m", "501 - Carabine 60BC", "502 - Carabine 3x20", "571 - HP - R6 Car. 50m 60 BC (SH1)", "572 - HP - R7/R8 Car. 50m 3x20 (SH1) - Mixte", "574 - HP - R9 Car. 50m 60BC Pot. (SH2)", "575 - HP - F12 Car. 50m 3x20 Pot. (SH2)", "576 - HP - F13 Car. 50m 60 BC Pot. (CLF)"], cats: ["Minime F", "Minime G", "Cadet F", "Cadet G", "Junior Fille", "Junior Garçon", "Dame 1", "Dame 2", "Dame 3", "Senior 1", "Senior 2", "Senior 3"] },
+        ISSF2550: { disc: ["250 - Pistolet Standard 25m", "251 - Pistolet Percussion Centrale", "252 - Pistolet 25m", "253 - Pistolet Vitesse 25m", "271 - HP - P3 - Pistolet 25m (SH1)", "272 - HP - P4 - Pistolet 50m (SH1)", "273 - HP - F10 Pistolet Standard 25m (SH1)", "500 - Pistolet 50m", "501 - Carabine 60BC", "502 - Carabine 3x20", "571 - HP - R6 Car. 50m 60 BC (SH1)", "572 - HP - R7/R8 Car. 50m 3x20 (SH1) - Mixte", "574 - HP - R9 Car. 50m 60BC Pot. (SH2)", "575 - HP - F12 Car. 50m 3x20 Pot. (SH2)", "576 - HP - F13 Car. 50m 60 BC Pot. (CLF)"], cats: ["Cadet F", "Cadet G", "Junior Fille", "Junior Garçon", "Dame 1", "Dame 2", "Senior 1", "Senior 2", "Senior 3"] },
         EDT: { disc: ["101 - Pistolet 3/7 EDT", "150 - Pistolet 10m EDT", "152 - Pistolet Vitesse 10m EDT", "154 - Carabine 10m EDT", "105 - Carabine 3x20 EDT", "158 - Arbalète Field EDT", "150/154 - Combiné EDT", "161 - HP R5 Car. 10m couchée EDT", "162 - HP R3 Car. 10m couchée EDT", "163 - HP P1 Pistolet 10m EDT"], cats: ["Poussin Fille", "Poussin Garçon", "Benjamin Fille", "Benjamin Garçon", "Minime Fille", "Minime Garçon"] },
         MLAIC: { disc: ["601 - Miquelet Origine", "701 - Miquelet Réplique", "602 - Maximilien Origine", "702 - Maximilien Réplique", "603 - Minié Origine", "703 - Minié Réplique", "604 - Whitworth Origine", "704 - Whitworth Réplique", "605 - Cominazzo Origine", "705 - Cominazzo Réplique", "606 - Kuchenreuter Origine", "706 - Kuchenreuter Réplique", "607 - Colt", "712 - Mariette", "615 - Vetterli Origine", "715 - Vetterli Réplique", "637 - Lamarmora Origine", "737 - Lamarmora Réplique"], cats: ["Senior", "Junior"] }
     };
@@ -134,13 +135,41 @@
         });
     }
 
+    // --- MISE A JOUR INTELLIGENTE DES MENUS ---
+    function updateMenus() {
+        const type = document.getElementById('typeSelector').value;
+        document.getElementById('newDiscipline').innerHTML = dataRef[type].disc.map(d => `<option value="${d}">${d}</option>`).join('');
+        updateCategories(); // Lance la mise à jour des catégories selon la discipline sélectionnée par défaut
+    }
+
+    function updateCategories() {
+        const type = document.getElementById('typeSelector').value;
+        const discValue = document.getElementById('newDiscipline').value || "";
+        
+        let cats = dataRef[type].cats; // Catégories par défaut de la famille
+        
+        // FILTRES INTELLIGENTS POUR LE 25/50m (Adaptation au PDF)
+        if (type === "ISSF2550") {
+            if (discValue.startsWith("501")) {
+                // Carabine 60BC : Autorise Minimes et Dame 3
+                cats = ["Minime F", "Minime G", "Cadet F", "Cadet G", "Junior Fille", "Junior Garçon", "Dame 1", "Dame 2", "Dame 3", "Senior 1", "Senior 2", "Senior 3"];
+            } else if (discValue.match(/^(250|251|252|253|500|502)/)) {
+                // Pistolet et 3x20 : De Cadet à Senior 3 (Pas de Minimes, pas de D3)
+                cats = ["Cadet F", "Cadet G", "Junior Fille", "Junior Garçon", "Dame 1", "Dame 2", "Senior 1", "Senior 2", "Senior 3"];
+            } else if (discValue.match(/^(27|57)/)) {
+                // Paratir : Catégories génériques adultes
+                cats = ["Dame 1", "Senior 1"]; 
+            }
+        }
+        
+        document.getElementById('newCategorie').innerHTML = cats.map(c => `<option value="${c}">${c}</option>`).join('');
+    }
+
     function processImport() {
         const text = document.getElementById('importArea').value.trim();
         if (!text) return alert("Veuillez coller des données provenant d'Excel dans la zone.");
-        
         const lines = text.split('\n');
         let count = 0;
-        
         lines.forEach(line => {
             const cols = line.split('\t');
             if (cols.length >= 4) { 
@@ -159,20 +188,16 @@
                 if (nom && prenom) {
                     const s = { lastName: nom, firstName: prenom, club: club, discipline: fullDisc, category: cat, score: 0 };
                     db.ref(compId + '/shooters').push(s);
-                    
                     const key = nom.replace(/[^a-zA-Z]/g, "") + "_" + prenom.replace(/[^a-zA-Z]/g, "");
                     db.ref('Ligue_Tireurs_Archive/' + key).update({ lastName: nom, firstName: prenom, club: club });
                     count++;
                 }
             }
         });
-        
         if (count > 0) {
-            alert("🚀 Succès ! " + count + " engagements ont été importés dans la base.");
+            alert("🚀 Succès ! " + count + " engagements ont été importés.");
             document.getElementById('importArea').value = '';
-            document.getElementById('btnToggleImport').click(); // Referme le bloc via le bouton
-        } else {
-            alert("⚠️ Aucune donnée valide trouvée. Vérifiez que vous avez bien copié les colonnes depuis Excel.");
+            document.getElementById('btnToggleImport').click();
         }
     }
 
@@ -199,6 +224,11 @@
         document.getElementById('btnCancel').style.display = 'block';
         document.getElementById('formTireur').style.borderColor = '#ffc107';
         window.scrollTo(0,0);
+        
+        // Force la mise à jour des menus pour correspondre à l'édition
+        document.getElementById('newDiscipline').value = s.discipline;
+        updateCategories();
+        document.getElementById('newCategorie').value = s.category;
     }
 
     function saveModification() {
@@ -213,3 +243,63 @@
         db.ref(compId + '/shooters/' + id).update(updates);
         resetForm();
     }
+
+    function deleteShooter(id) {
+        if(confirm("Supprimer ce tireur ?")) { db.ref(compId + '/shooters/' + id).remove(); }
+    }
+
+    function resetForm() {
+        document.getElementById('editId').value = '';
+        document.getElementById('newNom').value = '';
+        document.getElementById('newPrenom').value = '';
+        document.getElementById('newClub').value = '';
+        document.getElementById('btnAdd').style.display = 'block';
+        document.getElementById('btnUpdate').style.display = 'none';
+        document.getElementById('btnCancel').style.display = 'none';
+        document.getElementById('formTireur').style.borderColor = '#d1d9e6';
+    }
+
+    function renderList(list) {
+        const cont = document.getElementById('shooterList'); cont.innerHTML = '';
+        list.sort((a,b) => a.lastName.localeCompare(b.lastName)).forEach(s => {
+            cont.innerHTML += `
+            <div class="shooter-item">
+                <div style="flex:1;">
+                    <b>${s.lastName}</b> ${s.firstName} <br>
+                    <small>${s.discipline} | ${s.category} | ${s.club}</small>
+                </div>
+                <div class="actions">
+                    <input type="number" step="0.1" class="score-input" value="${s.score || 0}" onchange="saveScore('${s.id}', this.value)">
+                    <button type="button" class="btn-action btn-edit" onclick="prepareEdit('${s.id}')">✏️</button>
+                    <button type="button" class="btn-action btn-del" onclick="deleteShooter('${s.id}')">🗑️</button>
+                </div>
+            </div>`;
+        });
+    }
+
+    function saveScore(id, val) { db.ref(compId + '/shooters/' + id).update({ score: parseFloat(val) || 0 }); }
+
+    function chercherDansArchive(val) {
+        const box = document.getElementById('suggestions');
+        if (val.length < 3) { box.style.display = 'none'; return; }
+        const matches = archiveTireurs.filter(t => t.lastName.includes(val.toUpperCase())).slice(0, 5);
+        if (matches.length > 0) {
+            box.innerHTML = matches.map(m => `<div class="suggestion-item" onclick="remplirTireur('${m.lastName}', '${m.firstName}', '${m.club}')"><b>${m.lastName}</b> ${m.firstName}</div>`).join('');
+            box.style.display = 'block';
+        } else { box.style.display = 'none'; }
+    }
+
+    function remplirTireur(n, p, c) {
+        document.getElementById('newNom').value = n; document.getElementById('newPrenom').value = p; document.getElementById('newClub').value = c;
+        document.getElementById('suggestions').style.display = 'none';
+    }
+
+    function filterList() {
+        const q = document.getElementById('search').value.toLowerCase();
+        renderList(shootersData.filter(s => s.lastName.toLowerCase().includes(q) || s.firstName.toLowerCase().includes(q)));
+    }
+
+    window.onload = updateMenus;
+</script>
+</body>
+</html>
