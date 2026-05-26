@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Saisie Officielle Ligue LR — v1.29</title>
+    <title>Saisie Officielle Ligue LR — v1.30</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <style>
@@ -14,7 +14,7 @@
         
         header { border-bottom: 2px solid #007bff; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
         .form-group { background: #eef2f7; padding: 20px; border-radius: 10px; margin-bottom: 25px; border: 2px solid #d1d9e6; }
-        .import-group { background: #e8f5e9; padding: 20px; border-radius: 10px; margin-bottom: 25px; border: 2px solid #a5d6a7; display: none; } /* CACHÉ PAR DÉFAUT */
+        .import-group { background: #e8f5e9; padding: 20px; border-radius: 10px; margin-bottom: 25px; border: 2px solid #a5d6a7; }
         .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px; }
         input, select, textarea { padding: 12px; border: 1px solid #bcc6d2; border-radius: 6px; font-size: 1rem; width: 100%; box-sizing: border-box; }
         .btn-add { background: #28a745; color: white; border: none; padding: 15px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; font-size: 1.1rem; }
@@ -33,23 +33,23 @@
 <body>
 
 <div class="container">
-    <div class="version-tag">VERSION 1.29 (Importation Masquable)</div>
+    <div class="version-tag">VERSION 1.30 (Bouton Import Corrigé)</div>
     <header>
         <h1 style="margin:0; color:#007bff;">🎯 Saisie des Résultats</h1>
         <div style="display: flex; align-items: center; gap: 20px;">
-            <button onclick="toggleImport()" id="btnToggleImport" style="background:none; border:none; color:#2e7d32; text-decoration:underline; cursor:pointer; font-weight:bold; font-size: 0.95rem;">🪄 Afficher l'import Excel</button>
+            <button type="button" onclick="toggleImport()" id="btnToggleImport" style="background:none; border:none; color:#2e7d32; text-decoration:underline; cursor:pointer; font-weight:bold; font-size: 0.95rem;">🪄 Afficher l'import Excel</button>
             <a href="index_admin.html" style="text-decoration:none; font-weight:bold; color:#666;">← Retour</a>
         </div>
     </header>
 
-    <div class="import-group" id="importBlock">
+    <div class="import-group" id="importBlock" style="display: none;">
         <h3 style="margin-top:0; color: #2e7d32;">⚡ Importation Rapide (Copier-Coller Excel)</h3>
         <p style="font-size: 0.9rem; color: #444; margin-bottom: 10px;">
             Copiez vos colonnes depuis votre fichier Excel et collez-les ci-dessous.<br>
             <b>Ordre attendu :</b> NOM | Prénom | Club | Code Discipline (ex: 250) | Catégorie (ex: Senior 1)
         </p>
         <textarea id="importArea" rows="4" style="font-family: monospace;" placeholder="DUPONT&#9;Jean&#9;ST BEZIERS&#9;250&#9;Senior 1&#10;MARTIN&#9;Paul&#9;SMT THUIR&#9;501&#9;Cadet G"></textarea>
-        <button class="btn-add btn-import" onclick="processImport()" style="margin-top: 10px;">🚀 Lancer l'importation automatique</button>
+        <button type="button" class="btn-add btn-import" onclick="processImport()" style="margin-top: 10px;">🚀 Lancer l'importation automatique</button>
     </div>
 
     <div class="form-group" id="formTireur">
@@ -78,9 +78,9 @@
             <div><label>Catégorie</label><select id="newCategorie"></select></div>
         </div>
         
-        <button id="btnAdd" class="btn-add" onclick="addShooter()">Enregistrer le tireur</button>
-        <button id="btnUpdate" class="btn-add btn-update" onclick="saveModification()">✅ Appliquer les corrections</button>
-        <button id="btnCancel" class="btn-action" style="display:none; width:100%; margin-top:5px; background:#6c757d; color:white;" onclick="resetForm()">Annuler</button>
+        <button type="button" id="btnAdd" class="btn-add" onclick="addShooter()">Enregistrer le tireur</button>
+        <button type="button" id="btnUpdate" class="btn-add btn-update" onclick="saveModification()">✅ Appliquer les corrections</button>
+        <button type="button" id="btnCancel" class="btn-action" style="display:none; width:100%; margin-top:5px; background:#6c757d; color:white;" onclick="resetForm()">Annuler</button>
     </div>
 
     <input type="text" id="search" style="width:100%; padding:12px; margin-bottom:15px; border-radius:8px; border:2px solid #007bff;" placeholder="🔍 Filtrer la liste..." onkeyup="filterList()">
@@ -90,76 +90,4 @@
 <script>
     const dataRef = {
         TAR: { disc: ["810 - Fusil Répétition manuelle", "811 - Fusils Modifiés Gros Calibre", "812 - Fusils Modifiés Petit Calibre", "813 - Challenges Armes à rép.", "815 - FSA - Gros Calibre", "816 - FSA - Petit Calibre", "820 - Carabine 22 lr", "821 - Carabine 22 semi-auto", "822 - Car. 22lr Assis", "823 - Carabine Match 22lr", "830 - Pistolet / Revolver", "831 - Pistolet Vitesse Réglementaire", "832 - Armes de poing Authentiques"], cats: ["Senior"] },
-        ISSF10: { disc: ["100 - Pistolet 10m", "102 - Pistolet Vitesse 10m", "103 - Pistolet Standard 10m", "104 - Carabine 10m", "107 - Arbalète Match 10m", "109 - Cible Mobile 10m", "110 - Cible Mobile Mixte 10m", "025 - Arbalète Field 18m", "171 - HP R1/R2 Car. 10m", "173 - HP R3 Car. 10m", "174 - HP R4 Car. 10m", "175 - HP R5 Car. 10m", "177 - HP VIS Car. 10m deb.", "178 - HP VIP Car. 10m couchée", "181 - HP P1/P2 Pist. 10m", "183 - HP F5 Pist. Vitesse 10m", "184 - HP P5 Pist. Standard 10m"], cats: ["Minime F", "Minime G", "Cadet F", "Cadet G", "Junior Fille", "Junior Garçon", "Dame 1", "Dame 2", "Dame 3", "Senior 1", "Senior 2", "Senior 3"] },
-        ISSF2550: { disc: ["250 - Pistolet Standard 25m", "251 - Pistolet Percussion Centrale", "252 - Pistolet 25m", "253 - Pistolet Vitesse 25m", "271 - HP - P3 - Pistolet 25m (SH1)", "272 - HP - P4 - Pistolet 50m (SH1)", "273 - HP - F10 Pistolet Standard 25m (SH1)", "500 - Pistolet 50m", "501 - Carabine 60BC", "502 - Carabine 3x20", "571 - HP - R6 Car. 50m 60 BC (SH1)", "572 - HP - R7/R8 Car. 50m 3x20 (SH1) - Mixte", "574 - HP - R9 Car. 50m 60BC Pot. (SH2)", "575 - HP - F12 Car. 50m 3x20 Pot. (SH2)", "576 - HP - F13 Car. 50m 60 BC Pot. (CLF)"], cats: ["Minime F", "Minime G", "Cadet F", "Cadet G", "Junior Fille", "Junior Garçon", "Dame 1", "Dame 2", "Senior 1", "Senior 2", "Senior 3"] },
-        EDT: { disc: ["101 - Pistolet 3/7 EDT", "150 - Pistolet 10m EDT", "152 - Pistolet Vitesse 10m EDT", "154 - Carabine 10m EDT", "105 - Carabine 3x20 EDT", "158 - Arbalète Field EDT", "150/154 - Combiné EDT", "161 - HP R5 Car. 10m couchée EDT", "162 - HP R3 Car. 10m couchée EDT", "163 - HP P1 Pistolet 10m EDT"], cats: ["Poussin Fille", "Poussin Garçon", "Benjamin Fille", "Benjamin Garçon", "Minime Fille", "Minime Garçon"] },
-        MLAIC: { disc: ["601 - Miquelet Origine", "701 - Miquelet Réplique", "602 - Maximilien Origine", "702 - Maximilien Réplique", "603 - Minié Origine", "703 - Minié Réplique", "604 - Whitworth Origine", "704 - Whitworth Réplique", "605 - Cominazzo Origine", "705 - Cominazzo Réplique", "606 - Kuchenreuter Origine", "706 - Kuchenreuter Réplique", "607 - Colt", "712 - Mariette", "615 - Vetterli Origine", "715 - Vetterli Réplique", "637 - Lamarmora Origine", "737 - Lamarmora Réplique"], cats: ["Senior", "Junior"] }
-    };
-
-    const firebaseConfig = {
-        apiKey: "AIzaSyAvfMRtRrhh_e-27xHlwIx9c5DIdUQm6HM",
-        authDomain: "resultats-tir-ligue-lr.firebaseapp.com",
-        databaseURL: "https://resultats-tir-ligue-lr-default-rtdb.europe-west1.firebasedatabase.app",
-        projectId: "resultats-tir-ligue-lr",
-        storageBucket: "resultats-tir-ligue-lr.firebasestorage.app",
-        appId: "1:468808300974:web:563a14cc4477c10b28303f"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-    const compId = new URLSearchParams(window.location.search).get('comp');
-
-    let shootersData = [];
-    let archiveTireurs = [];
-
-    db.ref('Ligue_Tireurs_Archive').on('value', snap => { archiveTireurs = Object.values(snap.val() || {}); });
-    if (compId) {
-        db.ref(compId + '/shooters').on('value', snap => {
-            const data = snap.val() || {};
-            shootersData = Object.keys(data).map(key => ({ id: key, ...data[key] }));
-            renderList(shootersData);
-        });
-    }
-
-    // --- FONCTION POUR AFFICHER/MASQUER L'IMPORTATION ---
-    function toggleImport() {
-        const block = document.getElementById('importBlock');
-        const btn = document.getElementById('btnToggleImport');
-        if (block.style.display === 'none' || block.style.display === '') {
-            block.style.display = 'block';
-            btn.textContent = "❌ Masquer l'import Excel";
-            btn.style.color = "#dc3545";
-        } else {
-            block.style.display = 'none';
-            btn.textContent = "🪄 Afficher l'import Excel";
-            btn.style.color = "#2e7d32";
-        }
-    }
-
-    // --- FONCTION MAGIQUE D'IMPORTATION EXCEL ---
-    function processImport() {
-        const text = document.getElementById('importArea').value.trim();
-        if (!text) return alert("Veuillez coller des données provenant d'Excel dans la zone.");
-        
-        const lines = text.split('\n');
-        let count = 0;
-        
-        lines.forEach(line => {
-            const cols = line.split('\t');
-            if (cols.length >= 4) { 
-                let nom = cols[0].trim().toUpperCase();
-                let prenom = cols[1].trim();
-                let club = cols[2].trim() || "-";
-                let rawDisc = cols[3].trim();
-                let cat = cols[4] ? cols[4].trim() : "Senior 1";
-                
-                let fullDisc = rawDisc;
-                for (let type in dataRef) {
-                    let found = dataRef[type].disc.find(d => d.startsWith(rawDisc));
-                    if (found) { fullDisc = found; break; }
-                }
-
-                if (nom && prenom) {
-                    const s = { lastName: nom, firstName: prenom, club: club, discipline: fullDisc, category: cat, score: 0 };
-                    db.ref(compId + '/shooters').push(s);
-                    
-                    const key = nom.replace(/[^a-zA-Z]/g, "") + "_" + prenom.replace(/[^a-zA-Z]/g, "");
+        ISSF10: { disc: ["100 - Pistolet 10m", "102 - Pistolet Vitesse 1
