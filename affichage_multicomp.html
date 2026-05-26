@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🏆 Ligue LR — Palmarès provisoire</title>
+    <title>🏆 Ligue LR — Palmarès en Direct</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <style>
         :root {
-            --primary-bordeaux: #4a2c40; /* Rose sombre / Lie de vin assorti à l'admin */
+            --primary-bordeaux: #4a2c40; /* Rose sombre / Lie de vin */
             --bg-pastel: #f8fafc;
             --text-dark: #0f172a;
             --text-light: #64748b;
@@ -27,7 +27,7 @@
             margin: 0 auto;
         }
 
-        /* BANDEAU EN-TÊTE AVEC LOGOS ENCADRÉS */
+        /* BANDEAU EN-TÊTE AVEC LOGOS */
         header {
             display: flex;
             align-items: center;
@@ -76,14 +76,20 @@
             border: 1px solid #edf2f7;
         }
 
+        /* L'EFFET AIMANT POUR LA DISCIPLINE (STICKY) */
         .discipline-title {
             color: var(--primary-bordeaux);
             border-bottom: 3px solid var(--primary-bordeaux);
-            padding-bottom: 10px;
+            padding: 15px 10px;
             margin-top: 0;
             margin-bottom: 20px;
             font-size: 1.6rem;
             font-weight: 800;
+            position: sticky;
+            top: 0; /* S'accroche en haut de l'écran */
+            background: white; /* Cache les catégories qui passent en dessous */
+            z-index: 10; /* Reste au premier plan */
+            box-shadow: 0 10px 10px -10px rgba(0,0,0,0.1); /* Petite ombre esthétique */
         }
 
         /* BLOCS CATÉGORIES */
@@ -121,7 +127,7 @@
         td {
             padding: 14px 12px;
             border-bottom: 1px solid #f1f5f9;
-            font-size: 1rem;
+            font-size: 1.1rem;
         }
 
         tr:last-child td {
@@ -134,31 +140,27 @@
             color: var(--text-light);
         }
 
-        tr:nth-child(1) .rank-cell { color: #d97706; font-size: 1.2rem; } /* Or */
-        tr:nth-child(2) .rank-cell { color: #475569; font-size: 1.1rem; } /* Argent */
-        tr:nth-child(3) .rank-cell { color: #b45309; font-size: 1.05rem; } /* Bronze */
+        tr:nth-child(1) .rank-cell { color: #d97706; font-size: 1.3rem; } /* Or */
+        tr:nth-child(2) .rank-cell { color: #475569; font-size: 1.2rem; } /* Argent */
+        tr:nth-child(3) .rank-cell { color: #b45309; font-size: 1.15rem; } /* Bronze */
 
-        .name-cell {
-            font-weight: 600;
-        }
-
-        .club-cell {
-            color: var(--text-light);
-        }
+        .name-cell { font-weight: 600; }
+        .club-cell { color: var(--text-light); }
 
         .score-cell {
             text-align: right;
             font-weight: 800;
-            font-size: 1.15rem;
+            font-size: 1.25rem;
             color: var(--primary-bordeaux);
             width: 100px;
         }
 
         .no-data {
             text-align: center;
-            padding: 5px;
+            padding: 40px;
             color: var(--text-light);
             font-style: italic;
+            font-size: 1.2rem;
         }
     </style>
 </head>
@@ -168,19 +170,18 @@
     <header>
         <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
         <div class="header-center">
-            <h1>🏆 PALMARÈS EN DIRECT</h1>
-            <div id="compTitle" class="comp-name">Chargement de la compétition...</div>
+            <h1>🏆 PALMARÈS PROVISOIRE</h1>
+            <div id="compTitle" class="comp-name">Chargement...</div>
         </div>
         <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
     </header>
 
     <div id="resultsContainer">
-        <div class="no-data" style="padding: 40px; font-size: 1.2rem;">Connexion au serveur de résultats en cours...</div>
+        <div class="no-data">Connexion au serveur de résultats en cours...</div>
     </div>
 </div>
 
 <script>
-    // Configuration Firebase identique aux autres modules
     const firebaseConfig = {
         apiKey: "AIzaSyAvfMRtRrhh_e-27xHlwIx9c5DIdUQm6HM",
         authDomain: "resultats-tir-ligue-lr.firebaseapp.com",
@@ -195,51 +196,38 @@
     const compId = new URLSearchParams(window.location.search).get('comp');
 
     if (!compId) {
-        document.getElementById('resultsContainer').innerHTML = `<div class="no-data" style="color:red; font-weight:bold; padding:40px;">⚠️ Erreur : Aucune compétition spécifiée dans l'adresse.</div>`;
+        document.getElementById('resultsContainer').innerHTML = `<div class="no-data" style="color:red; font-weight:bold;">⚠️ Erreur : Aucune compétition spécifiée.</div>`;
     } else {
-        // 1. Récupération du nom de la compétition
         db.ref(compId + '/config').on('value', snap => {
             const config = snap.val();
-            if (config && config.name) {
-                document.getElementById('compTitle').textContent = config.name;
-            } else {
-                document.getElementById('compTitle').textContent = "Championnat en cours";
-            }
+            document.getElementById('compTitle').textContent = (config && config.name) ? config.name : "Championnat en cours";
         });
 
-        // 2. Récupération et traitement des scores en temps réel
         db.ref(compId + '/shooters').on('value', snap => {
             const data = snap.val() || {};
             const shooters = Object.keys(data).map(key => data[key]);
 
             if (shooters.length === 0) {
-                document.getElementById('resultsContainer').innerHTML = `<div class="no-data" style="padding:40px;">Aucun tireur enregistré pour le moment.</div>`;
+                document.getElementById('resultsContainer').innerHTML = `<div class="no-data">Aucun tireur enregistré pour le moment.</div>`;
                 return;
             }
 
-            // Regroupement par discipline puis par catégorie
             const tree = {};
             shooters.forEach(s => {
                 const disc = s.discipline || "Sans Discipline";
                 const cat = s.category || "Général";
-                
                 if (!tree[disc]) tree[disc] = {};
                 if (!tree[disc][cat]) tree[disc][cat] = [];
-                
                 tree[disc][cat].push(s);
             });
 
-            // Construction de la page de palmarès
             let html = '';
-            
-            // Tri alphabétique des disciplines
             const sortedDisciplines = Object.keys(tree).sort();
 
             sortedDisciplines.forEach(disc => {
                 html += `<div class="discipline-section">`;
                 html += `<h2 class="discipline-title">🎯 ${disc}</h2>`;
 
-                // Tri alphabétique des catégories au sein de la discipline
                 const sortedCategories = Object.keys(tree[disc]).sort();
 
                 sortedCategories.forEach(cat => {
@@ -256,14 +244,11 @@
                                 </thead>
                                 <tbody>`;
 
-                    // Tri des tireurs par score décroissant
                     const rankedShooters = tree[disc][cat].sort((a, b) => (b.score || 0) - (a.score || 0));
 
                     rankedShooters.forEach((s, index) => {
-                        // Affichage du score formaté (gestion des décimales pour la carabine si besoin)
                         const displayScore = s.score !== undefined ? s.score : 0;
                         const medal = (index === 0) ? "🥇 " : (index === 1) ? "🥈 " : (index === 2) ? "🥉 " : "";
-
                         html += `<tr>
                                     <td class="rank-cell">${index + 1}</td>
                                     <td class="name-cell">${medal}${s.lastName} ${s.firstName}</td>
@@ -271,16 +256,46 @@
                                     <td class="score-cell">${displayScore}</td>
                                  </tr>`;
                     });
-
                     html += `</tbody></table></div>`;
                 });
-
                 html += `</div>`;
             });
 
             document.getElementById('resultsContainer').innerHTML = html;
         });
     }
+
+    // --- MOTEUR DE DÉFILEMENT AUTOMATIQUE ---
+    let isScrolling = true;
+    
+    function startAutoScroll() {
+        setInterval(() => {
+            if (isScrolling) {
+                // Si on arrive tout en bas de la page
+                if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 5) {
+                    isScrolling = false; // On met en pause
+                    
+                    // On attend 3 secondes en bas pour lire les derniers
+                    setTimeout(() => {
+                        // On remonte tout en haut en douceur
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        
+                        // On attend 2 secondes en haut avant de recommencer à descendre
+                        setTimeout(() => { 
+                            isScrolling = true; 
+                        }, 2000);
+                        
+                    }, 3000); 
+                } else {
+                    // Sinon, on descend d'un pixel
+                    window.scrollBy(0, 1);
+                }
+            }
+        }, 40); // Vitesse : 40 millisecondes. Réduisez le chiffre pour aller plus vite, augmentez-le pour aller plus doucement.
+    }
+
+    // On lance le défilement 4 secondes après l'ouverture de la page
+    setTimeout(startAutoScroll, 4000);
 </script>
 </body>
 </html>
