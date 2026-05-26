@@ -171,4 +171,162 @@
             if (cols.length >= 4) { 
                 let nom = cols[0].trim().toUpperCase();
                 let prenom = cols[1].trim();
-                let club = cols
+                let club = cols[2].trim() || "-";
+                let rawDisc = cols[3].trim();
+                let cat = cols[4] ? cols[4].trim() : "Senior 1";
+                
+                let fullDisc = rawDisc;
+                for (let type in dataRef) {
+                    let found = dataRef[type].disc.find(d => d.startsWith(rawDisc));
+                    if (found) { fullDisc = found; break; }
+                }
+
+                if (nom && prenom) {
+                    let existeDeja = shootersData.some(s => s.lastName === nom && s.firstName === prenom && s.discipline === fullDisc);
+                    
+                    if (existeDeja) {
+                        doublons++;
+                    } else {
+                        const s = { lastName: nom, firstName: prenom, club: club, discipline: fullDisc, category: cat, score: 0 };
+                        db.ref(compId + '/shooters').push(s);
+                        const key = nom.replace(/[^a-zA-Z]/g, "") + "_" + prenom.replace(/[^a-zA-Z]/g, "");
+                        db.ref('Ligue_Tireurs_Archive/' + key).update({ lastName: nom, firstName: prenom, club: club });
+                        count++;
+                    }
+                }
+            }
+        });
+        
+        if (count > 0 || doublons > 0) {
+            let msg = "";
+            if (count > 0) msg += `🚀 Succès ! ${count} engagements ont été importés.\n`;
+            if (doublons > 0) msg += `⚠️ Note : ${doublons} doublons ignorés (déjà inscrits).`;
+            alert(msg);
+            document.getElementById('importArea').value = '';
+            document.getElementById('btnToggleImport').click(); 
+        }
+    }
+
+    function addShooter() {
+        const nom = document.getElementById('newNom').value.toUpperCase().trim();
+        const prenom = document.getElementById('newPrenom').value.trim();
+        const club = document.getElementById('newClub').value.trim() || "-";
+        const disc = document.getElementById('newDiscipline').value;
+        const cat = document.getElementById('newCategorie').value;
+        
+        if (!nom || !prenom) return alert("Nom et Prénom requis");
+
+        let existeDeja = shootersData.some(s => s.lastName === nom && s.firstName === prenom && s.discipline === disc);
+        if (existeDeja) {
+            return alert(`⚠️ IMPOSSIBLE : ${nom} ${prenom} est DÉJÀ inscrit en ${disc}.`);
+        }
+
+        const s = { lastName: nom, firstName: prenom, club: club, discipline: disc, category: cat, score: 0 };
+        db.ref(compId + '/shooters').push(s);
+        const key = nom.replace(/[^a-zA-Z]/g, "") + "_" + prenom.replace(/[^a-zA-Z]/g, "");
+        db.ref('Ligue_Tireurs_Archive/' + key).set({ lastName: nom, firstName: prenom, club: club });
+        resetForm();
+    }
+
+    function prepareEdit(id) {
+        const s = shootersData.find(x => x.id === id);
+        document.getElementById('editId').value = id;
+        document.getElementById('newNom').value = s.lastName;
+        document.getElementById('newPrenom').value = s.firstName;
+        document.getElementById('newClub').value = s.club;
+        document.getElementById('btnAdd').style.display = 'none';
+        document.getElementById('btnUpdate').style.display = 'block';
+        document.getElementById('btnCancel').style.display = 'block';
+        document.getElementById('formTireur').style.borderColor = '#ffc107';
+        window.scrollTo(0,0);
+        
+        // --- NOUVEAUTÉ : Le système détecte la bonne famille (TAR, ISSF...) tout seul ! ---
+        let foundType = "TAR"; 
+        for (let type in dataRef) {
+            if (dataRef[type].disc.includes(s.discipline)) {
+                foundType = type;
+                break;
+            }
+        }
+        
+        // On aligne tous les menus
+        document.getElementById('typeSelector').value = foundType;
+        document.getElementById('newDiscipline').innerHTML = dataRef[foundType].disc.map(d => `<option value="${d}">${d}</option>`).join('');
+        document.getElementById('newDiscipline').value = s.discipline;
+        
+        updateCategories();
+        document.getElementById('newCategorie').value = s.category;
+    }
+
+    function saveModification() {
+        const id = document.getElementById('editId').value;
+        const updates = {
+            lastName: document.getElementById('newNom').value.toUpperCase().trim(),
+            firstName: document.getElementById('newPrenom').value.trim(),
+            club: document.getElementById('newClub').value.trim(),
+            discipline: document.getElementById('newDiscipline').value,
+            category: document.getElementById('newCategorie').value
+        };
+        db.ref(compId + '/shooters/' + id).update(updates);
+        resetForm();
+    }
+
+    function deleteShooter(id) {
+        if(confirm("Supprimer ce tireur ?")) { db.ref(compId + '/shooters/' + id).remove(); }
+    }
+
+    function resetForm() {
+        document.getElementById('editId').value = '';
+        document.getElementById('newNom').value = '';
+        document.getElementById('newPrenom').value = '';
+        document.getElementById('newClub').value = '';
+        document.getElementById('btnAdd').style.display = 'block';
+        document.getElementById('btnUpdate').style.display = 'none';
+        document.getElementById('btnCancel').style.display = 'none';
+        document.getElementById('formTireur').style.borderColor = '#d1d9e6';
+    }
+
+    function renderList(list) {
+        const cont = document.getElementById('shooterList'); cont.innerHTML = '';
+        list.sort((a,b) => a.lastName.localeCompare(b.lastName)).forEach(s => {
+            cont.innerHTML += `
+            <div class="shooter-item">
+                <div style="flex:1;">
+                    <b>${s.lastName}</b> ${s.firstName} <br>
+                    <small>${s.discipline} | ${s.category} | ${s.club}</small>
+                </div>
+                <div class="actions">
+                    <input type="number" step="0.1" class="score-input" value="${s.score || 0}" onchange="saveScore('${s.id}', this.value)">
+                    <button type="button" class="btn-action btn-edit" onclick="prepareEdit('${s.id}')">✏️</button>
+                    <button type="button" class="btn-action btn-del" onclick="deleteShooter('${s.id}')">🗑️</button>
+                </div>
+            </div>`;
+        });
+    }
+
+    function saveScore(id, val) { db.ref(compId + '/shooters/' + id).update({ score: parseFloat(val) || 0 }); }
+
+    function chercherDansArchive(val) {
+        const box = document.getElementById('suggestions');
+        if (val.length < 3) { box.style.display = 'none'; return; }
+        const matches = archiveTireurs.filter(t => t.lastName.includes(val.toUpperCase())).slice(0, 5);
+        if (matches.length > 0) {
+            box.innerHTML = matches.map(m => `<div class="suggestion-item" onclick="remplirTireur('${m.lastName}', '${m.firstName}', '${m.club}')"><b>${m.lastName}</b> ${m.firstName}</div>`).join('');
+            box.style.display = 'block';
+        } else { box.style.display = 'none'; }
+    }
+
+    function remplirTireur(n, p, c) {
+        document.getElementById('newNom').value = n; document.getElementById('newPrenom').value = p; document.getElementById('newClub').value = c;
+        document.getElementById('suggestions').style.display = 'none';
+    }
+
+    function filterList() {
+        const q = document.getElementById('search').value.toLowerCase();
+        renderList(shootersData.filter(s => s.lastName.toLowerCase().includes(q) || s.firstName.toLowerCase().includes(q)));
+    }
+
+    window.onload = updateMenus;
+</script>
+</body>
+</html>
