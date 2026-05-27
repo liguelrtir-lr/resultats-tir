@@ -27,7 +27,6 @@
             margin: 0 auto;
         }
 
-        /* BANDEAU EN-TÊTE AVEC LOGOS (FIXÉ EN HAUT) */
         header {
             display: flex;
             align-items: center;
@@ -77,12 +76,10 @@
             text-transform: uppercase;
         }
 
-        /* ESPACE VIDE À LA FIN POUR VOIR LES DERNIERS RÉSULTATS */
         #resultsContainer {
             padding-bottom: 60vh; 
         }
 
-        /* BLOCS DISCIPLINE */
         .discipline-section {
             background: white;
             border-radius: 20px;
@@ -92,7 +89,6 @@
             border: 1px solid #edf2f7;
         }
 
-        /* L'EFFET AIMANT POUR LA DISCIPLINE */
         .discipline-title {
             color: var(--primary-bordeaux);
             border-bottom: 3px solid var(--primary-bordeaux);
@@ -108,23 +104,23 @@
             box-shadow: 0 10px 10px -10px rgba(0,0,0,0.1);
         }
 
-        /* BLOCS CATÉGORIES */
         .category-block {
             margin-bottom: 25px;
         }
 
+        /* === SEUL CHANGEMENT : couleur rose/bordeaux sur les bandeaux catégorie === */
         .category-title {
-            background: #f1f5f9;
-            color: #475569;
+            background: #f3e6f0;
+            color: #6d1f4e;
             padding: 8px 16px;
             border-radius: 10px;
             font-weight: 700;
             font-size: 1.1rem;
             margin-bottom: 12px;
             width: fit-content;
+            border-left: 4px solid #9b3272;
         }
 
-        /* TABLEAU DES CLASSEMENTS */
         table {
             width: 100%;
             border-collapse: collapse;
@@ -156,9 +152,9 @@
             color: var(--text-light);
         }
 
-        tr:nth-child(1) .rank-cell { color: #d97706; font-size: 1.3rem; } /* Or */
-        tr:nth-child(2) .rank-cell { color: #475569; font-size: 1.2rem; } /* Argent */
-        tr:nth-child(3) .rank-cell { color: #b45309; font-size: 1.15rem; } /* Bronze */
+        tr:nth-child(1) .rank-cell { color: #d97706; font-size: 1.3rem; }
+        tr:nth-child(2) .rank-cell { color: #475569; font-size: 1.2rem; }
+        tr:nth-child(3) .rank-cell { color: #b45309; font-size: 1.15rem; }
 
         .name-cell { font-weight: 600; }
         .club-cell { color: var(--text-light); }
@@ -187,7 +183,7 @@
         <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
         <div class="header-center">
             <h1>🏆 PALMARÈS PROVISOIRE</h1>
-            <div class="version-tag">v1.1</div>
+            <div class="version-tag">v1.2</div>
             <div id="compTitle" class="comp-name">Chargement...</div>
         </div>
         <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
@@ -231,15 +227,11 @@
 
             const tree = {};
             shooters.forEach(s => {
-                // NETTOYAGE : Enlève les espaces en trop avec .trim()
                 let disc = s.discipline ? s.discipline.trim() : "Sans Discipline";
                 let cat = s.category ? s.category.trim() : "Général";
-                
-                // NETTOYAGE : Force la première lettre en majuscule (corrige "standard" vs "Standard")
                 if(cat.length > 0) {
                     cat = cat.charAt(0).toUpperCase() + cat.slice(1);
                 }
-
                 if (!tree[disc]) tree[disc] = {};
                 if (!tree[disc][cat]) tree[disc][cat] = [];
                 tree[disc][cat].push(s);
@@ -289,7 +281,6 @@
         });
     }
 
-    // --- MOTEUR DE DÉFILEMENT AUTOMATIQUE ---
     let isScrolling = true;
     
     function startAutoScroll() {
@@ -297,20 +288,15 @@
             if (isScrolling) {
                 if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 5) {
                     isScrolling = false; 
-                    
                     setTimeout(() => {
                         window.scrollTo({ top: 0, behavior: 'smooth' });
-                        
-                        setTimeout(() => { 
-                            isScrolling = true; 
-                        }, 2000);
-                        
+                        setTimeout(() => { isScrolling = true; }, 2000);
                     }, 3000); 
                 } else {
                     window.scrollBy(0, 1);
                 }
             }
-        }, 20); // Vitesse : 20 millisecondes
+        }, 20);
     }
 
     setTimeout(startAutoScroll, 4000);
