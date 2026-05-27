@@ -3,155 +3,406 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🎯 Ligue LR - Admin Rose & Pastel</title>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+  <title>🎯 Ligue LR — Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Barlow:wght@300;400;500&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
   <style>
     :root {
-      --bg-pastel: #f8fafc; 
-      /* NOUVELLE COULEUR ROSE SOMBRE POUR LA SIDEBAR */
-      --sidebar-bg: #4a2c40; /* Rose sombre / Lie de vin */
-      --sidebar-text: #ffffff;
-      
-      --text-dark: #0f172a;
-      --text-light: #64748b;
-      
-      /* Palette de boutons colorés */
-      --btn-saisie: #10b981; 
-      --btn-qr: #8b5cf6;     
-      --btn-tv: #0ea5e9;     
-      --btn-add: #ff7eb3;    /* Rose plus vif pour le bouton Ajouter */
-      --danger: #ef4444;     
+      --sidebar-bg: #2a1628;
+      --sidebar-border: #3d1f3d;
+      --sidebar-accent: #e879b0;
+      --sidebar-muted: rgba(232,121,176,0.5);
+      --bg: #f4f6fb;
+      --surface: #ffffff;
+      --surface2: #f8fafc;
+      --border: #e8edf5;
+      --text: #0f1923;
+      --text-muted: #64748b;
+      --text-dim: #a0aec0;
+      --green: #10b981; --green-bg: #ecfdf5;
+      --purple: #8b5cf6; --purple-bg: #f5f3ff;
+      --blue: #0ea5e9; --blue-bg: #f0f9ff;
+      --red: #ef4444;
+      --accent: #be185d;
+      --radius: 8px;
+      --radius-lg: 16px;
+      --radius-xl: 22px;
     }
-
-    * { margin:0; padding:0; box-sizing:border-box; }
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      background: var(--bg-pastel);
-      background-image: radial-gradient(at 0% 0%, rgba(74, 44, 64, 0.03) 0px, transparent 50%);
-      color: var(--text-dark);
-      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-family: 'Barlow', sans-serif;
+      background: var(--bg);
+      color: var(--text);
       display: flex;
       min-height: 100vh;
     }
 
-    /* --- SIDEBAR ROSE SOMBRE --- */
+    /* ═══ SIDEBAR ═══ */
     .sidebar {
-      width: 280px;
+      width: 270px;
       background: var(--sidebar-bg);
-      padding: 40px 24px;
+      padding: 32px 20px;
       display: flex;
       flex-direction: column;
       position: fixed;
       height: 100vh;
-      box-shadow: 10px 0 30px rgba(0,0,0,0.1);
       z-index: 100;
+      border-right: 1px solid var(--sidebar-border);
     }
 
     .logo-area {
-      font-weight: 800;
-      font-size: 1.6em;
-      margin-bottom: 40px;
-      color: #ffb8d9; /* Rose clair pour le texte sur fond sombre */
-      letter-spacing: -1px;
-      text-align: center;
-    }
-
-    .btn-create {
-      background: var(--btn-add);
-      color: white;
-      padding: 16px;
-      border: none;
-      border-radius: 16px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.3s;
-      box-shadow: 0 10px 15px -3px rgba(255, 126, 179, 0.3);
-    }
-
-    .btn-create:hover { transform: translateY(-2px); box-shadow: 0 20px 25px -5px rgba(255, 126, 179, 0.4); }
-
-    /* --- CONTENU --- */
-    .main-content { flex: 1; margin-left: 280px; padding: 60px; }
-    .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
-    .page-title { font-weight: 800; font-size: 2em; color: var(--sidebar-bg); }
-
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 30px; }
-
-    .card {
-      background: white;
-      border-radius: 24px;
-      padding: 30px;
-      border: 1px solid #edf2f7;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
-      transition: all 0.4s ease;
       display: flex;
       flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 36px;
+      padding-bottom: 28px;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
     }
-    .card:hover { transform: translateY(-8px); box-shadow: 0 25px 50px -12px rgba(74, 44, 64, 0.1); }
+    .logo-area img {
+      width: 90px;
+      height: 90px;
+      object-fit: contain;
+      border-radius: 50%;
+      border: 2px solid rgba(232,121,176,0.25);
+      background: rgba(255,255,255,0.05);
+    }
+    .logo-name {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .logo-name span { color: var(--sidebar-accent); }
+
+    .btn-create {
+      background: var(--sidebar-accent);
+      color: white;
+      padding: 13px 16px;
+      border: none;
+      border-radius: var(--radius-lg);
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 1rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 4px 20px rgba(232,121,176,0.3);
+      width: 100%;
+    }
+    .btn-create:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(232,121,176,0.45);
+      background: #f472b6;
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.72rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--sidebar-muted);
+      opacity: 0.7;
+    }
+
+    /* ═══ MAIN ═══ */
+    .main-content {
+      flex: 1;
+      margin-left: 270px;
+      padding: 48px 52px;
+    }
+
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 40px;
+    }
+    .page-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 1.9rem;
+      letter-spacing: 0.03em;
+      color: var(--text);
+    }
+    .clock {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      background: #fdf2f8;
+      border: 1px solid #fbcfe8;
+      padding: 6px 16px;
+      border-radius: 20px;
+    }
+
+    /* ═══ GRID ═══ */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+      gap: 24px;
+    }
+
+    /* ═══ CARD ═══ */
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius-xl);
+      padding: 26px;
+      border: 1px solid var(--border);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+      transition: all 0.25s ease;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--sidebar-accent), transparent);
+      opacity: 0;
+      transition: opacity 0.25s;
+    }
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 16px 40px rgba(74,44,64,0.1);
+      border-color: #fce7f3;
+    }
+    .card:hover::before { opacity: 1; }
 
     .type-tag {
-      font-size: 0.65em; font-weight: 800; padding: 6px 12px; border-radius: 10px;
-      background: #fdf2f8; color: #be185d; text-transform: uppercase; margin-bottom: 15px; width: fit-content;
+      display: inline-block;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: #fdf2f8;
+      color: var(--accent);
+      border: 1px solid #fbcfe8;
+      margin-bottom: 14px;
+      width: fit-content;
     }
 
-    .card-title { font-weight: 800; font-size: 1.4em; color: #0f172a; margin-bottom: 10px; }
-    .card-code { font-family: 'JetBrains Mono'; font-size: 0.8em; color: var(--text-light); margin-bottom: 25px; }
+    .card-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 1.35rem;
+      letter-spacing: 0.03em;
+      color: var(--text);
+      margin-bottom: 5px;
+      text-transform: uppercase;
+    }
+    .card-code {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.8rem;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+      margin-bottom: 22px;
+    }
 
     .stat-pill {
-      background: #fafafa; padding: 15px; border-radius: 18px;
-      display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      padding: 12px 16px;
+      border-radius: var(--radius-lg);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
     }
-    .stat-val { font-size: 1.4em; font-weight: 800; color: #be185d; }
+    .stat-label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .stat-val {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
 
-    /* --- BOUTONS ACTIONS --- */
-    .actions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .btn-act { padding: 14px; border-radius: 14px; border: none; font-weight: 700; font-size: 0.85em; cursor: pointer; text-align: center; text-decoration: none; transition: 0.2s; }
+    /* ═══ ACTION BUTTONS ═══ */
+    .actions-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .btn-act {
+      padding: 12px;
+      border-radius: var(--radius-lg);
+      border: none;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 0.88rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      cursor: pointer;
+      text-align: center;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.18s;
+    }
+    .btn-saisie { background: var(--green-bg); color: var(--green); border: 1px solid #a7f3d0; }
+    .btn-saisie:hover { background: var(--green); color: white; border-color: var(--green); }
 
-    .btn-saisie { background: #ecfdf5; color: var(--btn-saisie); }
-    .btn-saisie:hover { background: var(--btn-saisie); color: white; }
+    .btn-qr { background: var(--purple-bg); color: var(--purple); border: 1px solid #ddd6fe; }
+    .btn-qr:hover { background: var(--purple); color: white; border-color: var(--purple); }
 
-    .btn-qr { background: #f5f3ff; color: var(--btn-qr); }
-    .btn-qr:hover { background: var(--btn-qr); color: white; }
+    .btn-tv {
+      grid-column: span 2;
+      background: var(--blue-bg);
+      color: var(--blue);
+      border: 1px solid #bae6fd;
+    }
+    .btn-tv:hover { background: var(--blue); color: white; border-color: var(--blue); }
 
-    .btn-tv { background: #f0f9ff; color: var(--btn-tv); grid-column: span 2; border: 2px solid #e0f2fe; }
-    .btn-tv:hover { background: var(--btn-tv); color: white; }
+    .btn-del {
+      grid-column: span 2;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      font-size: 0.75rem;
+      margin-top: 4px;
+      padding: 9px;
+      border-radius: var(--radius);
+    }
+    .btn-del:hover { color: var(--red); border-color: #fecaca; background: #fef2f2; }
 
-    .btn-del { grid-column: span 2; background: none; color: #cbd5e1; font-size: 0.75em; margin-top: 10px; cursor:pointer; }
-    .btn-del:hover { color: var(--danger); }
-
-    /* MODAL */
-    .modal { position: fixed; inset: 0; background: rgba(74, 44, 64, 0.3); backdrop-filter: blur(8px); display: none; align-items: center; justify-content: center; z-index: 1000; }
+    /* ═══ MODALS ═══ */
+    .modal {
+      position: fixed; inset: 0;
+      background: rgba(42,22,40,0.45);
+      backdrop-filter: blur(6px);
+      display: none; align-items: center; justify-content: center;
+      z-index: 1000;
+    }
     .modal.active { display: flex; }
-    .modal-content { background: white; padding: 40px; border-radius: 30px; width: 90%; max-width: 450px; }
-    input, select { width: 100%; padding: 15px; margin-bottom: 20px; border-radius: 12px; border: 2px solid #f1f5f9; font-family: inherit; }
+
+    .modal-content {
+      background: white;
+      padding: 36px;
+      border-radius: var(--radius-xl);
+      width: 90%;
+      max-width: 440px;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.15);
+    }
+    .modal-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 1.4rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text);
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .modal-content input,
+    .modal-content select {
+      width: 100%;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      font-family: 'Barlow', sans-serif;
+      font-size: 0.95rem;
+      color: var(--text);
+      background: var(--surface2);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .modal-content input:focus,
+    .modal-content select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(190,24,93,0.08);
+    }
+    .modal-actions { display: flex; gap: 10px; margin-top: 6px; }
+    .btn-modal-cancel {
+      flex: 1; padding: 12px; border-radius: var(--radius);
+      border: 1px solid var(--border); background: var(--surface2);
+      font-family: 'Rajdhani', sans-serif; font-weight: 700;
+      font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.05em;
+      cursor: pointer; color: var(--text-muted); transition: all 0.18s;
+    }
+    .btn-modal-cancel:hover { background: var(--border); }
+    .btn-modal-confirm {
+      flex: 1; padding: 12px; border-radius: var(--radius);
+      border: none; background: var(--sidebar-bg);
+      font-family: 'Rajdhani', sans-serif; font-weight: 700;
+      font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.05em;
+      cursor: pointer; color: white; transition: all 0.18s;
+    }
+    .btn-modal-confirm:hover { background: #3d1f3d; }
+
+    /* QR modal */
+    .qr-url {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      word-break: break-all;
+      margin: 14px 0;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+    }
+
+    /* EMPTY STATE */
+    .empty-state {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 80px 24px;
+      color: var(--text-dim);
+    }
+    .empty-state .icon { font-size: 3rem; margin-bottom: 16px; opacity: 0.4; }
+    .empty-state p { font-size: 1rem; }
   </style>
 </head>
 <body>
 
   <aside class="sidebar">
     <div class="logo-area">
-      <img src="logo.png" alt="Logo Ligue LR" style="width: 80%; max-width: 150px; margin: 0 auto 15px auto; display: block;">
-      🎯 Ligue LR
+      <img src="logo.png"
+           onerror="this.style.display='none'" alt="Logo Ligue LR">
+      <div class="logo-name">🎯 <span>Ligue</span> LR</div>
     </div>
     <button class="btn-create" onclick="openCreateModal()">+ Nouveau Championnat</button>
-    <div style="margin-top: auto; font-size: 0.8em; color: #ffb8d9; opacity: 0.6;">Admin v4.1 — Rose Sombre</div>
+    <div class="sidebar-footer" style="margin-top: auto;">Admin v4.1 — Rose Sombre</div>
   </aside>
 
   <main class="main-content">
     <div class="header-row">
       <div class="page-title">Tableau de bord</div>
-      <div id="clock" style="font-weight: 700; color: #be185d;">00:00:00</div>
+      <div class="clock" id="clock">00:00:00</div>
     </div>
     <div class="grid" id="compGrid"></div>
   </main>
 
+  <!-- MODAL CRÉATION -->
   <div class="modal" id="createModal">
     <div class="modal-content">
-      <h2 style="margin-bottom:25px; font-weight: 800;">Configuration</h2>
+      <div class="modal-title">⚙️ Nouveau Championnat</div>
       <input type="text" id="newCompName" placeholder="Nom du Championnat">
       <input type="text" id="newCompCode" placeholder="Code (ex: TAR_2026)">
       <select id="newCompType">
@@ -162,19 +413,20 @@
         <option value="2550">ISSF 25/50 Mètres</option>
         <option value="AMICAL">Concours Amical</option>
       </select>
-      <div style="display:flex; gap:12px">
-        <button class="btn-act" style="flex:1; background:#f1f5f9;" onclick="closeCreateModal()">Annuler</button>
-        <button class="btn-act" style="flex:1; background:var(--sidebar-bg); color:white;" onclick="createComp()">Créer</button>
+      <div class="modal-actions">
+        <button class="btn-modal-cancel" onclick="closeCreateModal()">Annuler</button>
+        <button class="btn-modal-confirm" onclick="createComp()">Créer</button>
       </div>
     </div>
   </div>
 
+  <!-- MODAL QR -->
   <div class="modal" id="qrModal">
     <div class="modal-content" style="text-align:center">
-      <h2 id="qrTitle" style="margin-bottom:20px">Accès Live</h2>
-      <div id="qrcode" style="margin-bottom:20px; display:inline-block; border: 8px solid #fdf2f8; border-radius: 12px;"></div>
-      <p id="qrUrl" style="font-size:0.75em; color:var(--text-light); word-break:break-all; margin-bottom:20px"></p>
-      <button class="btn-act" style="width:100%; background:#f1f5f9;" onclick="closeQrModal()">Fermer</button>
+      <div class="modal-title" id="qrTitle">Accès Live</div>
+      <div id="qrcode" style="display:inline-block; border: 6px solid #fdf2f8; border-radius: 12px;"></div>
+      <div class="qr-url" id="qrUrl"></div>
+      <button class="btn-modal-cancel" style="width:100%;" onclick="closeQrModal()">Fermer</button>
     </div>
   </div>
 
@@ -190,7 +442,7 @@
 
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
-    const GITHUB_BASE = "https://liguelrtir-lr.github.io/resultats-tir";
+    const GITHUB_BASE = "https://liguelrtir-lr.github.io/liguelrtir-lr";
 
     function openCreateModal() { document.getElementById('createModal').classList.add('active'); }
     function closeCreateModal() { document.getElementById('createModal').classList.remove('active'); }
@@ -201,9 +453,9 @@
       const type = document.getElementById('newCompType').value;
       if (!name || !code) return alert("Remplis tout !");
       database.ref(code + '/config').set({ name, type }).then(() => {
-          closeCreateModal();
-          document.getElementById('newCompName').value = '';
-          document.getElementById('newCompCode').value = '';
+        closeCreateModal();
+        document.getElementById('newCompName').value = '';
+        document.getElementById('newCompCode').value = '';
       });
     }
 
@@ -213,7 +465,7 @@
 
     function openQr(code) {
       const url = `${GITHUB_BASE}/affichage_multicomp.html?comp=${code}`;
-      document.getElementById('qrTitle').textContent = code;
+      document.getElementById('qrTitle').textContent = '📱 ' + code;
       document.getElementById('qrUrl').textContent = url;
       const qrContainer = document.getElementById('qrcode');
       qrContainer.innerHTML = '';
@@ -227,11 +479,16 @@
       const grid = document.getElementById('compGrid');
       grid.innerHTML = '';
       const data = snap.val();
-      if (!data) return;
+      if (!data) {
+        grid.innerHTML = `<div class="empty-state"><div class="icon">🎯</div><p>Aucun championnat créé pour l'instant.</p></div>`;
+        return;
+      }
 
-      Object.keys(data).forEach(code => {
+      let hasCards = false;
+      Object.keys(data).sort().forEach(code => {
         const config = data[code].config;
         if (config && config.name) {
+          hasCards = true;
           const shooterCount = data[code].shooters ? Object.keys(data[code].shooters).length : 0;
           const card = document.createElement('div');
           card.className = 'card';
@@ -240,22 +497,28 @@
             <div class="card-title">${config.name}</div>
             <div class="card-code">#${code}</div>
             <div class="stat-pill">
-               <span class="stat-label">Tireurs</span>
-               <span class="stat-val">${shooterCount}</span>
+              <span class="stat-label">Tireurs inscrits</span>
+              <span class="stat-val">${shooterCount}</span>
             </div>
             <div class="actions-grid">
-              <a href="saisie_multicomp.html?comp=${code}" class="btn-act btn-saisie">⌨️ SAISIE</a>
-              <button onclick="openQr('${code}')" class="btn-act btn-qr">📱 QR CODE</button>
-              <a href="affichage_multicomp.html?comp=${code}" target="_blank" class="btn-act btn-tv">📺 AFFICHAGE LIVE</a>
-              <button onclick="deleteComp('${code}', '${config.name}')" class="btn-del">🗑️ Supprimer</button>
+              <a href="saisie_multicomp.html?comp=${code}" class="btn-act btn-saisie">⌨️ Saisie</a>
+              <button onclick="openQr('${code}')" class="btn-act btn-qr">📱 QR Code</button>
+              <a href="affichage_multicomp.html?comp=${code}" target="_blank" class="btn-act btn-tv">📺 Affichage Live</a>
+              <button onclick="deleteComp('${code}', '${config.name.replace(/'/g,"\\'")}'')" class="btn-act btn-del">🗑️ Supprimer</button>
             </div>
           `;
           grid.appendChild(card);
         }
       });
+
+      if (!hasCards) {
+        grid.innerHTML = `<div class="empty-state"><div class="icon">🎯</div><p>Aucun championnat créé pour l'instant.</p></div>`;
+      }
     });
 
-    setInterval(() => { document.getElementById('clock').textContent = new Date().toLocaleTimeString(); }, 1000);
+    setInterval(() => {
+      document.getElementById('clock').textContent = new Date().toLocaleTimeString('fr-FR');
+    }, 1000);
   </script>
 </body>
 </html>
