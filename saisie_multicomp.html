@@ -3,88 +3,537 @@
 <head>
     <meta charset="UTF-8">
     <title>Saisie Officielle Ligue LR — v1.36</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Barlow:wght@300;400;500&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
-        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); position: relative; }
-        
-        .version-tag { position: absolute; top: 10px; right: 20px; font-size: 0.75rem; color: #999; font-weight: bold; }
-        
-        
-        header { border-bottom: 2px solid #007bff; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-        .form-group { background: #eef2f7; padding: 20px; border-radius: 10px; margin-bottom: 25px; border: 2px solid #d1d9e6; }
-        .import-group { background: #e8f5e9; padding: 20px; border-radius: 10px; margin-bottom: 25px; border: 2px solid #a5d6a7; display: none; }
-        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px; }
-        input, select, textarea { padding: 12px; border: 1px solid #bcc6d2; border-radius: 6px; font-size: 1rem; width: 100%; box-sizing: border-box; }
-        .btn-add { background: #28a745; color: white; border: none; padding: 15px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; font-size: 1.1rem; }
-        .btn-import { background: #2e7d32; }
-        .btn-update { background: #ffc107; color: #212529; display: none; }
-        .shooter-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; }
-        .actions { display: flex; align-items: center; gap: 10px; }
-        .btn-action { border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-size: 0.9rem; }
-        .btn-edit { background: #e7f3ff; color: #007bff; }
-        .btn-del { background: #ffeef0; color: #dc3545; }
-        .score-input { width: 80px; padding: 10px; text-align: center; font-weight: bold; border: 2px solid #007bff; border-radius: 6px; color: #007bff; font-size: 1.1rem; }
-        #suggestions { background: #fff; border: 1px solid #ccc; display: none; position: absolute; z-index: 100; width: 300px; border-radius: 4px; }
-        .suggestion-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #f0f0f0; }
+        :root {
+            --bg: #0d1117;
+            --surface: #161b22;
+            --surface2: #1c2330;
+            --border: #2a3441;
+            --border-active: #3d8b37;
+            --accent: #3fb950;
+            --accent2: #d4a017;
+            --accent-dim: rgba(63,185,80,0.12);
+            --text: #e6edf3;
+            --text-muted: #7d8590;
+            --text-dim: #4d5a68;
+            --blue: #388bfd;
+            --blue-dim: rgba(56,139,253,0.15);
+            --red: #f85149;
+            --red-dim: rgba(248,81,73,0.12);
+            --warning: #e3b341;
+            --warning-dim: rgba(227,179,65,0.12);
+            --radius: 8px;
+            --radius-lg: 12px;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+            font-family: 'Barlow', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 24px 16px;
+            min-height: 100vh;
+            background-image:
+                radial-gradient(ellipse 80% 50% at 50% -10%, rgba(63,185,80,0.07) 0%, transparent 60%),
+                repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(255,255,255,0.015) 40px),
+                repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(255,255,255,0.015) 40px);
+        }
+
+        .container {
+            max-width: 1020px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        /* HEADER */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 20px;
+            margin-bottom: 28px;
+            border-bottom: 1px solid var(--border);
+            position: relative;
+        }
+        header::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 80px;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent), transparent);
+        }
+        .header-left { display: flex; align-items: center; gap: 14px; }
+        .header-logo {
+            width: 44px; height: 44px;
+            background: var(--accent-dim);
+            border: 1px solid rgba(63,185,80,0.3);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.3rem;
+        }
+        .header-title {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.55rem;
+            font-weight: 700;
+            color: var(--text);
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin: 0;
+            line-height: 1;
+        }
+        .header-sub {
+            font-size: 0.75rem;
+            color: var(--accent);
+            font-weight: 500;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            margin-top: 3px;
+        }
+        .header-actions { display: flex; align-items: center; gap: 16px; }
+        .version-tag {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            padding: 3px 8px;
+            border-radius: 20px;
+        }
+        .link-back {
+            text-decoration: none;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: color 0.2s;
+            display: flex; align-items: center; gap: 5px;
+        }
+        .link-back:hover { color: var(--text); }
+
+        /* TOGGLE IMPORT BUTTON */
+        .btn-toggle-import {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--accent);
+            font-family: 'Barlow', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 600;
+            padding: 7px 14px;
+            border-radius: var(--radius);
+            cursor: pointer;
+            display: flex; align-items: center; gap: 7px;
+            transition: all 0.2s;
+            letter-spacing: 0.03em;
+        }
+        .btn-toggle-import:hover { background: var(--accent-dim); border-color: var(--accent); }
+        .btn-toggle-import.active { background: var(--accent-dim); border-color: var(--accent); color: var(--red); border-color: var(--red); background: var(--red-dim); }
+
+        /* PANELS */
+        .panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        .panel::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--blue), transparent);
+        }
+        .panel.panel-import { display: none; }
+        .panel.panel-import::before { background: linear-gradient(90deg, var(--accent), transparent); }
+        .panel.panel-edit-mode { border-color: rgba(227,179,65,0.4); }
+        .panel.panel-edit-mode::before { background: linear-gradient(90deg, var(--warning), transparent); }
+
+        .panel-title {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            margin: 0 0 18px 0;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .panel-title span { color: var(--blue); font-size: 1rem; }
+        .panel-import .panel-title span { color: var(--accent); }
+
+        /* CHAMPIONSHIP SELECTOR */
+        .champ-select-wrap { margin-bottom: 20px; }
+        .champ-select-wrap label {
+            display: block;
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 0.7rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+        select#typeSelector {
+            background: var(--accent);
+            color: #0d1117;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+            font-size: 0.95rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            border: none;
+            padding: 10px 14px;
+            border-radius: var(--radius);
+            width: 100%;
+            cursor: pointer;
+            outline: none;
+        }
+
+        /* FORM */
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .field { display: flex; flex-direction: column; gap: 5px; }
+        .field label {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 0.68rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+        }
+        input[type="text"], input[type="number"], select, textarea {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: 'Barlow', sans-serif;
+            font-size: 0.92rem;
+            padding: 10px 12px;
+            border-radius: var(--radius);
+            outline: none;
+            width: 100%;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        input[type="text"]:focus, input[type="number"]:focus, select:focus, textarea:focus {
+            border-color: var(--blue);
+            box-shadow: 0 0 0 3px rgba(56,139,253,0.1);
+        }
+        select option { background: var(--surface2); }
+        textarea {
+            font-family: 'Barlow Condensed', monospace;
+            font-size: 0.9rem;
+            resize: vertical;
+        }
+
+        /* IMPORT HINT */
+        .import-hint {
+            background: rgba(63,185,80,0.06);
+            border: 1px solid rgba(63,185,80,0.15);
+            border-radius: var(--radius);
+            padding: 12px 14px;
+            margin-bottom: 14px;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+        .import-hint strong { color: var(--accent); }
+
+        /* BUTTONS */
+        .btn-row { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+        .btn {
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+            font-size: 1rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            border: none;
+            padding: 13px 20px;
+            border-radius: var(--radius);
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.18s;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn-primary { background: var(--blue); color: #fff; }
+        .btn-primary:hover { background: #58a6ff; box-shadow: 0 0 20px rgba(56,139,253,0.25); }
+        .btn-import-run { background: var(--accent); color: #0d1117; }
+        .btn-import-run:hover { background: #56d364; box-shadow: 0 0 20px rgba(63,185,80,0.25); }
+        .btn-warning { background: var(--warning); color: #0d1117; display: none; }
+        .btn-warning:hover { background: #f0c040; }
+        .btn-secondary { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); display: none; font-size: 0.85rem; padding: 10px; }
+        .btn-secondary:hover { color: var(--text); border-color: var(--text-muted); }
+
+        /* SEARCH */
+        .search-wrap { position: relative; margin-bottom: 16px; }
+        .search-wrap::before {
+            content: '⌕';
+            position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+            color: var(--text-dim); font-size: 1.1rem; pointer-events: none;
+        }
+        input#search {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 11px 12px 11px 36px;
+            font-size: 0.9rem;
+            border-radius: var(--radius);
+            width: 100%;
+            transition: border-color 0.2s;
+        }
+        input#search:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(56,139,253,0.1); outline: none; }
+        input#search::placeholder { color: var(--text-dim); }
+
+        /* SHOOTER LIST */
+        .list-container {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+        }
+        .list-header {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface2);
+        }
+        .list-header-label {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 0.68rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+        }
+        .shooter-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.15s;
+        }
+        .shooter-item:last-child { border-bottom: none; }
+        .shooter-item:hover { background: var(--surface2); }
+        .shooter-name {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            color: var(--text);
+        }
+        .shooter-detail {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+            display: flex; gap: 8px; flex-wrap: wrap;
+        }
+        .shooter-detail .tag {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 1px 6px;
+            font-size: 0.72rem;
+            font-family: 'Barlow Condensed', sans-serif;
+            letter-spacing: 0.05em;
+        }
+        .actions { display: flex; align-items: center; gap: 8px; }
+        .score-input {
+            width: 80px;
+            padding: 8px 6px;
+            text-align: center;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+            font-size: 1.1rem;
+            letter-spacing: 0.04em;
+            background: var(--surface2);
+            border: 1px solid var(--blue);
+            color: var(--blue);
+            border-radius: var(--radius);
+        }
+        .score-input:focus { outline: none; box-shadow: 0 0 0 2px rgba(56,139,253,0.25); }
+        .btn-action {
+            border: none;
+            padding: 8px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.88rem;
+            transition: all 0.15s;
+            background: transparent;
+        }
+        .btn-edit { color: var(--blue); background: var(--blue-dim); }
+        .btn-edit:hover { background: rgba(56,139,253,0.25); }
+        .btn-del { color: var(--red); background: var(--red-dim); }
+        .btn-del:hover { background: rgba(248,81,73,0.25); }
+
+        /* AUTOCOMPLETE */
+        #suggestions {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-top: none;
+            display: none;
+            position: absolute;
+            z-index: 100;
+            width: 100%;
+            border-radius: 0 0 var(--radius) var(--radius);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+            overflow: hidden;
+        }
+        .suggestion-item {
+            padding: 10px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.88rem;
+            transition: background 0.15s;
+            color: var(--text-muted);
+        }
+        .suggestion-item:last-child { border-bottom: none; }
+        .suggestion-item:hover { background: var(--surface2); color: var(--text); }
+        .suggestion-item b { color: var(--text); font-family: 'Rajdhani', sans-serif; letter-spacing: 0.04em; }
+
+        /* EMPTY STATE */
+        .empty-state {
+            padding: 48px 24px;
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 0.9rem;
+        }
+        .empty-state .empty-icon { font-size: 2.5rem; margin-bottom: 12px; opacity: 0.4; }
+
+        /* SCROLLBAR */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+        @media (max-width: 600px) {
+            body { padding: 12px; }
+            .header-title { font-size: 1.15rem; }
+            .shooter-item { flex-wrap: wrap; gap: 10px; }
+            .actions { width: 100%; justify-content: flex-end; }
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="version-tag">VERSION 1.36 (Menus Auto-Adaptatifs)</div>
     <header>
-        <h1 style="margin:0; color:#007bff;">🎯 Saisie des Résultats</h1>
-        <div style="display: flex; align-items: center; gap: 20px;">
-            <button type="button" id="btnToggleImport" style="background:none; border:none; color:#2e7d32; text-decoration:underline; cursor:pointer; font-weight:bold; font-size: 0.95rem;">🪄 Afficher l'import Excel</button>
-            <a href="index_admin.html" style="text-decoration:none; font-weight:bold; color:#666;">← Retour</a>
+        <div class="header-left">
+            <div class="header-logo">🎯</div>
+            <div>
+                <h1 class="header-title">Saisie des Résultats</h1>
+                <div class="header-sub">Ligue Languedoc-Roussillon</div>
+            </div>
+        </div>
+        <div class="header-actions">
+            <span class="version-tag">v1.36</span>
+            <button type="button" id="btnToggleImport" class="btn-toggle-import">
+                <span>🪄</span> Import Excel
+            </button>
+            <a href="index_admin.html" class="link-back">← Retour</a>
         </div>
     </header>
 
-    <div class="import-group" id="importBlock">
-        <h3 style="margin-top:0; color: #2e7d32;">⚡ Importation Rapide (Copier-Coller Excel)</h3>
-        <p style="font-size: 0.9rem; color: #444; margin-bottom: 10px;">
+    <!-- IMPORT BLOCK -->
+    <div class="panel panel-import" id="importBlock">
+        <div class="panel-title"><span>⚡</span> Importation Rapide — Copier-Coller Excel</div>
+        <div class="import-hint">
             Copiez vos colonnes depuis Excel et collez-les ci-dessous.<br>
-            <b>Ordre attendu :</b> NOM | Prénom | Club | Code Discipline (ex: 250) | Catégorie (ex: Senior 1)
-        </p>
-        <textarea id="importArea" rows="4" style="font-family: monospace;" placeholder="DUPONT&#9;Jean&#9;ST BEZIERS&#9;250&#9;Senior 1"></textarea>
-        <button type="button" class="btn-add btn-import" onclick="processImport()" style="margin-top: 10px;">🚀 Lancer l'importation automatique</button>
+            <strong>Ordre attendu :</strong> NOM &nbsp;|&nbsp; Prénom &nbsp;|&nbsp; Club &nbsp;|&nbsp; Code Discipline (ex: 250) &nbsp;|&nbsp; Catégorie (ex: Senior 1)
+        </div>
+        <textarea id="importArea" rows="4" placeholder="DUPONT&#9;Jean&#9;ST BEZIERS&#9;250&#9;Senior 1"></textarea>
+        <div class="btn-row" style="margin-top:12px;">
+            <button type="button" class="btn btn-import-run" onclick="processImport()">
+                🚀 Lancer l'importation automatique
+            </button>
+        </div>
     </div>
 
-    <div class="form-group" id="formTireur">
-        <h3 style="margin-top:0; color: #007bff;">✍️ Saisie Manuelle / Retardataires</h3>
-        <label>CHAMPIONNAT :</label>
-        <select id="typeSelector" onchange="updateMenus()" style="background:#007bff; color:white; font-weight:bold; margin-bottom:15px; border:none;">
-            <option value="TAR">TAR (Tir aux Armes Réglementaires)</option>
-            <option value="ISSF10">ISSF 10 mètres</option>
-            <option value="ISSF2550">ISSF 25 & 50 mètres</option>
-            <option value="MLAIC">MLAIC (Armes Anciennes)</option>
-            <option value="EDT">EDT (École de Tir)</option>
-        </select>
+    <!-- MANUAL ENTRY FORM -->
+    <div class="panel" id="formTireur">
+        <div class="panel-title"><span>✍️</span> Saisie Manuelle / Retardataires</div>
+
+        <div class="champ-select-wrap">
+            <label>Championnat</label>
+            <select id="typeSelector" onchange="updateMenus()">
+                <option value="TAR">TAR — Tir aux Armes Réglementaires</option>
+                <option value="ISSF10">ISSF 10 mètres</option>
+                <option value="ISSF2550">ISSF 25 & 50 mètres</option>
+                <option value="MLAIC">MLAIC — Armes Anciennes</option>
+                <option value="EDT">EDT — École de Tir</option>
+            </select>
+        </div>
 
         <div class="form-row">
             <input type="hidden" id="editId">
-            <div style="position:relative;">
-                <label>NOM</label>
-                <input type="text" id="newNom" onkeyup="chercherDansArchive(this.value)" autocomplete="off">
+            <div class="field" style="position:relative;">
+                <label>Nom</label>
+                <input type="text" id="newNom" onkeyup="chercherDansArchive(this.value)" autocomplete="off" placeholder="DUPONT">
                 <div id="suggestions"></div>
             </div>
-            <div><label>Prénom</label><input type="text" id="newPrenom" autocomplete="off"></div>
-            <div><label>Club</label><input type="text" id="newClub" autocomplete="off"></div>
+            <div class="field">
+                <label>Prénom</label>
+                <input type="text" id="newPrenom" autocomplete="off" placeholder="Jean">
+            </div>
+            <div class="field">
+                <label>Club</label>
+                <input type="text" id="newClub" autocomplete="off" placeholder="ST BEZIERS">
+            </div>
         </div>
         <div class="form-row">
-            <div><label>Discipline</label><select id="newDiscipline" onchange="updateCategories()"></select></div>
-            <div><label>Catégorie</label><select id="newCategorie"></select></div>
+            <div class="field">
+                <label>Discipline</label>
+                <select id="newDiscipline" onchange="updateCategories()"></select>
+            </div>
+            <div class="field">
+                <label>Catégorie</label>
+                <select id="newCategorie"></select>
+            </div>
         </div>
-        
-        <button type="button" id="btnAdd" class="btn-add" onclick="addShooter()">Enregistrer le tireur</button>
-        <button type="button" id="btnUpdate" class="btn-add btn-update" onclick="saveModification()">✅ Appliquer les corrections</button>
-        <button type="button" id="btnCancel" class="btn-action" style="display:none; width:100%; margin-top:5px; background:#6c757d; color:white;" onclick="resetForm()">Annuler</button>
+
+        <div class="btn-row">
+            <button type="button" id="btnAdd" class="btn btn-primary" onclick="addShooter()">
+                + Enregistrer le tireur
+            </button>
+            <button type="button" id="btnUpdate" class="btn btn-warning" onclick="saveModification()">
+                ✅ Appliquer les corrections
+            </button>
+            <button type="button" id="btnCancel" class="btn btn-secondary" onclick="resetForm()">
+                ✕ Annuler la modification
+            </button>
+        </div>
     </div>
 
-    <input type="text" id="search" style="width:100%; padding:12px; margin-bottom:15px; border-radius:8px; border:2px solid #007bff;" placeholder="🔍 Filtrer la liste..." onkeyup="filterList()">
-    <div id="shooterList"></div>
+    <!-- SEARCH -->
+    <div class="search-wrap">
+        <input type="text" id="search" placeholder="Filtrer la liste par nom ou prénom…" onkeyup="filterList()">
+    </div>
+
+    <!-- LIST -->
+    <div class="list-container">
+        <div class="list-header">
+            <span class="list-header-label">Tireurs inscrits</span>
+            <span class="list-header-label" style="color: var(--blue);">Score</span>
+        </div>
+        <div id="shooterList">
+            <div class="empty-state">
+                <div class="empty-icon">🎯</div>
+                Aucun tireur enregistré pour cette compétition.
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -92,12 +541,12 @@
         var block = document.getElementById('importBlock');
         if (block.style.display === 'none' || block.style.display === '') {
             block.style.display = 'block';
-            this.textContent = "❌ Masquer l'import Excel";
-            this.style.color = "#dc3545";
+            this.innerHTML = '<span>❌</span> Masquer l\'import';
+            this.classList.add('active');
         } else {
             block.style.display = 'none';
-            this.textContent = "🪄 Afficher l'import Excel";
-            this.style.color = "#2e7d32";
+            this.innerHTML = '<span>🪄</span> Import Excel';
+            this.classList.remove('active');
         }
     });
 </script>
@@ -238,10 +687,9 @@
         document.getElementById('btnAdd').style.display = 'none';
         document.getElementById('btnUpdate').style.display = 'block';
         document.getElementById('btnCancel').style.display = 'block';
-        document.getElementById('formTireur').style.borderColor = '#ffc107';
+        document.getElementById('formTireur').classList.add('panel-edit-mode');
         window.scrollTo(0,0);
         
-        // --- NOUVEAUTÉ : Le système détecte la bonne famille (TAR, ISSF...) tout seul ! ---
         let foundType = "TAR"; 
         for (let type in dataRef) {
             if (dataRef[type].disc.includes(s.discipline)) {
@@ -250,7 +698,6 @@
             }
         }
         
-        // On aligne tous les menus
         document.getElementById('typeSelector').value = foundType;
         document.getElementById('newDiscipline').innerHTML = dataRef[foundType].disc.map(d => `<option value="${d}">${d}</option>`).join('');
         document.getElementById('newDiscipline').value = s.discipline;
@@ -284,24 +731,34 @@
         document.getElementById('btnAdd').style.display = 'block';
         document.getElementById('btnUpdate').style.display = 'none';
         document.getElementById('btnCancel').style.display = 'none';
-        document.getElementById('formTireur').style.borderColor = '#d1d9e6';
+        document.getElementById('formTireur').classList.remove('panel-edit-mode');
     }
 
     function renderList(list) {
-        const cont = document.getElementById('shooterList'); cont.innerHTML = '';
+        const cont = document.getElementById('shooterList');
+        if (list.length === 0) {
+            cont.innerHTML = `<div class="empty-state"><div class="empty-icon">🎯</div>Aucun tireur enregistré pour cette compétition.</div>`;
+            return;
+        }
+        cont.innerHTML = '';
         list.sort((a,b) => a.lastName.localeCompare(b.lastName)).forEach(s => {
-            cont.innerHTML += `
-            <div class="shooter-item">
-                <div style="flex:1;">
-                    <b>${s.lastName}</b> ${s.firstName} <br>
-                    <small>${s.discipline} | ${s.category} | ${s.club}</small>
+            const div = document.createElement('div');
+            div.className = 'shooter-item';
+            div.innerHTML = `
+                <div style="flex:1; min-width:0;">
+                    <div class="shooter-name">${s.lastName} <span style="font-weight:400; color:var(--text-muted)">${s.firstName}</span></div>
+                    <div class="shooter-detail">
+                        <span class="tag">${s.discipline}</span>
+                        <span class="tag" style="border-color:rgba(63,185,80,0.2); color:var(--accent)">${s.category}</span>
+                        <span class="tag">${s.club}</span>
+                    </div>
                 </div>
                 <div class="actions">
                     <input type="number" step="0.1" class="score-input" value="${s.score || 0}" onchange="saveScore('${s.id}', this.value)">
                     <button type="button" class="btn-action btn-edit" onclick="prepareEdit('${s.id}')">✏️</button>
                     <button type="button" class="btn-action btn-del" onclick="deleteShooter('${s.id}')">🗑️</button>
-                </div>
-            </div>`;
+                </div>`;
+            cont.appendChild(div);
         });
     }
 
@@ -312,13 +769,15 @@
         if (val.length < 3) { box.style.display = 'none'; return; }
         const matches = archiveTireurs.filter(t => t.lastName.includes(val.toUpperCase())).slice(0, 5);
         if (matches.length > 0) {
-            box.innerHTML = matches.map(m => `<div class="suggestion-item" onclick="remplirTireur('${m.lastName}', '${m.firstName}', '${m.club}')"><b>${m.lastName}</b> ${m.firstName}</div>`).join('');
+            box.innerHTML = matches.map(m => `<div class="suggestion-item" onclick="remplirTireur('${m.lastName}', '${m.firstName}', '${m.club}')"><b>${m.lastName}</b> ${m.firstName} — ${m.club}</div>`).join('');
             box.style.display = 'block';
         } else { box.style.display = 'none'; }
     }
 
     function remplirTireur(n, p, c) {
-        document.getElementById('newNom').value = n; document.getElementById('newPrenom').value = p; document.getElementById('newClub').value = c;
+        document.getElementById('newNom').value = n;
+        document.getElementById('newPrenom').value = p;
+        document.getElementById('newClub').value = c;
         document.getElementById('suggestions').style.display = 'none';
     }
 
@@ -330,4 +789,4 @@
     window.onload = updateMenus;
 </script>
 </body>
-</html>  
+</html>
