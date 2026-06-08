@@ -1,8 +1,9 @@
 <!DOCTYPE html>
+<!-- LIGUE LR — version v1.0 — 08/06/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Saisie Officielle Ligue LR — v1.36</title>
+    <title>Saisie des Résultats</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Barlow:wght@300;400;500&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
@@ -434,7 +435,7 @@
             <div class="header-logo">🎯</div>
             <div>
                 <h1 class="header-title">Saisie des Résultats</h1>
-                <div class="header-sub">Ligue Languedoc-Roussillon</div>
+                <div class="header-sub" id="clubSub">Ligue Languedoc-Roussillon</div>
             </div>
         </div>
         <div class="header-actions">
@@ -466,7 +467,7 @@
         <div class="panel-title"><span>✍️</span> Saisie Manuelle / Retardataires</div>
 
         <div class="champ-select-wrap">
-            <label>Championnat</label>
+            <label>Compétition</label>
             <select id="typeSelector" onchange="updateMenus()">
                 <option value="TAR">TAR — Tir aux Armes Réglementaires</option>
                 <option value="ISSF10">ISSF 10 mètres</option>
@@ -560,24 +561,32 @@
         MLAIC: { disc: ["601 - Miquelet Origine", "701 - Miquelet Réplique", "602 - Maximilien Origine", "702 - Maximilien Réplique", "603 - Minié Origine", "703 - Minié Réplique", "604 - Whitworth Origine", "704 - Whitworth Réplique", "605 - Cominazzo Origine", "705 - Cominazzo Réplique", "606 - Kuchenreuter Origine", "706 - Kuchenreuter Réplique", "607 - Colt", "712 - Mariette", "615 - Vetterli Origine", "715 - Vetterli Réplique", "637 - Lamarmora Origine", "737 - Lamarmora Réplique"], cats: ["Senior", "Junior"] }
     };
 
-    const firebaseConfig = {
+    const CONFIG = {
+      clubName: "LIGUE LR",
+      clubKey:  "LIGUE_LR",
+      firebase: {
         apiKey: "AIzaSyAvfMRtRrhh_e-27xHlwIx9c5DIdUQm6HM",
         authDomain: "resultats-tir-ligue-lr.firebaseapp.com",
         databaseURL: "https://resultats-tir-ligue-lr-default-rtdb.europe-west1.firebasedatabase.app",
         projectId: "resultats-tir-ligue-lr",
         storageBucket: "resultats-tir-ligue-lr.firebasestorage.app",
         appId: "1:468808300974:web:563a14cc4477c10b28303f"
+      }
     };
-    firebase.initializeApp(firebaseConfig);
+    firebase.initializeApp(CONFIG.firebase);
     const db = firebase.database();
+    const CLUB_PATH = 'clubs/' + CONFIG.clubKey;   // dossier propre au club
     const compId = new URLSearchParams(window.location.search).get('comp');
+
+    document.title = "Saisie — " + CONFIG.clubName;
+    document.getElementById('clubSub').textContent = CONFIG.clubName;
 
     let shootersData = [];
     let archiveTireurs = [];
 
     db.ref('Ligue_Tireurs_Archive').on('value', snap => { archiveTireurs = Object.values(snap.val() || {}); });
     if (compId) {
-        db.ref(compId + '/shooters').on('value', snap => {
+        db.ref(CLUB_PATH + '/' + compId + '/shooters').on('value', snap => {
             const data = snap.val() || {};
             shootersData = Object.keys(data).map(key => ({ id: key, ...data[key] }));
             renderList(shootersData);
@@ -638,7 +647,7 @@
                         doublons++;
                     } else {
                         const s = { lastName: nom, firstName: prenom, club: club, discipline: fullDisc, category: cat, score: 0 };
-                        db.ref(compId + '/shooters').push(s);
+                        db.ref(CLUB_PATH + '/' + compId + '/shooters').push(s);
                         const key = nom.replace(/[^a-zA-Z]/g, "") + "_" + prenom.replace(/[^a-zA-Z]/g, "");
                         db.ref('Ligue_Tireurs_Archive/' + key).update({ lastName: nom, firstName: prenom, club: club });
                         count++;
@@ -672,7 +681,7 @@
         }
 
         const s = { lastName: nom, firstName: prenom, club: club, discipline: disc, category: cat, score: 0 };
-        db.ref(compId + '/shooters').push(s);
+        db.ref(CLUB_PATH + '/' + compId + '/shooters').push(s);
         const key = nom.replace(/[^a-zA-Z]/g, "") + "_" + prenom.replace(/[^a-zA-Z]/g, "");
         db.ref('Ligue_Tireurs_Archive/' + key).set({ lastName: nom, firstName: prenom, club: club });
         resetForm();
@@ -715,12 +724,12 @@
             discipline: document.getElementById('newDiscipline').value,
             category: document.getElementById('newCategorie').value
         };
-        db.ref(compId + '/shooters/' + id).update(updates);
+        db.ref(CLUB_PATH + '/' + compId + '/shooters/' + id).update(updates);
         resetForm();
     }
 
     function deleteShooter(id) {
-        if(confirm("Supprimer ce tireur ?")) { db.ref(compId + '/shooters/' + id).remove(); }
+        if(confirm("Supprimer ce tireur ?")) { db.ref(CLUB_PATH + '/' + compId + '/shooters/' + id).remove(); }
     }
 
     function resetForm() {
@@ -762,7 +771,7 @@
         });
     }
 
-    function saveScore(id, val) { db.ref(compId + '/shooters/' + id).update({ score: parseFloat(val) || 0 }); }
+    function saveScore(id, val) { db.ref(CLUB_PATH + '/' + compId + '/shooters/' + id).update({ score: parseFloat(val) || 0 }); }
 
     function chercherDansArchive(val) {
         const box = document.getElementById('suggestions');

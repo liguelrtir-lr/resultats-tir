@@ -1,9 +1,10 @@
 <!DOCTYPE html>
+<!-- LIGUE LR — version v1.0 — 08/06/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🏆 Ligue LR — Palmarès en Direct</title>
+    <title>Palmarès en Direct</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <style>
@@ -199,28 +200,36 @@
 </div>
 
 <script>
-    const firebaseConfig = {
+    const CONFIG = {
+      clubName: "LIGUE LR",
+      clubKey:  "LIGUE_LR",
+      firebase: {
         apiKey: "AIzaSyAvfMRtRrhh_e-27xHlwIx9c5DIdUQm6HM",
         authDomain: "resultats-tir-ligue-lr.firebaseapp.com",
         databaseURL: "https://resultats-tir-ligue-lr-default-rtdb.europe-west1.firebasedatabase.app",
         projectId: "resultats-tir-ligue-lr",
         storageBucket: "resultats-tir-ligue-lr.firebasestorage.app",
         appId: "1:468808300974:web:563a14cc4477c10b28303f"
+      }
     };
 
-    firebase.initializeApp(firebaseConfig);
+    firebase.initializeApp(CONFIG.firebase);
     const db = firebase.database();
+    const CLUB_PATH = 'clubs/' + CONFIG.clubKey;   // dossier propre au club
     const compId = new URLSearchParams(window.location.search).get('comp');
+
+    document.title = "🏆 " + CONFIG.clubName + " — Palmarès en Direct";
+    document.querySelectorAll('.header-logo').forEach(img => { img.alt = "Logo " + CONFIG.clubName; });
 
     if (!compId) {
         document.getElementById('resultsContainer').innerHTML = `<div class="no-data" style="color:red; font-weight:bold;">⚠️ Erreur : Aucune compétition spécifiée.</div>`;
     } else {
-        db.ref(compId + '/config').on('value', snap => {
+        db.ref(CLUB_PATH + '/' + compId + '/config').on('value', snap => {
             const config = snap.val();
-            document.getElementById('compTitle').textContent = (config && config.name) ? config.name : "Championnat en cours";
+            document.getElementById('compTitle').textContent = (config && config.name) ? config.name : "Compétition en cours";
         });
 
-        db.ref(compId + '/shooters').on('value', snap => {
+        db.ref(CLUB_PATH + '/' + compId + '/shooters').on('value', snap => {
             const data = snap.val() || {};
             const shooters = Object.keys(data).map(key => data[key]);
 
