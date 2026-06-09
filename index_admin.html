@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v1.0 — 08/06/2026 -->
+<!-- LIGUE LR — version v2.0 — 09/06/2026 -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
@@ -14,14 +14,14 @@
 
   <style>
     :root {
-      --sidebar-bg: #2a1628;
-      --sidebar-border: #3d1f3d;
-      --sidebar-accent: #e879b0;
-      --sidebar-muted: rgba(232,121,176,0.5);
-      --bg: #f4f6fb;
+      --sidebar-bg: #3a0e14;
+      --sidebar-border: #54141c;
+      --sidebar-accent: #d99a1c;
+      --sidebar-muted: rgba(230,181,60,0.55);
+      --bg: #faf5ed;
       --surface: #ffffff;
-      --surface2: #f8fafc;
-      --border: #e8edf5;
+      --surface2: #faf4ec;
+      --border: #efe7da;
       --text: #0f1923;
       --text-muted: #64748b;
       --text-dim: #a0aec0;
@@ -29,7 +29,7 @@
       --purple: #8b5cf6; --purple-bg: #f5f3ff;
       --blue: #0ea5e9; --blue-bg: #f0f9ff;
       --red: #ef4444;
-      --accent: #be185d;
+      --accent: #c1271d;
       --radius: 8px;
       --radius-lg: 16px;
       --radius-xl: 22px;
@@ -71,7 +71,7 @@
       height: 90px;
       object-fit: contain;
       border-radius: 50%;
-      border: 2px solid rgba(232,121,176,0.25);
+      border: 2px solid rgba(217,154,28,0.35);
       background: rgba(255,255,255,0.05);
     }
     .logo-name {
@@ -89,7 +89,7 @@
 
     .btn-create {
       background: var(--sidebar-accent);
-      color: white;
+      color: #3a0e14;
       padding: 13px 16px;
       border: none;
       border-radius: var(--radius-lg);
@@ -100,13 +100,13 @@
       text-transform: uppercase;
       cursor: pointer;
       transition: all 0.2s;
-      box-shadow: 0 4px 20px rgba(232,121,176,0.3);
+      box-shadow: 0 4px 20px rgba(217,154,28,0.35);
       width: 100%;
     }
     .btn-create:hover {
       transform: translateY(-2px);
-      box-shadow: 0 8px 28px rgba(232,121,176,0.45);
-      background: #f472b6;
+      box-shadow: 0 8px 28px rgba(217,154,28,0.5);
+      background: #e6b53c;
     }
 
     .sidebar-footer {
@@ -145,8 +145,8 @@
       font-weight: 700;
       letter-spacing: 0.08em;
       color: var(--accent);
-      background: #fdf2f8;
-      border: 1px solid #fbcfe8;
+      background: #fdf1e8;
+      border: 1px solid #f3dcc4;
       padding: 6px 16px;
       border-radius: 20px;
     }
@@ -183,7 +183,7 @@
     .card:hover {
       transform: translateY(-5px);
       box-shadow: 0 16px 40px rgba(74,44,64,0.1);
-      border-color: #fce7f3;
+      border-color: #f5e0cf;
     }
     .card:hover::before { opacity: 1; }
 
@@ -196,9 +196,9 @@
       text-transform: uppercase;
       padding: 4px 10px;
       border-radius: 6px;
-      background: #fdf2f8;
+      background: #fdf1e8;
       color: var(--accent);
-      border: 1px solid #fbcfe8;
+      border: 1px solid #f3dcc4;
       margin-bottom: 14px;
       width: fit-content;
     }
@@ -356,7 +356,7 @@
       font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.05em;
       cursor: pointer; color: white; transition: all 0.18s;
     }
-    .btn-modal-confirm:hover { background: #3d1f3d; }
+    .btn-modal-confirm:hover { background: #54141c; }
 
     /* QR modal */
     .qr-url {
@@ -387,29 +387,29 @@
     #loginOverlay {
       position: fixed; inset: 0; z-index: 9999;
       display: flex; align-items: center; justify-content: center;
-      background: linear-gradient(160deg, #2a1628 0%, #4a2c40 100%);
+      background: linear-gradient(160deg, #3a0e14 0%, #6a2418 100%);
       font-family: 'Rajdhani', sans-serif;
     }
     .login-card {
       background: #fff; border-radius: 18px; padding: 36px 32px;
       width: 320px; max-width: 90vw; text-align: center;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.45); border-top: 5px solid #be185d;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.45); border-top: 5px solid #d99a1c;
     }
     .login-logo { width: 80px; height: 80px; object-fit: contain; border-radius: 50%; margin-bottom: 12px; }
-    .login-title { margin: 0 0 4px; color: #2a1628; font-size: 1.4rem; text-transform: uppercase; letter-spacing: .05em; }
-    .login-sub { margin: 0 0 22px; color: #8a6d80; font-size: .9rem; }
+    .login-title { margin: 0 0 4px; color: #3a0e14; font-size: 1.4rem; text-transform: uppercase; letter-spacing: .05em; }
+    .login-sub { margin: 0 0 22px; color: #9a7264; font-size: .9rem; }
     .login-card input {
       width: 100%; box-sizing: border-box; padding: 12px 14px; margin-bottom: 12px;
-      border: 1.5px solid #e6d6e0; border-radius: 10px; font-size: 1rem; background: #fdf7fb; color: #2a1628;
+      border: 1.5px solid #ead9cf; border-radius: 10px; font-size: 1rem; background: #fdf9f4; color: #3a0e14;
     }
-    .login-card input:focus { outline: none; border-color: #be185d; box-shadow: 0 0 0 3px rgba(190,24,93,0.15); }
+    .login-card input:focus { outline: none; border-color: #c1271d; box-shadow: 0 0 0 3px rgba(193,39,29,0.15); }
     #loginBtn {
       width: 100%; padding: 13px; border: none; border-radius: 10px; cursor: pointer;
-      background: #be185d; color: #fff; font-weight: 700; font-size: 1rem; text-transform: uppercase; letter-spacing: .05em;
+      background: #c1271d; color: #fff; font-weight: 700; font-size: 1rem; text-transform: uppercase; letter-spacing: .05em;
       transition: background .2s; font-family: 'Rajdhani', sans-serif;
     }
-    #loginBtn:hover { background: #a31250; }
-    .login-error { color: #be185d; font-size: .85rem; margin-top: 12px; min-height: 1em; font-weight: 600; }
+    #loginBtn:hover { background: #a31710; }
+    .login-error { color: #c1271d; font-size: .85rem; margin-top: 12px; min-height: 1em; font-weight: 600; }
     .btn-logout {
       background: transparent; color: rgba(255,255,255,0.9); border: 1px solid rgba(255,255,255,0.4);
       border-radius: 10px; padding: 9px; cursor: pointer; width: 100%;
@@ -439,7 +439,7 @@
     </div>
     <button class="btn-create" onclick="openCreateModal()">+ Nouvelle Compétition</button>
     <button class="btn-logout" onclick="doLogout()" style="margin-top:auto;">⎋ Déconnexion</button>
-    <div class="sidebar-footer">LIGUE LR · v1.0 — 08/06/2026</div>
+    <div class="sidebar-footer">LIGUE LR · v2.0 — 09/06/2026</div>
   </aside>
 
   <main class="main-content">
@@ -475,7 +475,7 @@
   <div class="modal" id="qrModal">
     <div class="modal-content" style="text-align:center">
       <div class="modal-title" id="qrTitle">Accès Live</div>
-      <div id="qrcode" style="display:inline-block; border: 6px solid #fdf2f8; border-radius: 12px;"></div>
+      <div id="qrcode" style="display:inline-block; border: 6px solid #fdf1e8; border-radius: 12px;"></div>
       <div class="qr-url" id="qrUrl"></div>
       <button class="btn-modal-cancel" style="width:100%;" onclick="closeQrModal()">Fermer</button>
     </div>
