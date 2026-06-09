@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Barlow:wght@300;400;500&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
     <style>
         :root {
             --bg: #0d1117;
@@ -425,9 +426,93 @@
             .shooter-item { flex-wrap: wrap; gap: 10px; }
             .actions { width: 100%; justify-content: flex-end; }
         }
+
+        /* LOGIN OVERLAY */
+        #loginOverlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(13,17,23,0.92);
+            backdrop-filter: blur(6px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 20px;
+        }
+        .login-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 34px 30px;
+            width: 100%;
+            max-width: 360px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .login-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent), transparent);
+        }
+        .login-logo { font-size: 2.4rem; margin-bottom: 10px; }
+        .login-title {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin: 0 0 4px 0;
+            color: var(--text);
+        }
+        .login-sub {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-bottom: 22px;
+            letter-spacing: 0.05em;
+        }
+        #loginOverlay input {
+            margin-bottom: 12px;
+        }
+        #loginBtn {
+            background: var(--accent);
+            color: #0d1117;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+            font-size: 1rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            border: none;
+            padding: 13px 20px;
+            border-radius: var(--radius);
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.18s;
+        }
+        #loginBtn:hover { background: #56d364; box-shadow: 0 0 20px rgba(63,185,80,0.25); }
+        .login-error {
+            color: var(--red);
+            font-size: 0.82rem;
+            margin-top: 12px;
+            min-height: 1em;
+        }
     </style>
 </head>
 <body>
+
+<div id="loginOverlay">
+    <div class="login-card">
+        <div class="login-logo">🎯</div>
+        <h2 class="login-title" id="loginClub">Saisie — Accès réservé</h2>
+        <p class="login-sub">Connecte-toi pour saisir les résultats</p>
+        <input type="email" id="loginEmail" placeholder="Email" autocomplete="username">
+        <input type="password" id="loginPwd" placeholder="Mot de passe" autocomplete="current-password">
+        <button id="loginBtn" onclick="doLogin()">Se connecter</button>
+        <div id="loginError" class="login-error"></div>
+    </div>
+</div>
 
 <div class="container">
     <header>
@@ -444,6 +529,7 @@
                 <span>🪄</span> Import Excel
             </button>
             <a href="index_admin.html" class="link-back">← Retour</a>
+            <a href="#" class="link-back" onclick="doLogout(); return false;">⎋ Déconnexion</a>
         </div>
     </header>
 
@@ -575,22 +661,61 @@
     };
     firebase.initializeApp(CONFIG.firebase);
     const db = firebase.database();
+    const auth = firebase.auth();
     const CLUB_PATH = 'clubs/' + CONFIG.clubKey;   // dossier propre au club
     const compId = new URLSearchParams(window.location.search).get('comp');
 
     document.title = "Saisie — " + CONFIG.clubName;
     document.getElementById('clubSub').textContent = CONFIG.clubName;
+    document.getElementById('loginClub').textContent = CONFIG.clubName + " · Saisie";
 
     let shootersData = [];
     let archiveTireurs = [];
+    let listenersStarted = false;
 
-    db.ref('Ligue_Tireurs_Archive').on('value', snap => { archiveTireurs = Object.values(snap.val() || {}); });
-    if (compId) {
-        db.ref(CLUB_PATH + '/' + compId + '/shooters').on('value', snap => {
-            const data = snap.val() || {};
-            shootersData = Object.keys(data).map(key => ({ id: key, ...data[key] }));
-            renderList(shootersData);
-        });
+    // ─── Authentification ───
+    auth.onAuthStateChanged(user => {
+        document.getElementById('loginOverlay').style.display = user ? 'none' : 'flex';
+        if (user && !listenersStarted) {
+            listenersStarted = true;
+            startDataListeners();
+        }
+    });
+
+    function doLogin() {
+        const email = document.getElementById('loginEmail').value.trim();
+        const pwd = document.getElementById('loginPwd').value;
+        const err = document.getElementById('loginError');
+        err.textContent = 'Connexion...';
+        auth.signInWithEmailAndPassword(email, pwd)
+            .then(() => { err.textContent = ''; })
+            .catch(e => {
+                const map = {
+                    'auth/invalid-email': "Adresse email mal formée.",
+                    'auth/user-not-found': "Aucun compte avec cet email.",
+                    'auth/wrong-password': "Mot de passe incorrect.",
+                    'auth/invalid-credential': "Email ou mot de passe incorrect.",
+                    'auth/missing-password': "Mot de passe manquant.",
+                    'auth/too-many-requests': "Trop de tentatives, réessaie plus tard.",
+                    'auth/network-request-failed': "Problème de réseau.",
+                    'auth/unauthorized-domain': "Domaine non autorisé (Firebase → Auth → Authorized domains)."
+                };
+                err.textContent = (map[e.code] || "Échec de connexion.") + "  [" + e.code + "]";
+            });
+    }
+    function doLogout() { auth.signOut().then(() => location.reload()); }
+
+    document.getElementById('loginPwd').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+    function startDataListeners() {
+        db.ref('Ligue_Tireurs_Archive').on('value', snap => { archiveTireurs = Object.values(snap.val() || {}); });
+        if (compId) {
+            db.ref(CLUB_PATH + '/' + compId + '/shooters').on('value', snap => {
+                const data = snap.val() || {};
+                shootersData = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+                renderList(shootersData);
+            });
+        }
     }
 
     function updateMenus() {
