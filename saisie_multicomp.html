@@ -9,6 +9,10 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <!-- pdf.js : lecture best-effort du texte d'un PDF pour l'import de résultats (voir handleScoreFileImport).
+         Si cette librairie ne se charge pas (réseau, CDN indisponible), l'import PDF affichera un message
+         clair invitant à copier-coller le texte à la place — le reste de la page n'en dépend pas. -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <style>
         :root {
             --bg: #fdf6ee;
@@ -517,7 +521,10 @@
         <div class="header-actions">
             <span class="version-tag">v2.0</span>
             <button type="button" id="btnToggleImport" class="btn-toggle-import">
-                <span>🪄</span> Import Excel
+                <span>🪄</span> Import Tireurs
+            </button>
+            <button type="button" id="btnToggleScoreImport" class="btn-toggle-import">
+                <span>📊</span> Import Résultats
             </button>
             <a href="index_admin.html" class="link-back">← Retour</a>
             <a href="#" class="link-back" onclick="doLogout(); return false;">⎋ Déconnexion</a>
@@ -537,6 +544,34 @@
                 🚀 Lancer l'importation automatique
             </button>
         </div>
+    </div>
+
+    <!-- IMPORT RÉSULTATS (fichier externe : CSV, texte copié, ou PDF) -->
+    <div class="panel panel-import" id="scoreImportBlock">
+        <div class="panel-title"><span>📊</span> Importer des résultats — tireurs déjà inscrits</div>
+        <div class="import-hint">
+            Pour renseigner d'un coup les scores d'un logiciel de résultats externe (CSV, Excel ou PDF),
+            pour des tireurs <strong>déjà présents</strong> dans la liste ci-dessous.<br>
+            <strong>Une ligne par tireur</strong>, colonnes séparées par tabulation, point-virgule ou virgule —
+            <strong>le Score doit être la dernière colonne</strong> (les autres colonnes entre Nom/Prénom et
+            Score, s'il y en a, sont ignorées). Les tireurs non trouvés dans la liste seront signalés à la fin :
+            ajoute-les d'abord à la main si besoin, puis relance l'import.
+        </div>
+        <label style="display:flex; align-items:center; gap:8px; font-size:0.82rem; color:var(--text-muted); margin-bottom:12px;">
+            <input type="checkbox" id="scoreImportHeader" style="width:auto;"> La 1ère ligne contient les titres de colonnes (à ignorer)
+        </label>
+        <div class="field" style="margin-bottom:12px;">
+            <label>Importer un fichier (.csv, .txt ou .pdf)</label>
+            <input type="file" id="scoreFileInput" accept=".csv,.txt,.pdf" onchange="handleScoreFileImport(event)">
+            <div id="scoreFileStatus" style="font-size:0.78rem; color:var(--text-dim); margin-top:5px;"></div>
+        </div>
+        <textarea id="scoreImportArea" rows="5" placeholder="DUPONT&#9;Jean&#9;95,5"></textarea>
+        <div class="btn-row" style="margin-top:12px;">
+            <button type="button" class="btn btn-import-run" onclick="processScoreImport()">
+                🚀 Importer les scores
+            </button>
+        </div>
+        <div id="scoreImportReport" style="margin-top:10px; font-size:0.85rem; color:var(--text-muted); white-space:pre-line;"></div>
     </div>
 
     <!-- MANUAL ENTRY FORM -->
@@ -616,17 +651,18 @@
 </div>
 
 <script>
+    function toggleImportPanel(panelId, btn, closedLabel) {
+        var block = document.getElementById(panelId);
+        var isHidden = (block.style.display === 'none' || block.style.display === '');
+        block.style.display = isHidden ? 'block' : 'none';
+        btn.innerHTML = isHidden ? '<span>❌</span> Fermer' : closedLabel;
+        btn.classList.toggle('active', isHidden);
+    }
     document.getElementById('btnToggleImport').addEventListener('click', function() {
-        var block = document.getElementById('importBlock');
-        if (block.style.display === 'none' || block.style.display === '') {
-            block.style.display = 'block';
-            this.innerHTML = '<span>❌</span> Masquer l\'import';
-            this.classList.add('active');
-        } else {
-            block.style.display = 'none';
-            this.innerHTML = '<span>🪄</span> Import Excel';
-            this.classList.remove('active');
-        }
+        toggleImportPanel('importBlock', this, '<span>🪄</span> Import Tireurs');
+    });
+    document.getElementById('btnToggleScoreImport').addEventListener('click', function() {
+        toggleImportPanel('scoreImportBlock', this, '<span>📊</span> Import Résultats');
     });
 </script>
 
@@ -806,6 +842,132 @@
             alert(msg);
             document.getElementById('importArea').value = '';
             document.getElementById('btnToggleImport').click(); 
+        }
+    }
+
+    // ─── Import de résultats (scores) depuis un fichier externe ───
+
+    // pdf.js a besoin d'un "worker" séparé pour lire le PDF sans bloquer la page.
+    // Si la librairie ne s'est pas chargée (CDN indisponible), on le détecte plus bas
+    // et on affiche un message clair plutôt que de planter silencieusement.
+    if (typeof pdfjsLib !== 'undefined') {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+
+    // Découpe une ligne en colonnes en devinant le séparateur : tabulation (copier-coller Excel)
+    // en priorité, sinon point-virgule ou virgule (CSV) — on choisit celui qui apparaît le plus,
+    // car un score écrit "95,5" (virgule décimale française) ne doit pas être pris pour un séparateur.
+    function splitAuto(line) {
+        if (line.indexOf('\t') !== -1) return line.split('\t');
+        const nbSemi = (line.match(/;/g) || []).length;
+        const nbComma = (line.match(/,/g) || []).length;
+        if (nbSemi >= nbComma && nbSemi > 0) return line.split(';');
+        if (nbComma > 0) return line.split(',');
+        return [line];
+    }
+
+    function handleScoreFileImport(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const status = document.getElementById('scoreFileStatus');
+        status.textContent = 'Lecture du fichier…';
+
+        if (file.name.toLowerCase().endsWith('.pdf')) {
+            if (typeof pdfjsLib === 'undefined') {
+                status.textContent = "⚠️ La lecture de PDF n'a pas pu se charger (réseau). Ouvre le PDF, sélectionne tout le texte (Ctrl/Cmd+A), copie-le, et colle-le directement dans la zone ci-dessous.";
+                return;
+            }
+            extractPdfText(file)
+                .then(text => {
+                    document.getElementById('scoreImportArea').value = text;
+                    status.textContent = "⚠️ Texte extrait du PDF — la mise en page d'un PDF n'est jamais garantie, vérifie et corrige les colonnes ci-dessous avant de lancer l'import.";
+                })
+                .catch(e => {
+                    status.textContent = "Impossible de lire ce PDF (" + (e.message || e) + "). Essaie de copier-coller le texte directement à la place.";
+                });
+        } else {
+            const reader = new FileReader();
+            reader.onload = () => {
+                document.getElementById('scoreImportArea').value = reader.result;
+                status.textContent = '✓ Fichier chargé — vérifie les colonnes ci-dessous avant de lancer l\'import.';
+            };
+            reader.onerror = () => { status.textContent = "Impossible de lire ce fichier."; };
+            reader.readAsText(file, 'UTF-8');
+        }
+    }
+
+    // Extraction "best effort" du texte d'un PDF, en reconstituant des lignes à partir de la
+    // position des mots (regroupés par hauteur Y proche, triés par X) — fonctionne pour un tableau
+    // simple d'un PDF texte (pas un scan/image). À vérifier/corriger avant de lancer l'import.
+    function extractPdfText(file) {
+        return file.arrayBuffer()
+            .then(buf => pdfjsLib.getDocument({ data: buf }).promise)
+            .then(pdf => {
+                const pagePromises = [];
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    pagePromises.push(
+                        pdf.getPage(i)
+                           .then(page => page.getTextContent())
+                           .then(content => {
+                               const rows = [];
+                               content.items.forEach(item => {
+                                   const y = Math.round(item.transform[5]);
+                                   let row = rows.find(r => Math.abs(r.y - y) <= 2);
+                                   if (!row) { row = { y, items: [] }; rows.push(row); }
+                                   row.items.push({ x: item.transform[4], text: item.str });
+                               });
+                               rows.sort((a, b) => b.y - a.y);
+                               return rows
+                                   .map(r => r.items.sort((a, b) => a.x - b.x).map(i => i.text).join('\t'))
+                                   .join('\n');
+                           })
+                    );
+                }
+                return Promise.all(pagePromises).then(pages => pages.join('\n'));
+            });
+    }
+
+    function processScoreImport() {
+        const raw = document.getElementById('scoreImportArea').value.trim();
+        if (!raw) return alert("Colle ou importe des données d'abord.");
+        const skipHeader = document.getElementById('scoreImportHeader').checked;
+        let lines = raw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        if (skipHeader) lines = lines.slice(1);
+
+        let updated = 0;
+        const notFound = [];
+
+        lines.forEach(line => {
+            const cols = splitAuto(line);
+            if (cols.length < 3) return; // au minimum : Nom, Prénom, Score
+            const nom = cols[0].trim().toUpperCase();
+            const prenom = cols[1].trim();
+            const scoreRaw = cols[cols.length - 1].trim().replace(',', '.');
+            const score = parseFloat(scoreRaw);
+            if (!nom || !prenom || isNaN(score)) return;
+
+            const matches = shootersData.filter(s =>
+                s.lastName.toUpperCase() === nom && s.firstName.toUpperCase() === prenom.toUpperCase());
+
+            if (matches.length === 0) {
+                notFound.push(`${nom} ${prenom}`);
+            } else {
+                // S'il y a plusieurs engagements pour le même nom (plusieurs disciplines), on met
+                // à jour tous les engagements trouvés avec ce score — à corriger à la main ensuite
+                // dans la liste si un seul des deux était concerné.
+                matches.forEach(m => db.ref(CLUB_PATH + '/' + compId + '/shooters/' + m.id).update({ score }));
+                updated += matches.length;
+            }
+        });
+
+        let report = `✅ ${updated} score(s) mis à jour.`;
+        if (notFound.length > 0) {
+            report += `\n\n⚠️ ${notFound.length} tireur(s) non trouvé(s) dans la liste (ajoute-les d'abord manuellement, puis relance l'import) :\n` + notFound.join(', ');
+        }
+        document.getElementById('scoreImportReport').textContent = report;
+        if (updated > 0 && notFound.length === 0) {
+            document.getElementById('scoreImportArea').value = '';
+            document.getElementById('scoreFileStatus').textContent = '';
         }
     }
 
