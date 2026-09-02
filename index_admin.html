@@ -414,6 +414,12 @@
       font-family: 'Rajdhani', sans-serif; font-weight: 700; cursor: pointer;
     }
     .btn-slot-add:hover { background: #54141c; }
+    .slot-preview {
+      font-size: 0.82rem; color: var(--text-muted); background: var(--surface2);
+      border: 1px dashed var(--border); border-radius: var(--radius);
+      padding: 8px 10px; margin-top: 2px;
+    }
+    .slot-preview.ready { color: var(--accent); font-weight: 600; border-style: solid; }
 
     /* EMPTY STATE */
     .empty-state {
@@ -535,21 +541,22 @@
       <div class="slot-add-grid">
         <div class="slot-add-field">
           <label>Date</label>
-          <input type="date" id="newSlotDate">
+          <input type="date" id="newSlotDate" oninput="updateSlotPreview()">
         </div>
         <div class="slot-add-field">
           <label>Heure</label>
-          <input type="time" id="newSlotTime">
+          <input type="time" id="newSlotTime" oninput="updateSlotPreview()">
         </div>
         <div class="slot-add-field" style="grid-column: span 2;">
           <label>Libellé (optionnel)</label>
-          <input type="text" id="newSlotLabel" placeholder="Ex : Pistolet 10m">
+          <input type="text" id="newSlotLabel" placeholder="Ex : Pistolet 10m" oninput="updateSlotPreview()">
         </div>
         <div class="slot-add-field">
           <label>Postes</label>
-          <input type="number" id="newSlotCapacity" placeholder="Postes" min="1">
+          <input type="number" id="newSlotCapacity" placeholder="Postes" min="1" oninput="updateSlotPreview()">
         </div>
-        <button class="btn-slot-add" onclick="addSlot()">+ Ajouter</button>
+        <div class="slot-preview" id="slotPreview" style="grid-column: span 2;">Renseigne la date et l'heure ci-dessus.</div>
+        <button class="btn-slot-add" style="grid-column: span 2;" onclick="addSlot()">+ Ajouter</button>
       </div>
       <div class="modal-actions">
         <button class="btn-modal-cancel" style="width:100%;" onclick="closeSlotsModal()">Fermer</button>
@@ -674,6 +681,7 @@
       document.getElementById('newSlotTime').value = '';
       document.getElementById('newSlotLabel').value = '';
       document.getElementById('newSlotCapacity').value = '';
+      updateSlotPreview();
 
       if (slotsListenerRef) slotsListenerRef.off();
       slotsListenerRef = database.ref(CLUB_PATH + '/' + code + '/slots');
@@ -735,6 +743,28 @@
       });
     }
 
+    // Aperçu live : montre exactement ce qui sera enregistré, pour repérer tout de suite
+    // une date/heure mal saisie avant de valider (et donc avant que le tri ne parte de travers).
+    function updateSlotPreview() {
+      const preview = document.getElementById('slotPreview');
+      if (!preview) return;
+      const date = document.getElementById('newSlotDate').value;
+      const time = document.getElementById('newSlotTime').value;
+      const label = document.getElementById('newSlotLabel').value.trim();
+      const capacity = document.getElementById('newSlotCapacity').value;
+      if (!date || !time) {
+        preview.textContent = "Renseigne la date et l'heure ci-dessus.";
+        preview.classList.remove('ready');
+        return;
+      }
+      const [y, m, d] = date.split('-');
+      let txt = `→ Série du ${d}/${m}/${y} à ${time}`;
+      if (label) txt += ` — ${label}`;
+      if (capacity) txt += ` (${capacity} postes)`;
+      preview.textContent = txt;
+      preview.classList.add('ready');
+    }
+
     function addSlot() {
       const date = document.getElementById('newSlotDate').value;
       const time = document.getElementById('newSlotTime').value;
@@ -745,9 +775,11 @@
       const datetime = date + 'T' + time;
       database.ref(CLUB_PATH + '/' + currentSlotsComp + '/slots').push({ date, time, datetime, label, capacity, count: 0 })
         .then(() => {
+          document.getElementById('newSlotDate').value = '';
           document.getElementById('newSlotTime').value = '';
           document.getElementById('newSlotLabel').value = '';
           document.getElementById('newSlotCapacity').value = '';
+          updateSlotPreview();
         });
     }
 
