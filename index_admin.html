@@ -397,13 +397,20 @@
     }
     .slot-del:hover { color: var(--red); }
     .slot-empty { color: var(--text-dim); font-size: 0.85rem; text-align: center; padding: 14px; }
-    .slot-add-row { display: flex; gap: 8px; border-top: 1px solid var(--border); padding-top: 16px; }
-    .slot-add-row input { margin-bottom: 0; }
-    .slot-add-row input#newSlotLabel { flex: 2; }
-    .slot-add-row input#newSlotCapacity { flex: 1; }
+    .slot-when { font-family: 'Rajdhani', sans-serif; font-weight: 700; color: var(--text-muted); font-size: 0.85rem; margin-right: 8px; white-space: nowrap; }
+    .slot-add-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+      border-top: 1px solid var(--border); padding-top: 16px; align-items: end;
+    }
+    .slot-add-field { display: flex; flex-direction: column; gap: 4px; }
+    .slot-add-field label {
+      font-family: 'Barlow Condensed', sans-serif; font-size: 0.68rem;
+      letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim);
+    }
+    .slot-add-grid input { margin-bottom: 0; }
     .btn-slot-add {
       background: var(--sidebar-bg); color: white; border: none;
-      border-radius: var(--radius); padding: 0 16px;
+      border-radius: var(--radius); padding: 12px 16px; align-self: end;
       font-family: 'Rajdhani', sans-serif; font-weight: 700; cursor: pointer;
     }
     .btn-slot-add:hover { background: #54141c; }
@@ -523,11 +530,25 @@
   <div class="modal" id="slotsModal">
     <div class="modal-content slots-content">
       <div class="modal-title" id="slotsTitle">🎟️ Séries</div>
-      <div class="slots-intro">Définis les séries (créneaux) et leur nombre de postes. Une fois complète, une série se bloque automatiquement à l'inscription.</div>
+      <div class="slots-intro">Définis les séries (date, heure, nombre de postes). Elles s'affichent triées par date/heure — pratique sur une compétition qui dure plusieurs jours. Une fois complète, une série se bloque automatiquement à l'inscription.</div>
       <div class="slots-list" id="slotsList"></div>
-      <div class="slot-add-row">
-        <input type="text" id="newSlotLabel" placeholder="Ex : Série 1 — 8h00">
-        <input type="number" id="newSlotCapacity" placeholder="Postes" min="1">
+      <div class="slot-add-grid">
+        <div class="slot-add-field">
+          <label>Date</label>
+          <input type="date" id="newSlotDate">
+        </div>
+        <div class="slot-add-field">
+          <label>Heure</label>
+          <input type="time" id="newSlotTime">
+        </div>
+        <div class="slot-add-field" style="grid-column: span 2;">
+          <label>Libellé (optionnel)</label>
+          <input type="text" id="newSlotLabel" placeholder="Ex : Pistolet 10m">
+        </div>
+        <div class="slot-add-field">
+          <label>Postes</label>
+          <input type="number" id="newSlotCapacity" placeholder="Postes" min="1">
+        </div>
         <button class="btn-slot-add" onclick="addSlot()">+ Ajouter</button>
       </div>
       <div class="modal-actions">
@@ -649,6 +670,8 @@
     function openSlotsModal(code, name) {
       currentSlotsComp = code;
       document.getElementById('slotsTitle').textContent = '🎟️ Séries — ' + name;
+      document.getElementById('newSlotDate').value = '';
+      document.getElementById('newSlotTime').value = '';
       document.getElementById('newSlotLabel').value = '';
       document.getElementById('newSlotCapacity').value = '';
 
@@ -665,6 +688,25 @@
       document.getElementById('slotsModal').classList.remove('active');
     }
 
+    // Trie les séries par date/heure croissante (utile sur une compétition à plusieurs jours).
+    // Une série sans date/heure (ancien format) est reléguée à la fin.
+    function sortedSlotEntries(data) {
+      return Object.keys(data).map(slotId => [slotId, data[slotId]]).sort((a, b) => {
+        const ka = a[1].datetime || null;
+        const kb = b[1].datetime || null;
+        if (ka && kb) return ka < kb ? -1 : (ka > kb ? 1 : 0);
+        if (ka && !kb) return -1;
+        if (!ka && kb) return 1;
+        return 0;
+      });
+    }
+
+    function formatSlotWhen(slot) {
+      if (!slot.date) return '';
+      const [y, m, d] = slot.date.split('-');
+      return `${d}/${m}` + (slot.time ? ' ' + slot.time : '');
+    }
+
     function renderSlotsList(snap) {
       const list = document.getElementById('slotsList');
       const data = snap.val();
@@ -673,15 +715,18 @@
         return;
       }
       list.innerHTML = '';
-      Object.keys(data).forEach(slotId => {
-        const slot = data[slotId];
+      sortedSlotEntries(data).forEach(([slotId, slot]) => {
         const capacity = Number(slot.capacity) || 0;
         const count = Number(slot.count) || 0;
         const isFull = count >= capacity;
+        const when = formatSlotWhen(slot);
+        const displayLabel = when
+            ? (slot.label ? `${when} — ${slot.label}` : when)
+            : (slot.label || '(sans nom)');
         const row = document.createElement('div');
         row.className = 'slot-row' + (isFull ? ' full' : '');
         row.innerHTML = `
-          <span class="slot-label">${slot.label}</span>
+          <span class="slot-label">${displayLabel}</span>
           <span style="display:flex; align-items:center;">
             <span class="slot-count">${count} / ${capacity} ${isFull ? '· COMPLET' : ''}</span>
             <button class="slot-del" title="Supprimer" onclick="deleteSlot('${slotId}')">🗑️</button>
@@ -691,12 +736,16 @@
     }
 
     function addSlot() {
+      const date = document.getElementById('newSlotDate').value;
+      const time = document.getElementById('newSlotTime').value;
       const label = document.getElementById('newSlotLabel').value.trim();
       const capacity = parseInt(document.getElementById('newSlotCapacity').value, 10);
-      if (!label) return alert("Indique un nom de série (ex: Série 1 — 8h00).");
+      if (!date || !time) return alert("Indique la date et l'heure de la série.");
       if (!capacity || capacity < 1) return alert("Indique un nombre de postes valide (1 ou plus).");
-      database.ref(CLUB_PATH + '/' + currentSlotsComp + '/slots').push({ label, capacity, count: 0 })
+      const datetime = date + 'T' + time;
+      database.ref(CLUB_PATH + '/' + currentSlotsComp + '/slots').push({ date, time, datetime, label, capacity, count: 0 })
         .then(() => {
+          document.getElementById('newSlotTime').value = '';
           document.getElementById('newSlotLabel').value = '';
           document.getElementById('newSlotCapacity').value = '';
         });

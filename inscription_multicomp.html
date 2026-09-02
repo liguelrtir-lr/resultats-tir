@@ -330,13 +330,32 @@
             cats.map(c => `<option value="${c}">${c}</option>`).join('') + '</select>';
     }
 
+    // Trie les séries par date/heure croissante (utile sur une compétition à plusieurs jours).
+    // Une série sans date/heure (ancien format) est reléguée à la fin.
+    function sortedSlotEntries(data) {
+        return Object.keys(data).map(slotId => [slotId, data[slotId]]).sort((a, b) => {
+            const ka = a[1].datetime || null;
+            const kb = b[1].datetime || null;
+            if (ka && kb) return ka < kb ? -1 : (ka > kb ? 1 : 0);
+            if (ka && !kb) return -1;
+            if (!ka && kb) return 1;
+            return 0;
+        });
+    }
+
+    function formatSlotWhen(slot) {
+        if (!slot.date) return '';
+        const [y, m, d] = slot.date.split('-');
+        return `${d}/${m}` + (slot.time ? ' ' + slot.time : '');
+    }
+
     function renderSlotsTable(data) {
         slotsData = data || {};
         const panel = document.getElementById('slotsPanel');
         const table = document.getElementById('slotsTable');
-        const slotIds = Object.keys(slotsData);
+        const entries = sortedSlotEntries(slotsData);
 
-        if (slotIds.length === 0) {
+        if (entries.length === 0) {
             panel.style.display = 'none';
             selectedSlotId = null;
             return;
@@ -347,15 +366,18 @@
         if (selectedSlotId && !slotsData[selectedSlotId]) selectedSlotId = null;
 
         let html = '<thead><tr><th></th><th>Série</th><th style="text-align:right;">Places</th></tr></thead><tbody>';
-        slotIds.forEach(slotId => {
-            const slot = slotsData[slotId];
+        entries.forEach(([slotId, slot]) => {
             const capacity = Number(slot.capacity) || 0;
             const count = Number(slot.count) || 0;
             const isFull = count >= capacity;
             const checked = (selectedSlotId === slotId) ? 'checked' : '';
+            const when = formatSlotWhen(slot);
+            const displayLabel = when
+                ? (slot.label ? `${when} — ${slot.label}` : when)
+                : (slot.label || '(sans nom)');
             html += `<tr class="${isFull ? 'full' : ''}">
                 <td><input type="radio" name="slotChoice" value="${slotId}" ${checked} ${isFull ? 'disabled' : ''} onchange="selectSlot('${slotId}')"></td>
-                <td>${slot.label}</td>
+                <td>${displayLabel}</td>
                 <td class="slot-places">${isFull ? '<span class="slot-full-tag">COMPLET</span>' : (capacity - count) + ' / ' + capacity}</td>
             </tr>`;
         });
@@ -437,7 +459,12 @@
                   .set({ lastName: nom, firstName: prenom, club: club });
           })
           .then(() => {
-              const slotLine = hasSlots ? `<div>${(slotsData[selectedSlotId] || {}).label || ''}</div>` : '';
+              const chosenSlot = slotsData[selectedSlotId] || {};
+              const chosenWhen = formatSlotWhen(chosenSlot);
+              const chosenLabel = chosenWhen
+                  ? (chosenSlot.label ? `${chosenWhen} — ${chosenSlot.label}` : chosenWhen)
+                  : (chosenSlot.label || '');
+              const slotLine = hasSlots ? `<div>${chosenLabel}</div>` : '';
               document.getElementById('recapBox').innerHTML = `
                   <div><b>${nom} ${prenom}</b></div>
                   <div>${club}</div>
