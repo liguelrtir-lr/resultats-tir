@@ -331,12 +331,13 @@
         btn.disabled = true;
         btn.textContent = 'Inscription en cours…';
 
+        // NB : le schéma de validation Firebase (Realtime Database → Rules) n'autorise que ces
+        // champs exacts sur un tireur (lastName, firstName, club, discipline, category, score) —
+        // tout champ supplémentaire fait échouer l'écriture avec PERMISSION_DENIED.
         const entry = {
             lastName: nom, firstName: prenom, club: club,
             discipline: disc, category: cat || 'Général',
-            score: 0, typeGroup: activeTypeKey,
-            selfRegistered: true,
-            registeredAt: firebase.database.ServerValue.TIMESTAMP
+            score: 0
         };
 
         db.ref(CLUB_PATH + '/' + compId + '/shooters').push(entry)

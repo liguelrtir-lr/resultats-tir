@@ -815,7 +815,6 @@
         const club = document.getElementById('newClub').value.trim() || "-";
         const disc = document.getElementById('newDiscipline').value.trim();
         const cat = document.getElementById('newCategorie').value.trim() || "Général";
-        const typeGroup = document.getElementById('typeSelector').value;
 
         if (!nom || !prenom) return alert("Nom et Prénom requis");
         if (!disc) return alert("Discipline requise");
@@ -825,7 +824,10 @@
             return alert(`⚠️ IMPOSSIBLE : ${nom} ${prenom} est DÉJÀ inscrit en ${disc}.`);
         }
 
-        const s = { lastName: nom, firstName: prenom, club: club, discipline: disc, category: cat, score: 0, typeGroup: typeGroup };
+        // NB : le schéma de validation Firebase (Realtime Database → Rules) n'autorise que ces
+        // champs exacts sur un tireur — un champ en plus (ex: typeGroup) fait échouer l'écriture
+        // avec PERMISSION_DENIED. Le type est redéduit à l'édition dans prepareEdit() ci-dessous.
+        const s = { lastName: nom, firstName: prenom, club: club, discipline: disc, category: cat, score: 0 };
         db.ref(CLUB_PATH + '/' + compId + '/shooters').push(s);
         const key = nom.replace(/[^a-zA-Z]/g, "") + "_" + prenom.replace(/[^a-zA-Z]/g, "");
         db.ref('Ligue_Tireurs_Archive/' + key).set({ lastName: nom, firstName: prenom, club: club });
@@ -844,14 +846,15 @@
         document.getElementById('formTireur').classList.add('panel-edit-mode');
         window.scrollTo(0,0);
 
-        let foundType = s.typeGroup;
-        if (!foundType || !dataRef[foundType]) {
-            foundType = "TAR";
-            for (let type in dataRef) {
-                if (dataRef[type].disc.includes(s.discipline)) {
-                    foundType = type;
-                    break;
-                }
+        // Le type n'est pas stocké sur le tireur (contrainte du schéma Firebase) : on le redéduit
+        // en comparant sa discipline aux catalogues connus ; par défaut AMICAL (texte libre) si
+        // aucun catalogue ne correspond — couvre aussi bien les anciennes fiches que celles
+        // enregistrées en texte libre via l'inscription QR.
+        let foundType = "AMICAL";
+        for (let type in dataRef) {
+            if (dataRef[type].disc && dataRef[type].disc.includes(s.discipline)) {
+                foundType = type;
+                break;
             }
         }
 
@@ -869,8 +872,7 @@
             firstName: document.getElementById('newPrenom').value.trim(),
             club: document.getElementById('newClub').value.trim(),
             discipline: document.getElementById('newDiscipline').value.trim(),
-            category: document.getElementById('newCategorie').value.trim() || "Général",
-            typeGroup: document.getElementById('typeSelector').value
+            category: document.getElementById('newCategorie').value.trim() || "Général"
         };
         db.ref(CLUB_PATH + '/' + compId + '/shooters/' + id).update(updates);
         resetForm();
