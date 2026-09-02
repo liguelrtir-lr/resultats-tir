@@ -280,6 +280,14 @@
     }
     .btn-tv:hover { background: var(--blue); color: white; border-color: var(--blue); }
 
+    .btn-slots {
+      grid-column: span 2;
+      background: #fff7e6;
+      color: #b45309;
+      border: 1px solid #fde3ad;
+    }
+    .btn-slots:hover { background: #d99a1c; color: white; border-color: #d99a1c; }
+
     .btn-del {
       grid-column: span 2;
       background: none;
@@ -369,6 +377,36 @@
       border-radius: var(--radius);
       padding: 10px 12px;
     }
+
+    /* SÉRIES MODAL */
+    .modal-content.slots-content { max-width: 480px; text-align: left; }
+    .slots-intro { font-size: 0.85rem; color: var(--text-muted); margin: -12px 0 16px; }
+    .slots-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; max-height: 260px; overflow-y: auto; }
+    .slot-row {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 10px 12px;
+    }
+    .slot-row.full { border-color: #fecaca; background: #fef2f2; }
+    .slot-label { font-weight: 600; font-size: 0.92rem; }
+    .slot-count { font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 0.95rem; color: var(--accent); margin-left: 10px; }
+    .slot-row.full .slot-count { color: var(--red); }
+    .slot-del {
+      background: none; border: none; color: var(--text-dim); cursor: pointer;
+      font-size: 1rem; padding: 4px 8px; margin-left: 8px;
+    }
+    .slot-del:hover { color: var(--red); }
+    .slot-empty { color: var(--text-dim); font-size: 0.85rem; text-align: center; padding: 14px; }
+    .slot-add-row { display: flex; gap: 8px; border-top: 1px solid var(--border); padding-top: 16px; }
+    .slot-add-row input { margin-bottom: 0; }
+    .slot-add-row input#newSlotLabel { flex: 2; }
+    .slot-add-row input#newSlotCapacity { flex: 1; }
+    .btn-slot-add {
+      background: var(--sidebar-bg); color: white; border: none;
+      border-radius: var(--radius); padding: 0 16px;
+      font-family: 'Rajdhani', sans-serif; font-weight: 700; cursor: pointer;
+    }
+    .btn-slot-add:hover { background: #54141c; }
 
     /* EMPTY STATE */
     .empty-state {
@@ -481,6 +519,23 @@
     </div>
   </div>
 
+  <!-- MODAL SÉRIES -->
+  <div class="modal" id="slotsModal">
+    <div class="modal-content slots-content">
+      <div class="modal-title" id="slotsTitle">🎟️ Séries</div>
+      <div class="slots-intro">Définis les séries (créneaux) et leur nombre de postes. Une fois complète, une série se bloque automatiquement à l'inscription.</div>
+      <div class="slots-list" id="slotsList"></div>
+      <div class="slot-add-row">
+        <input type="text" id="newSlotLabel" placeholder="Ex : Série 1 — 8h00">
+        <input type="number" id="newSlotCapacity" placeholder="Postes" min="1">
+        <button class="btn-slot-add" onclick="addSlot()">+ Ajouter</button>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-modal-cancel" style="width:100%;" onclick="closeSlotsModal()">Fermer</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     // ╔══════════════════════════════════════════════════════════════╗
     // ║  CONFIGURATION DU CLUB                                         ║
@@ -587,6 +642,72 @@
 
     function closeQrModal() { document.getElementById('qrModal').classList.remove('active'); }
 
+    // ─── Séries / Créneaux (places limitées) ───
+    let currentSlotsComp = null;
+    let slotsListenerRef = null;
+
+    function openSlotsModal(code, name) {
+      currentSlotsComp = code;
+      document.getElementById('slotsTitle').textContent = '🎟️ Séries — ' + name;
+      document.getElementById('newSlotLabel').value = '';
+      document.getElementById('newSlotCapacity').value = '';
+
+      if (slotsListenerRef) slotsListenerRef.off();
+      slotsListenerRef = database.ref(CLUB_PATH + '/' + code + '/slots');
+      slotsListenerRef.on('value', renderSlotsList);
+
+      document.getElementById('slotsModal').classList.add('active');
+    }
+
+    function closeSlotsModal() {
+      if (slotsListenerRef) { slotsListenerRef.off(); slotsListenerRef = null; }
+      currentSlotsComp = null;
+      document.getElementById('slotsModal').classList.remove('active');
+    }
+
+    function renderSlotsList(snap) {
+      const list = document.getElementById('slotsList');
+      const data = snap.val();
+      if (!data) {
+        list.innerHTML = '<div class="slot-empty">Aucune série créée. Les tireurs s\'inscriront librement (sans limite de places).</div>';
+        return;
+      }
+      list.innerHTML = '';
+      Object.keys(data).forEach(slotId => {
+        const slot = data[slotId];
+        const capacity = Number(slot.capacity) || 0;
+        const count = Number(slot.count) || 0;
+        const isFull = count >= capacity;
+        const row = document.createElement('div');
+        row.className = 'slot-row' + (isFull ? ' full' : '');
+        row.innerHTML = `
+          <span class="slot-label">${slot.label}</span>
+          <span style="display:flex; align-items:center;">
+            <span class="slot-count">${count} / ${capacity} ${isFull ? '· COMPLET' : ''}</span>
+            <button class="slot-del" title="Supprimer" onclick="deleteSlot('${slotId}')">🗑️</button>
+          </span>`;
+        list.appendChild(row);
+      });
+    }
+
+    function addSlot() {
+      const label = document.getElementById('newSlotLabel').value.trim();
+      const capacity = parseInt(document.getElementById('newSlotCapacity').value, 10);
+      if (!label) return alert("Indique un nom de série (ex: Série 1 — 8h00).");
+      if (!capacity || capacity < 1) return alert("Indique un nombre de postes valide (1 ou plus).");
+      database.ref(CLUB_PATH + '/' + currentSlotsComp + '/slots').push({ label, capacity, count: 0 })
+        .then(() => {
+          document.getElementById('newSlotLabel').value = '';
+          document.getElementById('newSlotCapacity').value = '';
+        });
+    }
+
+    function deleteSlot(slotId) {
+      if (confirm("Supprimer cette série ? Les places libérées ne seront plus comptabilisées.")) {
+        database.ref(CLUB_PATH + '/' + currentSlotsComp + '/slots/' + slotId).remove();
+      }
+    }
+
     database.ref(CLUB_PATH).on('value', snap => {
       const grid = document.getElementById('compGrid');
       grid.innerHTML = '';
@@ -616,6 +737,7 @@
               <a href="saisie_multicomp.html?comp=${code}" class="btn-act btn-saisie">⌨️ Saisie</a>
               <button onclick="openQr('${code}','inscription')" class="btn-act btn-qr">📱 QR Inscription</button>
               <button onclick="openQr('${code}','resultats')" class="btn-act btn-qr" style="grid-column: span 2;">🏆 QR Résultats</button>
+              <button onclick="openSlotsModal('${code}', '${config.name.replace(/'/g,"\\'")}')" class="btn-act btn-slots">🎟️ Séries / Créneaux</button>
               <a href="affichage_multicomp.html?comp=${code}" target="_blank" class="btn-act btn-tv">📺 Affichage Live (écran)</a>
               <button onclick="deleteComp('${code}', '${config.name.replace(/'/g,"\\'")}')" class="btn-act btn-del">🗑️ Supprimer</button>
             </div>

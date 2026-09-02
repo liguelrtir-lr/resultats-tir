@@ -161,6 +161,20 @@
         }
 
         #screenLoading, #screenError { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+
+        /* SÉRIES */
+        .slots-table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
+        .slots-table th {
+            text-align: left; font-family: 'Barlow Condensed', sans-serif;
+            font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase;
+            color: var(--text-dim); padding: 6px 8px; border-bottom: 1px solid var(--border);
+        }
+        .slots-table td { padding: 10px 8px; border-bottom: 1px solid var(--border); font-size: 0.92rem; }
+        .slots-table tr:last-child td { border-bottom: none; }
+        .slots-table tr.full td { color: var(--text-dim); }
+        .slot-places { text-align: right; font-weight: 700; color: var(--accent); }
+        .slots-table tr.full .slot-places { color: var(--red, #ef4444); }
+        .slot-full-tag { font-size: 0.68rem; letter-spacing: 0.05em; text-transform: uppercase; }
     </style>
 </head>
 <body>
@@ -182,6 +196,13 @@
     </div>
 
     <div id="screenForm" style="display:none;">
+        <div class="panel" id="slotsPanel" style="display:none;">
+            <div class="field" style="margin-bottom:6px;">
+                <label>Série</label>
+            </div>
+            <table class="slots-table" id="slotsTable"></table>
+        </div>
+
         <div class="panel">
             <div class="msg msg-error" id="formError"></div>
 
@@ -264,6 +285,9 @@
 
     let activeTypeKey = 'AMICAL';
     let shootersSnapshot = [];
+    let slotsData = {};
+    let selectedSlotId = null;
+    let slotsRef = null;
 
     function showScreen(id) {
         ['screenLoading','screenError','screenForm','screenConfirm'].forEach(s => {
@@ -306,6 +330,43 @@
             cats.map(c => `<option value="${c}">${c}</option>`).join('') + '</select>';
     }
 
+    function renderSlotsTable(data) {
+        slotsData = data || {};
+        const panel = document.getElementById('slotsPanel');
+        const table = document.getElementById('slotsTable');
+        const slotIds = Object.keys(slotsData);
+
+        if (slotIds.length === 0) {
+            panel.style.display = 'none';
+            selectedSlotId = null;
+            return;
+        }
+        panel.style.display = 'block';
+
+        // Si la série choisie a disparu ou est maintenant complète, on redemande un choix.
+        if (selectedSlotId && !slotsData[selectedSlotId]) selectedSlotId = null;
+
+        let html = '<thead><tr><th></th><th>Série</th><th style="text-align:right;">Places</th></tr></thead><tbody>';
+        slotIds.forEach(slotId => {
+            const slot = slotsData[slotId];
+            const capacity = Number(slot.capacity) || 0;
+            const count = Number(slot.count) || 0;
+            const isFull = count >= capacity;
+            const checked = (selectedSlotId === slotId) ? 'checked' : '';
+            html += `<tr class="${isFull ? 'full' : ''}">
+                <td><input type="radio" name="slotChoice" value="${slotId}" ${checked} ${isFull ? 'disabled' : ''} onchange="selectSlot('${slotId}')"></td>
+                <td>${slot.label}</td>
+                <td class="slot-places">${isFull ? '<span class="slot-full-tag">COMPLET</span>' : (capacity - count) + ' / ' + capacity}</td>
+            </tr>`;
+        });
+        html += '</tbody>';
+        table.innerHTML = html;
+    }
+
+    function selectSlot(slotId) {
+        selectedSlotId = slotId;
+    }
+
     function fieldValue(id) {
         const el = document.getElementById(id);
         return el ? el.value.trim() : '';
@@ -324,6 +385,9 @@
         if (!nom || !prenom) { return showFormError("Merci de renseigner ton nom et ton prénom."); }
         if (!disc) { return showFormError("Merci d'indiquer la discipline."); }
 
+        const hasSlots = Object.keys(slotsData).length > 0;
+        if (hasSlots && !selectedSlotId) { return showFormError("Merci de choisir une série dans le tableau ci-dessus."); }
+
         const already = shootersSnapshot.some(s => s.lastName === nom && s.firstName === prenom && s.discipline === disc);
         if (already) { return showFormError(`${nom} ${prenom} est déjà inscrit·e dans cette discipline.`); }
 
@@ -340,21 +404,54 @@
             score: 0
         };
 
-        db.ref(CLUB_PATH + '/' + compId + '/shooters').push(entry)
-          .then(() => {
+        // Si une série a été choisie, on réserve d'abord une place de façon atomique
+        // (transaction Firebase) pour éviter le sur-booking en cas d'inscriptions simultanées.
+        const reserveStep = hasSlots
+            ? db.ref(CLUB_PATH + '/' + compId + '/slots/' + selectedSlotId + '/count').transaction(current => {
+                  current = current || 0;
+                  const capacity = Number((slotsData[selectedSlotId] || {}).capacity) || 0;
+                  if (current >= capacity) return; // annule la transaction : plus de place
+                  return current + 1;
+              }).then(result => {
+                  if (!result.committed) {
+                      const e = new Error("Cette série vient de se remplir. Choisis-en une autre.");
+                      e.slotFull = true;
+                      throw e;
+                  }
+              })
+            : Promise.resolve();
+
+        let shooterKey = null;
+
+        reserveStep
+          .then(() => db.ref(CLUB_PATH + '/' + compId + '/shooters').push(entry))
+          .then(ref => {
+              shooterKey = ref.key;
               const key = nom.replace(/[^a-zA-Z]/g, "") + "_" + prenom.replace(/[^a-zA-Z]/g, "");
               return db.ref('Ligue_Tireurs_Archive/' + key).update({ lastName: nom, firstName: prenom, club: club });
           })
           .then(() => {
+              if (!hasSlots) return;
+              // Trace de qui occupe la série, hors du schéma "shooters" (pas de champ en plus requis là-bas).
+              return db.ref(CLUB_PATH + '/' + compId + '/slots/' + selectedSlotId + '/registered/' + shooterKey)
+                  .set({ lastName: nom, firstName: prenom, club: club });
+          })
+          .then(() => {
+              const slotLine = hasSlots ? `<div>${(slotsData[selectedSlotId] || {}).label || ''}</div>` : '';
               document.getElementById('recapBox').innerHTML = `
                   <div><b>${nom} ${prenom}</b></div>
                   <div>${club}</div>
                   <div>${disc}</div>
-                  <div>${cat || 'Général'}</div>`;
+                  <div>${cat || 'Général'}</div>
+                  ${slotLine}`;
               showScreen('screenConfirm');
           })
           .catch(e => {
-              showFormError("Échec de l'enregistrement : " + (e.message || e.code || e));
+              if (e && e.slotFull) {
+                  showFormError(e.message);
+              } else {
+                  showFormError("Échec de l'enregistrement : " + (e.message || e.code || e));
+              }
           })
           .finally(() => {
               btn.disabled = false;
@@ -371,6 +468,8 @@
     function registerAnother() {
         document.getElementById('fNom').value = '';
         document.getElementById('fPrenom').value = '';
+        selectedSlotId = null;
+        renderSlotsTable(slotsData);
         buildDisciplineUI(activeTypeKey);
         showScreen('screenForm');
     }
@@ -418,6 +517,10 @@
                   const data = snap2.val() || {};
                   shootersSnapshot = Object.values(data);
                   buildDisciplineUI(typeKey);
+
+                  slotsRef = db.ref(CLUB_PATH + '/' + compId + '/slots');
+                  slotsRef.on('value', s => renderSlotsTable(s.val()));
+
                   showScreen('screenForm');
               });
           })
