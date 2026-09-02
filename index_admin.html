@@ -573,9 +573,11 @@
       if (confirm(`Supprimer définitivement "${name}" ?`)) database.ref(CLUB_PATH + '/' + code).remove();
     }
 
-    function openQr(code) {
-      const url = `${GITHUB_BASE}/affichage_multicomp.html?comp=${code}`;
-      document.getElementById('qrTitle').textContent = '📱 ' + code;
+    function openQr(code, kind) {
+      const page = kind === 'inscription' ? 'inscription_multicomp.html' : 'affichage_multicomp.html';
+      const label = kind === 'inscription' ? '📱 Inscription — ' : '🏆 Résultats — ';
+      const url = `${GITHUB_BASE}/${page}?comp=${code}`;
+      document.getElementById('qrTitle').textContent = label + code;
       document.getElementById('qrUrl').textContent = url;
       const qrContainer = document.getElementById('qrcode');
       qrContainer.innerHTML = '';
@@ -612,8 +614,9 @@
             </div>
             <div class="actions-grid">
               <a href="saisie_multicomp.html?comp=${code}" class="btn-act btn-saisie">⌨️ Saisie</a>
-              <button onclick="openQr('${code}')" class="btn-act btn-qr">📱 QR Code</button>
-              <a href="affichage_multicomp.html?comp=${code}" target="_blank" class="btn-act btn-tv">📺 Affichage Live</a>
+              <button onclick="openQr('${code}','inscription')" class="btn-act btn-qr">📱 QR Inscription</button>
+              <button onclick="openQr('${code}','resultats')" class="btn-act btn-qr" style="grid-column: span 2;">🏆 QR Résultats</button>
+              <a href="affichage_multicomp.html?comp=${code}" target="_blank" class="btn-act btn-tv">📺 Affichage Live (écran)</a>
               <button onclick="deleteComp('${code}', '${config.name.replace(/'/g,"\\'")}')" class="btn-act btn-del">🗑️ Supprimer</button>
             </div>
           `;

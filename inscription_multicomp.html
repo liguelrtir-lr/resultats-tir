@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<!-- LIGUE LR — Inscription publique par QR code — v1.0 -->
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inscription — Compétition</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Barlow:wght@300;400;500;600&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <style>
+        :root {
+            --bg: #fdf6ee;
+            --surface: #ffffff;
+            --surface2: #f8f1e7;
+            --border: #efe2d2;
+            --accent: #c1271d;
+            --accent2: #d99a1c;
+            --text: #2a1410;
+            --text-muted: #9a7264;
+            --text-dim: #a8927d;
+            --green: #0f8a5f;
+            --green-bg: #e9f7f1;
+            --radius: 10px;
+            --radius-lg: 16px;
+        }
+        *, *::before, *::after { box-sizing: border-box; }
+        body {
+            font-family: 'Barlow', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            min-height: 100vh;
+            padding: 18px 14px 60px;
+            background-image: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(193,39,29,0.06) 0%, transparent 60%);
+        }
+        .wrap { max-width: 480px; margin: 0 auto; }
+
+        header {
+            background: linear-gradient(120deg, #c1271d 0%, #e8861f 100%);
+            padding: 22px 22px 20px;
+            border-radius: 18px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 22px rgba(193,39,29,0.18);
+            text-align: center;
+        }
+        header .icon { font-size: 2rem; margin-bottom: 4px; }
+        header h1 {
+            margin: 0;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+            font-size: 1.3rem;
+            letter-spacing: 0.03em;
+            color: #ffffff;
+            text-transform: uppercase;
+        }
+        header .comp-name {
+            margin-top: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #ffe2c4;
+        }
+        header .comp-type {
+            margin-top: 3px;
+            font-size: 0.72rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.75);
+        }
+
+        .panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 22px;
+            margin-bottom: 16px;
+        }
+
+        .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+        .field label {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 0.72rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+        }
+        input[type="text"], select {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: 'Barlow', sans-serif;
+            font-size: 1rem;
+            padding: 13px 14px;
+            border-radius: var(--radius);
+            outline: none;
+            width: 100%;
+        }
+        input[type="text"]:focus, select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(193,39,29,0.12);
+        }
+
+        .btn {
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+            font-size: 1.05rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            border: none;
+            padding: 15px 20px;
+            border-radius: var(--radius);
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.18s;
+        }
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-primary:hover { background: #a51e16; }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-secondary {
+            background: var(--surface2); color: var(--text-muted);
+            border: 1px solid var(--border); margin-top: 10px;
+        }
+
+        .msg {
+            font-size: 0.85rem;
+            padding: 12px 14px;
+            border-radius: var(--radius);
+            margin-bottom: 14px;
+            display: none;
+        }
+        .msg.show { display: block; }
+        .msg-error { background: #fdecea; color: var(--accent); border: 1px solid #f6c7c1; }
+        .msg-info { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); }
+
+        /* CONFIRMATION SCREEN */
+        .confirm { text-align: center; padding: 10px 4px; }
+        .confirm .check {
+            width: 64px; height: 64px; border-radius: 50%;
+            background: var(--green-bg); color: var(--green);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 2rem; margin: 0 auto 16px;
+        }
+        .confirm h2 {
+            font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 1.3rem;
+            letter-spacing: 0.03em; text-transform: uppercase; margin: 0 0 6px;
+        }
+        .confirm p { color: var(--text-muted); font-size: 0.92rem; margin: 0 0 4px; }
+        .confirm .recap {
+            background: var(--surface2); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 14px 16px; margin: 16px 0;
+            text-align: left; font-size: 0.9rem;
+        }
+        .confirm .recap div { margin-bottom: 4px; }
+        .confirm .recap b { color: var(--text); }
+
+        .footer-note {
+            text-align: center; font-size: 0.72rem; color: var(--text-dim);
+            margin-top: 4px; letter-spacing: 0.03em;
+        }
+
+        #screenLoading, #screenError { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+    </style>
+</head>
+<body>
+
+<div class="wrap">
+    <header>
+        <div class="icon">🎯</div>
+        <h1>Inscription en direct</h1>
+        <div class="comp-name" id="compName">Chargement…</div>
+        <div class="comp-type" id="compType"></div>
+    </header>
+
+    <div id="screenLoading">Connexion à la compétition…</div>
+
+    <div id="screenError" style="display:none;">
+        <div class="panel">
+            <p style="color:var(--accent); font-weight:600;" id="errorText">Compétition introuvable.</p>
+        </div>
+    </div>
+
+    <div id="screenForm" style="display:none;">
+        <div class="panel">
+            <div class="msg msg-error" id="formError"></div>
+
+            <div class="field">
+                <label>Nom</label>
+                <input type="text" id="fNom" placeholder="DUPONT">
+            </div>
+            <div class="field">
+                <label>Prénom</label>
+                <input type="text" id="fPrenom" placeholder="Jean">
+            </div>
+            <div class="field">
+                <label>Club</label>
+                <input type="text" id="fClub" placeholder="ST BÉZIERS">
+            </div>
+            <div class="field" id="discWrap">
+                <label>Discipline</label>
+                <select id="fDiscSelect"></select>
+            </div>
+            <div class="field" id="catWrap">
+                <label>Catégorie</label>
+                <select id="fCatSelect"></select>
+            </div>
+
+            <button type="button" class="btn btn-primary" id="btnSubmit" onclick="submitInscription()">
+                ✓ Je m'inscris
+            </button>
+        </div>
+        <div class="footer-note">Ton inscription apparaît immédiatement dans le classement en direct.</div>
+    </div>
+
+    <div id="screenConfirm" style="display:none;">
+        <div class="panel confirm">
+            <div class="check">✓</div>
+            <h2>Inscription enregistrée</h2>
+            <p>Tu es bien inscrit à cette compétition.</p>
+            <div class="recap" id="recapBox"></div>
+            <button type="button" class="btn btn-primary" onclick="registerAnother()">+ Inscrire un autre engagement</button>
+            <button type="button" class="btn btn-secondary" id="btnResults" onclick="location.href=resultsUrl">🏆 Voir le classement en direct</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ─── Catalogue des disciplines (identique à la saisie admin) ───
+    const dataRef = {
+        TAR: { disc: ["810 - Fusil Répétition manuelle", "811 - Fusils Modifiés Gros Calibre", "812 - Fusils Modifiés Petit Calibre", "813 - Challenges Armes à rép.", "815 - FSA - Gros Calibre", "816 - FSA - Petit Calibre", "820 - Carabine 22 lr", "821 - Carabine 22 semi-auto", "822 - Car. 22lr Assis", "823 - Carabine Match 22lr", "830 - Pistolet / Revolver", "831 - Pistolet Vitesse Réglementaire", "832 - Armes de poing Authentiques"], cats: ["Senior"] },
+        ISSF10: { disc: ["100 - Pistolet 10m", "102 - Pistolet Vitesse 10m", "103 - Pistolet Standard 10m", "104 - Carabine 10m", "107 - Arbalète Match 10m", "109 - Cible Mobile 10m", "110 - Cible Mobile Mixte 10m", "025 - Arbalète Field 18m", "171 - HP R1/R2 Car. 10m", "173 - HP R3 Car. 10m", "174 - HP R4 Car. 10m", "175 - HP R5 Car. 10m", "177 - HP VIS Car. 10m deb.", "178 - HP VIP Car. 10m couchée", "181 - HP P1/P2 Pist. 10m", "183 - HP F5 Pist. Vitesse 10m", "184 - HP P5 Pist. Standard 10m"], cats: ["Minime F", "Minime G", "Cadet F", "Cadet G", "Junior Fille", "Junior Garçon", "Dame 1", "Dame 2", "Dame 3", "Senior 1", "Senior 2", "Senior 3"] },
+        ISSF2550: { disc: ["250 - Pistolet Standard 25m", "251 - Pistolet Percussion Centrale", "252 - Pistolet 25m", "253 - Pistolet Vitesse 25m", "271 - HP - P3 - Pistolet 25m (SH1)", "272 - HP - P4 - Pistolet 50m (SH1)", "273 - HP - F10 Pistolet Standard 25m (SH1)", "500 - Pistolet 50m", "501 - Carabine 60BC", "502 - Carabine 3x20", "571 - HP - R6 Car. 50m 60 BC (SH1)", "572 - HP - R7/R8 Car. 50m 3x20 (SH1) - Mixte", "574 - HP - R9 Car. 50m 60BC Pot. (SH2)", "575 - HP - F12 Car. 50m 3x20 Pot. (SH2)", "576 - HP - F13 Car. 50m 60 BC Pot. (CLF)"], cats: ["Minime F", "Minime G", "Cadet F", "Cadet G", "Junior Fille", "Junior Garçon", "Dame 1", "Dame 2", "Dame 3", "Senior 1", "Senior 2", "Senior 3"] },
+        EDT: { disc: ["101 - Pistolet 3/7 EDT", "150 - Pistolet 10m EDT", "152 - Pistolet Vitesse 10m EDT", "154 - Carabine 10m EDT", "105 - Carabine 3x20 EDT", "158 - Arbalète Field EDT", "150/154 - Combiné EDT", "161 - HP R5 Car. 10m couchée EDT", "162 - HP R3 Car. 10m couchée EDT", "163 - HP P1 Pistolet 10m EDT"], cats: ["Poussin Fille", "Poussin Garçon", "Benjamin Fille", "Benjamin Garçon", "Minime Fille", "Minime Garçon"] },
+        MLAIC: { disc: ["601 - Miquelet Origine", "701 - Miquelet Réplique", "602 - Maximilien Origine", "702 - Maximilien Réplique", "603 - Minié Origine", "703 - Minié Réplique", "604 - Whitworth Origine", "704 - Whitworth Réplique", "605 - Cominazzo Origine", "705 - Cominazzo Réplique", "606 - Kuchenreuter Origine", "706 - Kuchenreuter Réplique", "607 - Colt", "712 - Mariette", "615 - Vetterli Origine", "715 - Vetterli Réplique", "637 - Lamarmora Origine", "737 - Lamarmora Réplique"], cats: ["Senior", "Junior"] },
+        AMICAL: { disc: [], cats: [], freeText: true }
+    };
+    // Fait correspondre la valeur "type" enregistrée à la création (index_admin.html)
+    // à la clé du catalogue ci-dessus.
+    const TYPE_MAP = { ISSF10: "ISSF10", EDT: "EDT", MLAIC: "MLAIC", TAR: "TAR", "2550": "ISSF2550", AMICAL: "AMICAL" };
+    const TYPE_LABEL = {
+        ISSF10: "ISSF 10 Mètres", EDT: "École de Tir (EDT)", MLAIC: "Armes Anciennes (MLAIC)",
+        TAR: "TAR — Armes Réglementaires", ISSF2550: "ISSF 25 & 50 Mètres", AMICAL: "Concours Amical"
+    };
+
+    const CONFIG = {
+      clubName: "LIGUE LR",
+      clubKey:  "LIGUE_LR",
+      firebase: {
+        apiKey: "AIzaSyAvfMRtRrhh_e-27xHlwIx9c5DIdUQm6HM",
+        authDomain: "resultats-tir-ligue-lr.firebaseapp.com",
+        databaseURL: "https://resultats-tir-ligue-lr-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "resultats-tir-ligue-lr",
+        storageBucket: "resultats-tir-ligue-lr.firebasestorage.app",
+        appId: "1:468808300974:web:563a14cc4477c10b28303f"
+      }
+    };
+    firebase.initializeApp(CONFIG.firebase);
+    const db = firebase.database();
+    const auth = firebase.auth();
+    const CLUB_PATH = 'clubs/' + CONFIG.clubKey;
+    const compId = new URLSearchParams(window.location.search).get('comp');
+    const resultsUrl = 'affichage_multicomp.html?comp=' + encodeURIComponent(compId || '');
+
+    let activeTypeKey = 'AMICAL';
+    let shootersSnapshot = [];
+
+    function showScreen(id) {
+        ['screenLoading','screenError','screenForm','screenConfirm'].forEach(s => {
+            document.getElementById(s).style.display = (s === id) ? 'block' : 'none';
+        });
+    }
+
+    function buildDisciplineUI(typeKey) {
+        activeTypeKey = typeKey;
+        const cat = dataRef[typeKey] || dataRef.AMICAL;
+        const discWrap = document.getElementById('discWrap');
+        const catWrap = document.getElementById('catWrap');
+
+        if (cat.freeText || cat.disc.length === 0) {
+            discWrap.innerHTML = '<label>Discipline</label><input type="text" id="fDiscSelect" placeholder="Ex : Pistolet vitesse, Ball-trap amical…">';
+            catWrap.innerHTML = '<label>Catégorie</label><input type="text" id="fCatSelect" placeholder="Ex : Senior, Loisir, Mixte…">';
+        } else {
+            discWrap.innerHTML = '<label>Discipline</label><select id="fDiscSelect">' +
+                cat.disc.map(d => `<option value="${d}">${d}</option>`).join('') + '</select>';
+            document.getElementById('fDiscSelect').addEventListener('change', () => rebuildCategories(typeKey));
+            rebuildCategories(typeKey);
+        }
+    }
+
+    function rebuildCategories(typeKey) {
+        const cat = dataRef[typeKey];
+        const catWrap = document.getElementById('catWrap');
+        let cats = cat.cats;
+        if (typeKey === 'ISSF2550') {
+            const discValue = document.getElementById('fDiscSelect').value || '';
+            if (discValue.match(/^(501|502)/)) {
+                cats = ["Minime F","Minime G","Cadet F","Cadet G","Junior Fille","Junior Garçon","Dame 1","Dame 2","Dame 3","Senior 1","Senior 2","Senior 3"];
+            } else if (discValue.match(/^(250|251|252|253|500)/)) {
+                cats = ["Cadet F","Cadet G","Junior Fille","Junior Garçon","Dame 1","Dame 2","Dame 3","Senior 1","Senior 2","Senior 3"];
+            } else if (discValue.match(/^(27|57)/)) {
+                cats = ["Senior 1"];
+            }
+        }
+        catWrap.innerHTML = '<label>Catégorie</label><select id="fCatSelect">' +
+            cats.map(c => `<option value="${c}">${c}</option>`).join('') + '</select>';
+    }
+
+    function fieldValue(id) {
+        const el = document.getElementById(id);
+        return el ? el.value.trim() : '';
+    }
+
+    function submitInscription() {
+        const errBox = document.getElementById('formError');
+        errBox.classList.remove('show');
+
+        const nom = fieldValue('fNom').toUpperCase();
+        const prenom = fieldValue('fPrenom');
+        const club = fieldValue('fClub') || '-';
+        const disc = fieldValue('fDiscSelect');
+        const cat = fieldValue('fCatSelect');
+
+        if (!nom || !prenom) { return showFormError("Merci de renseigner ton nom et ton prénom."); }
+        if (!disc) { return showFormError("Merci d'indiquer la discipline."); }
+
+        const already = shootersSnapshot.some(s => s.lastName === nom && s.firstName === prenom && s.discipline === disc);
+        if (already) { return showFormError(`${nom} ${prenom} est déjà inscrit·e dans cette discipline.`); }
+
+        const btn = document.getElementById('btnSubmit');
+        btn.disabled = true;
+        btn.textContent = 'Inscription en cours…';
+
+        const entry = {
+            lastName: nom, firstName: prenom, club: club,
+            discipline: disc, category: cat || 'Général',
+            score: 0, typeGroup: activeTypeKey,
+            selfRegistered: true,
+            registeredAt: firebase.database.ServerValue.TIMESTAMP
+        };
+
+        db.ref(CLUB_PATH + '/' + compId + '/shooters').push(entry)
+          .then(() => {
+              const key = nom.replace(/[^a-zA-Z]/g, "") + "_" + prenom.replace(/[^a-zA-Z]/g, "");
+              return db.ref('Ligue_Tireurs_Archive/' + key).update({ lastName: nom, firstName: prenom, club: club });
+          })
+          .then(() => {
+              document.getElementById('recapBox').innerHTML = `
+                  <div><b>${nom} ${prenom}</b></div>
+                  <div>${club}</div>
+                  <div>${disc}</div>
+                  <div>${cat || 'Général'}</div>`;
+              showScreen('screenConfirm');
+          })
+          .catch(e => {
+              showFormError("Échec de l'enregistrement : " + (e.message || e.code || e));
+          })
+          .finally(() => {
+              btn.disabled = false;
+              btn.textContent = "✓ Je m'inscris";
+          });
+    }
+
+    function showFormError(msg) {
+        const errBox = document.getElementById('formError');
+        errBox.textContent = msg;
+        errBox.classList.add('show');
+    }
+
+    function registerAnother() {
+        document.getElementById('fNom').value = '';
+        document.getElementById('fPrenom').value = '';
+        buildDisciplineUI(activeTypeKey);
+        showScreen('screenForm');
+    }
+
+    function initPage() {
+        if (!compId) {
+            document.getElementById('errorText').textContent = "Lien invalide : aucune compétition indiquée.";
+            showScreen('screenError');
+            return;
+        }
+
+        let resolved = false;
+
+        auth.signInAnonymously().catch(e => {
+            console.error('Anonymous sign-in failed', e.code, e.message);
+            if (resolved) return;
+            resolved = true;
+            document.getElementById('errorText').textContent =
+                "Les inscriptions en ligne ne sont pas encore activées pour ce site (connexion anonyme désactivée côté Firebase). Contacte l'organisateur — [" + (e.code || e.message) + "]";
+            showScreen('screenError');
+        });
+
+        auth.onAuthStateChanged(user => {
+            if (!user || resolved) return; // attend la connexion anonyme
+            resolved = true;
+            loadCompetition();
+        });
+    }
+
+    function loadCompetition() {
+        db.ref(CLUB_PATH + '/' + compId + '/config').once('value')
+          .then(snap => {
+              const config = snap.val();
+              if (!config || !config.name) {
+                  document.getElementById('errorText').textContent = "Cette compétition n'existe pas ou plus.";
+                  showScreen('screenError');
+                  return;
+              }
+              document.getElementById('compName').textContent = config.name;
+              const typeKey = TYPE_MAP[config.type] || 'AMICAL';
+              document.getElementById('compType').textContent = TYPE_LABEL[typeKey] || '';
+              document.title = "Inscription — " + config.name;
+
+              return db.ref(CLUB_PATH + '/' + compId + '/shooters').once('value').then(snap2 => {
+                  const data = snap2.val() || {};
+                  shootersSnapshot = Object.values(data);
+                  buildDisciplineUI(typeKey);
+                  showScreen('screenForm');
+              });
+          })
+          .catch(e => {
+              document.getElementById('errorText').textContent = "Impossible de charger la compétition (" + (e.code || e.message) + ").";
+              showScreen('screenError');
+          });
+    }
+
+    initPage();
+</script>
+</body>
+</html>

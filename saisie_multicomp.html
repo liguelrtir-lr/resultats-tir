@@ -551,6 +551,7 @@
                 <option value="ISSF2550">ISSF 25 & 50 mètres</option>
                 <option value="MLAIC">MLAIC — Armes Anciennes</option>
                 <option value="EDT">EDT — École de Tir</option>
+                <option value="AMICAL">AMICAL — Concours Amical (discipline libre)</option>
             </select>
         </div>
 
@@ -571,11 +572,11 @@
             </div>
         </div>
         <div class="form-row">
-            <div class="field">
+            <div class="field" id="discFieldWrap">
                 <label>Discipline</label>
                 <select id="newDiscipline" onchange="updateCategories()"></select>
             </div>
-            <div class="field">
+            <div class="field" id="catFieldWrap">
                 <label>Catégorie</label>
                 <select id="newCategorie"></select>
             </div>
@@ -635,8 +636,11 @@
         ISSF10: { disc: ["100 - Pistolet 10m", "102 - Pistolet Vitesse 10m", "103 - Pistolet Standard 10m", "104 - Carabine 10m", "107 - Arbalète Match 10m", "109 - Cible Mobile 10m", "110 - Cible Mobile Mixte 10m", "025 - Arbalète Field 18m", "171 - HP R1/R2 Car. 10m", "173 - HP R3 Car. 10m", "174 - HP R4 Car. 10m", "175 - HP R5 Car. 10m", "177 - HP VIS Car. 10m deb.", "178 - HP VIP Car. 10m couchée", "181 - HP P1/P2 Pist. 10m", "183 - HP F5 Pist. Vitesse 10m", "184 - HP P5 Pist. Standard 10m"], cats: ["Minime F", "Minime G", "Cadet F", "Cadet G", "Junior Fille", "Junior Garçon", "Dame 1", "Dame 2", "Dame 3", "Senior 1", "Senior 2", "Senior 3"] },
         ISSF2550: { disc: ["250 - Pistolet Standard 25m", "251 - Pistolet Percussion Centrale", "252 - Pistolet 25m", "253 - Pistolet Vitesse 25m", "271 - HP - P3 - Pistolet 25m (SH1)", "272 - HP - P4 - Pistolet 50m (SH1)", "273 - HP - F10 Pistolet Standard 25m (SH1)", "500 - Pistolet 50m", "501 - Carabine 60BC", "502 - Carabine 3x20", "571 - HP - R6 Car. 50m 60 BC (SH1)", "572 - HP - R7/R8 Car. 50m 3x20 (SH1) - Mixte", "574 - HP - R9 Car. 50m 60BC Pot. (SH2)", "575 - HP - F12 Car. 50m 3x20 Pot. (SH2)", "576 - HP - F13 Car. 50m 60 BC Pot. (CLF)"], cats: ["Minime F", "Minime G", "Cadet F", "Cadet G", "Junior Fille", "Junior Garçon", "Dame 1", "Dame 2", "Dame 3", "Senior 1", "Senior 2", "Senior 3"] },
         EDT: { disc: ["101 - Pistolet 3/7 EDT", "150 - Pistolet 10m EDT", "152 - Pistolet Vitesse 10m EDT", "154 - Carabine 10m EDT", "105 - Carabine 3x20 EDT", "158 - Arbalète Field EDT", "150/154 - Combiné EDT", "161 - HP R5 Car. 10m couchée EDT", "162 - HP R3 Car. 10m couchée EDT", "163 - HP P1 Pistolet 10m EDT"], cats: ["Poussin Fille", "Poussin Garçon", "Benjamin Fille", "Benjamin Garçon", "Minime Fille", "Minime Garçon"] },
-        MLAIC: { disc: ["601 - Miquelet Origine", "701 - Miquelet Réplique", "602 - Maximilien Origine", "702 - Maximilien Réplique", "603 - Minié Origine", "703 - Minié Réplique", "604 - Whitworth Origine", "704 - Whitworth Réplique", "605 - Cominazzo Origine", "705 - Cominazzo Réplique", "606 - Kuchenreuter Origine", "706 - Kuchenreuter Réplique", "607 - Colt", "712 - Mariette", "615 - Vetterli Origine", "715 - Vetterli Réplique", "637 - Lamarmora Origine", "737 - Lamarmora Réplique"], cats: ["Senior", "Junior"] }
+        MLAIC: { disc: ["601 - Miquelet Origine", "701 - Miquelet Réplique", "602 - Maximilien Origine", "702 - Maximilien Réplique", "603 - Minié Origine", "703 - Minié Réplique", "604 - Whitworth Origine", "704 - Whitworth Réplique", "605 - Cominazzo Origine", "705 - Cominazzo Réplique", "606 - Kuchenreuter Origine", "706 - Kuchenreuter Réplique", "607 - Colt", "712 - Mariette", "615 - Vetterli Origine", "715 - Vetterli Réplique", "637 - Lamarmora Origine", "737 - Lamarmora Réplique"], cats: ["Senior", "Junior"] },
+        AMICAL: { disc: [], cats: [], freeText: true }
     };
+    // Correspondance entre la valeur "type" enregistrée à la création (index_admin.html) et une clé ci-dessus.
+    const TYPE_MAP = { ISSF10: "ISSF10", EDT: "EDT", MLAIC: "MLAIC", TAR: "TAR", "2550": "ISSF2550", AMICAL: "AMICAL" };
 
     const CONFIG = {
       clubName: "LIGUE LR",
@@ -706,21 +710,44 @@
                 shootersData = Object.keys(data).map(key => ({ id: key, ...data[key] }));
                 renderList(shootersData);
             });
+            // Présélectionne le type de discipline en fonction de la compétition créée dans index_admin.html
+            db.ref(CLUB_PATH + '/' + compId + '/config').once('value').then(snap => {
+                const cfg = snap.val();
+                const mapped = cfg && cfg.type && TYPE_MAP[cfg.type];
+                if (mapped) document.getElementById('typeSelector').value = mapped;
+                updateMenus();
+            });
+        } else {
+            updateMenus();
         }
     }
 
     function updateMenus() {
         const type = document.getElementById('typeSelector').value;
-        document.getElementById('newDiscipline').innerHTML = dataRef[type].disc.map(d => `<option value="${d}">${d}</option>`).join('');
+        const catDef = dataRef[type];
+        const discWrap = document.getElementById('discFieldWrap');
+        const catWrap = document.getElementById('catFieldWrap');
+
+        if (catDef.freeText || catDef.disc.length === 0) {
+            discWrap.innerHTML = '<label>Discipline</label><input type="text" id="newDiscipline" placeholder="Ex : Pistolet vitesse, Ball-trap amical…">';
+            catWrap.innerHTML = '<label>Catégorie</label><input type="text" id="newCategorie" placeholder="Ex : Senior, Loisir, Mixte…">';
+            return;
+        }
+
+        discWrap.innerHTML = '<label>Discipline</label><select id="newDiscipline" onchange="updateCategories()"></select>';
+        document.getElementById('newDiscipline').innerHTML = catDef.disc.map(d => `<option value="${d}">${d}</option>`).join('');
+        catWrap.innerHTML = '<label>Catégorie</label><select id="newCategorie"></select>';
         updateCategories();
     }
 
     function updateCategories() {
         const type = document.getElementById('typeSelector').value;
+        const catDef = dataRef[type];
+        if (catDef.freeText) return; // catégorie déjà en texte libre
         const discValue = document.getElementById('newDiscipline').value || "";
-        
-        let cats = dataRef[type].cats; 
-        
+
+        let cats = catDef.cats;
+
         if (type === "ISSF2550") {
             if (discValue.match(/^(501|502)/)) {
                 cats = ["Minime F", "Minime G", "Cadet F", "Cadet G", "Junior Fille", "Junior Garçon", "Dame 1", "Dame 2", "Dame 3", "Senior 1", "Senior 2", "Senior 3"];
@@ -786,17 +813,19 @@
         const nom = document.getElementById('newNom').value.toUpperCase().trim();
         const prenom = document.getElementById('newPrenom').value.trim();
         const club = document.getElementById('newClub').value.trim() || "-";
-        const disc = document.getElementById('newDiscipline').value;
-        const cat = document.getElementById('newCategorie').value;
-        
+        const disc = document.getElementById('newDiscipline').value.trim();
+        const cat = document.getElementById('newCategorie').value.trim() || "Général";
+        const typeGroup = document.getElementById('typeSelector').value;
+
         if (!nom || !prenom) return alert("Nom et Prénom requis");
+        if (!disc) return alert("Discipline requise");
 
         let existeDeja = shootersData.some(s => s.lastName === nom && s.firstName === prenom && s.discipline === disc);
         if (existeDeja) {
             return alert(`⚠️ IMPOSSIBLE : ${nom} ${prenom} est DÉJÀ inscrit en ${disc}.`);
         }
 
-        const s = { lastName: nom, firstName: prenom, club: club, discipline: disc, category: cat, score: 0 };
+        const s = { lastName: nom, firstName: prenom, club: club, discipline: disc, category: cat, score: 0, typeGroup: typeGroup };
         db.ref(CLUB_PATH + '/' + compId + '/shooters').push(s);
         const key = nom.replace(/[^a-zA-Z]/g, "") + "_" + prenom.replace(/[^a-zA-Z]/g, "");
         db.ref('Ligue_Tireurs_Archive/' + key).set({ lastName: nom, firstName: prenom, club: club });
@@ -814,20 +843,22 @@
         document.getElementById('btnCancel').style.display = 'block';
         document.getElementById('formTireur').classList.add('panel-edit-mode');
         window.scrollTo(0,0);
-        
-        let foundType = "TAR"; 
-        for (let type in dataRef) {
-            if (dataRef[type].disc.includes(s.discipline)) {
-                foundType = type;
-                break;
+
+        let foundType = s.typeGroup;
+        if (!foundType || !dataRef[foundType]) {
+            foundType = "TAR";
+            for (let type in dataRef) {
+                if (dataRef[type].disc.includes(s.discipline)) {
+                    foundType = type;
+                    break;
+                }
             }
         }
-        
+
         document.getElementById('typeSelector').value = foundType;
-        document.getElementById('newDiscipline').innerHTML = dataRef[foundType].disc.map(d => `<option value="${d}">${d}</option>`).join('');
+        updateMenus();
         document.getElementById('newDiscipline').value = s.discipline;
-        
-        updateCategories();
+        if (!dataRef[foundType].freeText) { updateCategories(); }
         document.getElementById('newCategorie').value = s.category;
     }
 
@@ -837,8 +868,9 @@
             lastName: document.getElementById('newNom').value.toUpperCase().trim(),
             firstName: document.getElementById('newPrenom').value.trim(),
             club: document.getElementById('newClub').value.trim(),
-            discipline: document.getElementById('newDiscipline').value,
-            category: document.getElementById('newCategorie').value
+            discipline: document.getElementById('newDiscipline').value.trim(),
+            category: document.getElementById('newCategorie').value.trim() || "Général",
+            typeGroup: document.getElementById('typeSelector').value
         };
         db.ref(CLUB_PATH + '/' + compId + '/shooters/' + id).update(updates);
         resetForm();
@@ -911,7 +943,9 @@
         renderList(shootersData.filter(s => s.lastName.toLowerCase().includes(q) || s.firstName.toLowerCase().includes(q)));
     }
 
-    window.onload = updateMenus;
+    // NB : le menu Discipline/Catégorie est désormais initialisé par startDataListeners()
+    // une fois connecté et la compétition chargée (voir plus haut), pour pouvoir présélectionner
+    // le bon type. Rien à faire ici au chargement de la page.
 </script>
 </body>
 </html>
