@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v2.7 — 03/09/2026 -->
+<!-- LIGUE LR — version v2.8 — 03/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -338,7 +338,8 @@
             display: flex; gap: 8px; flex-wrap: wrap;
         }
         .volees-detail {
-            font-size: 0.85rem;
+            font-size: 1.05rem;
+            font-weight: 600;
             color: var(--text-dim);
             font-family: 'Barlow Condensed', monospace;
             letter-spacing: 0.03em;
@@ -607,7 +608,7 @@
             </div>
         </div>
         <div class="header-actions">
-            <span class="version-tag">v2.7</span>
+            <span class="version-tag">v2.8</span>
             <button type="button" id="btnToggleImport" class="btn-toggle-import">
                 <span>🪄</span> Import Tireurs
             </button>
@@ -1267,9 +1268,9 @@
                         <span class="tag">${s.club}</span>
                     </div>
                 </div>
+                ${hasSlots ? `<span class="tag slot-tag" title="Série (créneau)">${(slotByShooter[s.id] && slotByShooter[s.id].label) || '—'}</span>` : ''}
                 ${s.series ? `<div class="volees-detail">${s.series.split(',').join('  ')}</div>` : ''}
                 <div class="actions">
-                    ${hasSlots ? `<span class="tag slot-tag" title="Série (créneau)">${(slotByShooter[s.id] && slotByShooter[s.id].label) || '—'}</span>` : ''}
                     <input type="number" step="0.1" class="score-input" value="${s.score || 0}" onchange="saveScore('${s.id}', this.value)">
                     <button type="button" class="btn-calc" title="Détail par séries" onclick="openScoreCalc('${s.id}', '${(s.lastName + ' ' + s.firstName).replace(/'/g,"\\'")}')">🧮</button>
                     <button type="button" class="btn-action btn-edit" onclick="prepareEdit('${s.id}')">✏️</button>
