@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v2.1 — 03/09/2026 -->
+<!-- LIGUE LR — version v2.2 — 03/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -172,6 +172,12 @@
             width: 100px;
         }
 
+        .slot-cell {
+            color: var(--text-light);
+            font-size: 0.9rem;
+            white-space: nowrap;
+        }
+
         .no-data {
             text-align: center;
             padding: 40px;
@@ -188,7 +194,7 @@
         <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
         <div class="header-center">
             <h1>🏆 PALMARÈS PROVISOIRE</h1>
-            <div class="version-tag">v2.1</div>
+            <div class="version-tag">v2.2</div>
             <div id="compTitle" class="comp-name">Chargement...</div>
         </div>
         <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
@@ -221,6 +227,17 @@
     document.title = "🏆 " + CONFIG.clubName + " — Palmarès en Direct";
     document.querySelectorAll('.header-logo').forEach(img => { img.alt = "Logo " + CONFIG.clubName; });
 
+    // Formate la date/heure d'une série comme sur les autres pages (ex: "08/09 09:00").
+    function formatSlotWhen(slot) {
+        if (!slot.date) return '';
+        const [y, m, d] = slot.date.split('-');
+        return `${d}/${m}` + (slot.time ? ' ' + slot.time : '');
+    }
+
+    let lastShootersData = null; // { shooterId: {...} }
+    let slotByShooter = {};      // shooterId -> libellé de série (ou '' si non trouvé)
+    let hasSlots = false;
+
     if (!compId) {
         document.getElementById('resultsContainer').innerHTML = `<div class="no-data" style="color:red; font-weight:bold;">⚠️ Erreur : Aucune compétition spécifiée.</div>`;
     } else {
@@ -229,69 +246,96 @@
             document.getElementById('compTitle').textContent = (config && config.name) ? config.name : "Compétition en cours";
         });
 
-        db.ref(CLUB_PATH + '/' + compId + '/shooters').on('value', snap => {
-            const data = snap.val() || {};
-            const shooters = Object.keys(data).map(key => data[key]);
-
-            if (shooters.length === 0) {
-                document.getElementById('resultsContainer').innerHTML = `<div class="no-data">Aucun tireur enregistré pour le moment.</div>`;
-                return;
-            }
-
-            const tree = {};
-            shooters.forEach(s => {
-                let disc = s.discipline ? s.discipline.trim() : "Sans Discipline";
-                let cat = s.category ? s.category.trim() : "Général";
-                if(cat.length > 0) {
-                    cat = cat.charAt(0).toUpperCase() + cat.slice(1);
-                }
-                if (!tree[disc]) tree[disc] = {};
-                if (!tree[disc][cat]) tree[disc][cat] = [];
-                tree[disc][cat].push(s);
+        // Reconstitue, pour chaque tireur, le libellé de la série où il est inscrit (si des séries
+        // existent pour cette compétition) — la même info que celle proposée à l'inscription.
+        db.ref(CLUB_PATH + '/' + compId + '/slots').on('value', snap => {
+            const slots = snap.val() || {};
+            const map = {};
+            let any = false;
+            Object.keys(slots).forEach(slotId => {
+                const slot = slots[slotId];
+                const when = formatSlotWhen(slot);
+                const label = when ? (slot.label ? `${when} — ${slot.label}` : when) : (slot.label || '');
+                const registered = slot.registered || {};
+                Object.keys(registered).forEach(shooterId => { map[shooterId] = label; any = true; });
             });
-
-            let html = '';
-            const sortedDisciplines = Object.keys(tree).sort();
-
-            sortedDisciplines.forEach(disc => {
-                html += `<div class="discipline-section">`;
-                html += `<h2 class="discipline-title">🎯 ${disc}</h2>`;
-
-                const sortedCategories = Object.keys(tree[disc]).sort();
-
-                sortedCategories.forEach(cat => {
-                    html += `<div class="category-block">`;
-                    html += `<div class="category-title">👥 ${cat}</div>`;
-                    html += `<table>
-                                <thead>
-                                    <tr>
-                                        <th style="width: 50px;">Pl.</th>
-                                        <th>Nom Prénom</th>
-                                        <th>Club</th>
-                                        <th style="text-align: right; width: 100px;">Score</th>
-                                    </tr>
-                                </thead>
-                                <tbody>`;
-
-                    const rankedShooters = tree[disc][cat].sort((a, b) => (b.score || 0) - (a.score || 0));
-
-                    rankedShooters.forEach((s, index) => {
-                        const displayScore = s.score !== undefined ? s.score : 0;
-                        const medal = (index === 0) ? "🥇 " : (index === 1) ? "🥈 " : (index === 2) ? "🥉 " : "";
-                        html += `<tr>
-                                    <td class="rank-cell">${index + 1}</td>
-                                    <td class="name-cell">${medal}${s.lastName} ${s.firstName}</td>
-                                    <td class="club-cell">${s.club || '-'}</td>
-                                    <td class="score-cell">${displayScore}</td>
-                                 </tr>`;
-                    });
-                    html += `</tbody></table></div>`;
-                });
-                html += `</div>`;
-            });
-
-            document.getElementById('resultsContainer').innerHTML = html;
+            slotByShooter = map;
+            hasSlots = any;
+            renderResults();
         });
+
+        db.ref(CLUB_PATH + '/' + compId + '/shooters').on('value', snap => {
+            lastShootersData = snap.val() || {};
+            renderResults();
+        });
+    }
+
+    function renderResults() {
+        if (lastShootersData === null) return; // pas encore reçu de données
+        const data = lastShootersData;
+        const shooters = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+
+        if (shooters.length === 0) {
+            document.getElementById('resultsContainer').innerHTML = `<div class="no-data">Aucun tireur enregistré pour le moment.</div>`;
+            return;
+        }
+
+        const tree = {};
+        shooters.forEach(s => {
+            let disc = s.discipline ? s.discipline.trim() : "Sans Discipline";
+            let cat = s.category ? s.category.trim() : "Général";
+            if(cat.length > 0) {
+                cat = cat.charAt(0).toUpperCase() + cat.slice(1);
+            }
+            if (!tree[disc]) tree[disc] = {};
+            if (!tree[disc][cat]) tree[disc][cat] = [];
+            tree[disc][cat].push(s);
+        });
+
+        let html = '';
+        const sortedDisciplines = Object.keys(tree).sort();
+
+        sortedDisciplines.forEach(disc => {
+            html += `<div class="discipline-section">`;
+            html += `<h2 class="discipline-title">🎯 ${disc}</h2>`;
+
+            const sortedCategories = Object.keys(tree[disc]).sort();
+
+            sortedCategories.forEach(cat => {
+                html += `<div class="category-block">`;
+                html += `<div class="category-title">👥 ${cat}</div>`;
+                html += `<table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 50px;">Pl.</th>
+                                    <th>Nom Prénom</th>
+                                    <th>Club</th>
+                                    ${hasSlots ? '<th>Série</th>' : ''}
+                                    <th style="text-align: right; width: 100px;">Score</th>
+                                </tr>
+                            </thead>
+                            <tbody>`;
+
+                const rankedShooters = tree[disc][cat].sort((a, b) => (b.score || 0) - (a.score || 0));
+
+                rankedShooters.forEach((s, index) => {
+                    const displayScore = s.score !== undefined ? s.score : 0;
+                    const medal = (index === 0) ? "🥇 " : (index === 1) ? "🥈 " : (index === 2) ? "🥉 " : "";
+                    const slotLabel = slotByShooter[s.id] || '';
+                    html += `<tr>
+                                <td class="rank-cell">${index + 1}</td>
+                                <td class="name-cell">${medal}${s.lastName} ${s.firstName}</td>
+                                <td class="club-cell">${s.club || '-'}</td>
+                                ${hasSlots ? `<td class="slot-cell">${slotLabel || '—'}</td>` : ''}
+                                <td class="score-cell">${displayScore}</td>
+                             </tr>`;
+                });
+                html += `</tbody></table></div>`;
+            });
+            html += `</div>`;
+        });
+
+        document.getElementById('resultsContainer').innerHTML = html;
     }
 
     let isScrolling = true;
