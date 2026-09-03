@@ -391,11 +391,12 @@
     .slot-label { font-weight: 600; font-size: 0.92rem; }
     .slot-count { font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 0.95rem; color: var(--accent); margin-left: 10px; }
     .slot-row.full .slot-count { color: var(--red); }
-    .slot-del {
+    .slot-del, .slot-dup {
       background: none; border: none; color: var(--text-dim); cursor: pointer;
-      font-size: 1rem; padding: 4px 8px; margin-left: 8px;
+      font-size: 1rem; padding: 4px 8px; margin-left: 4px;
     }
     .slot-del:hover { color: var(--red); }
+    .slot-dup:hover { color: var(--accent); }
     .slot-empty { color: var(--text-dim); font-size: 0.85rem; text-align: center; padding: 14px; }
     .slot-when { font-family: 'Rajdhani', sans-serif; font-weight: 700; color: var(--text-muted); font-size: 0.85rem; margin-right: 8px; white-space: nowrap; }
     .slot-add-grid {
@@ -715,9 +716,12 @@
       return `${d}/${m}` + (slot.time ? ' ' + slot.time : '');
     }
 
+    let lastSlotsData = {};
+
     function renderSlotsList(snap) {
       const list = document.getElementById('slotsList');
       const data = snap.val();
+      lastSlotsData = data || {};
       if (!data) {
         list.innerHTML = '<div class="slot-empty">Aucune série créée. Les tireurs s\'inscriront librement (sans limite de places).</div>';
         return;
@@ -737,10 +741,25 @@
           <span class="slot-label">${displayLabel}</span>
           <span style="display:flex; align-items:center;">
             <span class="slot-count">${count} / ${capacity} ${isFull ? '· COMPLET' : ''}</span>
+            <button class="slot-dup" title="Dupliquer" onclick="duplicateSlot('${slotId}')">📋</button>
             <button class="slot-del" title="Supprimer" onclick="deleteSlot('${slotId}')">🗑️</button>
           </span>`;
         list.appendChild(row);
       });
+    }
+
+    // Reprend le libellé + le nombre de postes d'une série existante dans le formulaire
+    // d'ajout, pour n'avoir plus qu'à changer la date/l'heure (cas fréquent : plusieurs
+    // séries identiques à des horaires différents).
+    function duplicateSlot(slotId) {
+      const slot = lastSlotsData[slotId];
+      if (!slot) return;
+      document.getElementById('newSlotDate').value = slot.date || '';
+      document.getElementById('newSlotTime').value = slot.time || '';
+      document.getElementById('newSlotLabel').value = slot.label || '';
+      document.getElementById('newSlotCapacity').value = slot.capacity || '';
+      updateSlotPreview();
+      document.getElementById('newSlotTime').focus();
     }
 
     // Aperçu live : montre exactement ce qui sera enregistré, pour repérer tout de suite
