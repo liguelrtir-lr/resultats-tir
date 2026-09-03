@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v2.3 — 03/09/2026 -->
+<!-- LIGUE LR — version v2.4 — 03/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -598,7 +598,7 @@
             </div>
         </div>
         <div class="header-actions">
-            <span class="version-tag">v2.3</span>
+            <span class="version-tag">v2.4</span>
             <button type="button" id="btnToggleImport" class="btn-toggle-import">
                 <span>🪄</span> Import Tireurs
             </button>
@@ -693,6 +693,12 @@
             <div class="field" id="catFieldWrap">
                 <label>Catégorie</label>
                 <select id="newCategorie"></select>
+            </div>
+        </div>
+        <div class="form-row" id="slotFieldRow" style="display:none;">
+            <div class="field">
+                <label>Série (optionnel)</label>
+                <select id="newSlot"><option value="">— Aucune —</option></select>
             </div>
         </div>
 
@@ -839,7 +845,8 @@
         return `${d}/${m}` + (slot.time ? ' ' + slot.time : '');
     }
 
-    let slotByShooter = {}; // shooterId -> libellé de série
+    let slotByShooter = {}; // shooterId -> { slotId, label }
+    let slotsData = {};     // slotId -> slot (label, capacity, count, date, time, registered)
     let hasSlots = false;
 
     function startDataListeners() {
@@ -854,6 +861,7 @@
             // à partir du même lien slots/registered créé au moment de l'inscription.
             db.ref(CLUB_PATH + '/' + compId + '/slots').on('value', snap => {
                 const slots = snap.val() || {};
+                slotsData = slots;
                 const map = {};
                 let any = false;
                 Object.keys(slots).forEach(slotId => {
@@ -861,10 +869,11 @@
                     const when = formatSlotWhen(slot);
                     const label = when ? (slot.label ? `${when} — ${slot.label}` : when) : (slot.label || '');
                     const registered = slot.registered || {};
-                    Object.keys(registered).forEach(shooterId => { map[shooterId] = label; any = true; });
+                    Object.keys(registered).forEach(shooterId => { map[shooterId] = { slotId, label }; any = true; });
                 });
                 slotByShooter = map;
                 hasSlots = any;
+                populateSlotSelect();
                 filterList();
             });
             // Présélectionne le type de discipline en fonction de la compétition créée dans index_admin.html
@@ -1092,12 +1101,45 @@
         }
     }
 
+    // ─── Séries : (dés)association d'un tireur à une série, indépendamment du schéma "shooters"
+    // (écrit uniquement sous slots/<id>/registered et slots/<id>/count, jamais sur le tireur lui-même).
+    function populateSlotSelect() {
+        const row = document.getElementById('slotFieldRow');
+        const sel = document.getElementById('newSlot');
+        if (!hasSlots) { row.style.display = 'none'; sel.innerHTML = '<option value="">— Aucune —</option>'; return; }
+        row.style.display = 'block';
+        const currentVal = sel.value;
+        let html = '<option value="">— Aucune —</option>';
+        Object.keys(slotsData).forEach(slotId => {
+            const slot = slotsData[slotId];
+            const when = formatSlotWhen(slot);
+            const label = when ? (slot.label ? `${when} — ${slot.label}` : when) : (slot.label || '(sans nom)');
+            const capacity = Number(slot.capacity) || 0;
+            const count = Number(slot.count) || 0;
+            html += `<option value="${slotId}">${label} (${count}/${capacity})</option>`;
+        });
+        sel.innerHTML = html;
+        if (currentVal && slotsData[currentVal]) sel.value = currentVal;
+    }
+
+    function assignSlot(shooterId, slotId, info) {
+        if (!slotId) return;
+        db.ref(CLUB_PATH + '/' + compId + '/slots/' + slotId + '/registered/' + shooterId).set(info);
+        db.ref(CLUB_PATH + '/' + compId + '/slots/' + slotId + '/count').transaction(c => (c || 0) + 1);
+    }
+    function unassignSlot(shooterId, slotId) {
+        if (!slotId) return;
+        db.ref(CLUB_PATH + '/' + compId + '/slots/' + slotId + '/registered/' + shooterId).remove();
+        db.ref(CLUB_PATH + '/' + compId + '/slots/' + slotId + '/count').transaction(c => Math.max(0, (c || 0) - 1));
+    }
+
     function addShooter() {
         const nom = document.getElementById('newNom').value.toUpperCase().trim();
         const prenom = document.getElementById('newPrenom').value.trim();
         const club = document.getElementById('newClub').value.trim() || "-";
         const disc = document.getElementById('newDiscipline').value.trim();
         const cat = document.getElementById('newCategorie').value.trim() || "Général";
+        const slotId = document.getElementById('newSlot').value;
 
         if (!nom || !prenom) return alert("Nom et Prénom requis");
         if (!disc) return alert("Discipline requise");
@@ -1111,7 +1153,8 @@
         // champs exacts sur un tireur — un champ en plus (ex: typeGroup) fait échouer l'écriture
         // avec PERMISSION_DENIED. Le type est redéduit à l'édition dans prepareEdit() ci-dessous.
         const s = { lastName: nom, firstName: prenom, club: club, discipline: disc, category: cat, score: 0 };
-        db.ref(CLUB_PATH + '/' + compId + '/shooters').push(s);
+        const newRef = db.ref(CLUB_PATH + '/' + compId + '/shooters').push(s);
+        if (slotId) assignSlot(newRef.key, slotId, { lastName: nom, firstName: prenom, club: club });
         const key = nom.replace(/[^a-zA-Z]/g, "") + "_" + prenom.replace(/[^a-zA-Z]/g, "");
         db.ref('Ligue_Tireurs_Archive/' + key).set({ lastName: nom, firstName: prenom, club: club });
         resetForm();
@@ -1146,6 +1189,10 @@
         document.getElementById('newDiscipline').value = s.discipline;
         if (!dataRef[foundType].freeText) { updateCategories(); }
         document.getElementById('newCategorie').value = s.category;
+
+        populateSlotSelect();
+        const currentSlot = slotByShooter[id];
+        document.getElementById('newSlot').value = currentSlot ? currentSlot.slotId : '';
     }
 
     function saveModification() {
@@ -1158,11 +1205,26 @@
             category: document.getElementById('newCategorie').value.trim() || "Général"
         };
         db.ref(CLUB_PATH + '/' + compId + '/shooters/' + id).update(updates);
+
+        // Si la série a été changée dans le formulaire, on désinscrit de l'ancienne et on
+        // inscrit dans la nouvelle (les deux nœuds sont indépendants du tireur lui-même).
+        const newSlotId = document.getElementById('newSlot').value;
+        const prevSlot = slotByShooter[id];
+        const prevSlotId = prevSlot ? prevSlot.slotId : '';
+        if (prevSlotId !== newSlotId) {
+            if (prevSlotId) unassignSlot(id, prevSlotId);
+            if (newSlotId) assignSlot(id, newSlotId, { lastName: updates.lastName, firstName: updates.firstName, club: updates.club });
+        }
         resetForm();
     }
 
     function deleteShooter(id) {
-        if(confirm("Supprimer ce tireur ?")) { db.ref(CLUB_PATH + '/' + compId + '/shooters/' + id).remove(); }
+        if(confirm("Supprimer ce tireur ?")) {
+            // Libère aussi sa place de série le cas échéant, pour ne pas garder une place bloquée.
+            const currentSlot = slotByShooter[id];
+            if (currentSlot) unassignSlot(id, currentSlot.slotId);
+            db.ref(CLUB_PATH + '/' + compId + '/shooters/' + id).remove();
+        }
     }
 
     function resetForm() {
@@ -1170,6 +1232,7 @@
         document.getElementById('newNom').value = '';
         document.getElementById('newPrenom').value = '';
         document.getElementById('newClub').value = '';
+        document.getElementById('newSlot').value = '';
         document.getElementById('btnAdd').style.display = 'block';
         document.getElementById('btnUpdate').style.display = 'none';
         document.getElementById('btnCancel').style.display = 'none';
@@ -1196,7 +1259,7 @@
                     </div>
                 </div>
                 <div class="actions">
-                    ${hasSlots ? `<span class="tag slot-tag" title="Série">${slotByShooter[s.id] || '—'}</span>` : ''}
+                    ${hasSlots ? `<span class="tag slot-tag" title="Série">${(slotByShooter[s.id] && slotByShooter[s.id].label) || '—'}</span>` : ''}
                     <input type="number" step="0.1" class="score-input" value="${s.score || 0}" onchange="saveScore('${s.id}', this.value)">
                     <button type="button" class="btn-calc" title="Additionner plusieurs séries" onclick="openScoreCalc('${s.id}', '${(s.lastName + ' ' + s.firstName).replace(/'/g,"\\'")}')">🧮</button>
                     <button type="button" class="btn-action btn-edit" onclick="prepareEdit('${s.id}')">✏️</button>
