@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v2.6 — 03/09/2026 -->
+<!-- LIGUE LR — version v2.7 — 03/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -338,11 +338,13 @@
             display: flex; gap: 8px; flex-wrap: wrap;
         }
         .volees-detail {
-            font-size: 0.78rem;
+            font-size: 0.85rem;
             color: var(--text-dim);
-            margin-top: 4px;
             font-family: 'Barlow Condensed', monospace;
             letter-spacing: 0.03em;
+            white-space: nowrap;
+            padding: 0 14px;
+            flex-shrink: 0;
         }
         .shooter-detail .tag {
             background: var(--surface2);
@@ -605,7 +607,7 @@
             </div>
         </div>
         <div class="header-actions">
-            <span class="version-tag">v2.6</span>
+            <span class="version-tag">v2.7</span>
             <button type="button" id="btnToggleImport" class="btn-toggle-import">
                 <span>🪄</span> Import Tireurs
             </button>
@@ -1264,8 +1266,8 @@
                         <span class="tag" style="border-color:rgba(217,154,28,0.4); color:#b07d10">${s.category}</span>
                         <span class="tag">${s.club}</span>
                     </div>
-                    ${s.series ? `<div class="volees-detail">Séries : ${s.series.split(',').join('  ')}</div>` : ''}
                 </div>
+                ${s.series ? `<div class="volees-detail">${s.series.split(',').join('  ')}</div>` : ''}
                 <div class="actions">
                     ${hasSlots ? `<span class="tag slot-tag" title="Série (créneau)">${(slotByShooter[s.id] && slotByShooter[s.id].label) || '—'}</span>` : ''}
                     <input type="number" step="0.1" class="score-input" value="${s.score || 0}" onchange="saveScore('${s.id}', this.value)">

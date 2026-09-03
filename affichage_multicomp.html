@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v2.3 — 03/09/2026 -->
+<!-- LIGUE LR — version v2.4 — 03/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -162,14 +162,14 @@
         tr:nth-child(3) .rank-cell { color: #b45309; font-size: 1.15rem; }
 
         .name-cell { font-weight: 600; }
-        .volees-line {
-            font-weight: 400;
-            font-size: 0.8rem;
+        .club-cell { color: var(--text-light); }
+
+        .series-cell {
             color: var(--text-light);
-            margin-top: 2px;
+            font-size: 0.9rem;
+            white-space: nowrap;
             letter-spacing: 0.02em;
         }
-        .club-cell { color: var(--text-light); }
 
         .score-cell {
             text-align: right;
@@ -201,7 +201,7 @@
         <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
         <div class="header-center">
             <h1>🏆 PALMARÈS PROVISOIRE</h1>
-            <div class="version-tag">v2.3</div>
+            <div class="version-tag">v2.4</div>
             <div id="compTitle" class="comp-name">Chargement...</div>
         </div>
         <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
@@ -311,6 +311,9 @@
             sortedCategories.forEach(cat => {
                 html += `<div class="category-block">`;
                 html += `<div class="category-title">👥 ${cat}</div>`;
+                const catShooters = tree[disc][cat];
+                const hasSeries = catShooters.some(s => s.series);
+
                 html += `<table>
                             <thead>
                                 <tr>
@@ -318,23 +321,25 @@
                                     <th>Nom Prénom</th>
                                     <th>Club</th>
                                     ${hasSlots ? '<th>Série</th>' : ''}
+                                    ${hasSeries ? '<th>Séries</th>' : ''}
                                     <th style="text-align: right; width: 100px;">Score</th>
                                 </tr>
                             </thead>
                             <tbody>`;
 
-                const rankedShooters = tree[disc][cat].sort((a, b) => (b.score || 0) - (a.score || 0));
+                const rankedShooters = catShooters.sort((a, b) => (b.score || 0) - (a.score || 0));
 
                 rankedShooters.forEach((s, index) => {
                     const displayScore = s.score !== undefined ? s.score : 0;
                     const medal = (index === 0) ? "🥇 " : (index === 1) ? "🥈 " : (index === 2) ? "🥉 " : "";
                     const slotLabel = slotByShooter[s.id] || '';
-                    const voleesLine = s.series ? `<div class="volees-line">${s.series.split(',').join('  ')}</div>` : '';
+                    const seriesLabel = s.series ? s.series.split(',').join('  ') : '';
                     html += `<tr>
                                 <td class="rank-cell">${index + 1}</td>
-                                <td class="name-cell">${medal}${s.lastName} ${s.firstName}${voleesLine}</td>
+                                <td class="name-cell">${medal}${s.lastName} ${s.firstName}</td>
                                 <td class="club-cell">${s.club || '-'}</td>
                                 ${hasSlots ? `<td class="slot-cell">${slotLabel || '—'}</td>` : ''}
+                                ${hasSeries ? `<td class="series-cell">${seriesLabel || '—'}</td>` : ''}
                                 <td class="score-cell">${displayScore}</td>
                              </tr>`;
                 });
