@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v2.1 — 03/09/2026 -->
+<!-- LIGUE LR — version v2.2 — 03/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -493,6 +493,71 @@
             margin-top: 12px;
             min-height: 1em;
         }
+
+        /* CALCUL SCORE (addition de plusieurs séries) */
+        .btn-calc {
+            border: none; background: var(--surface2); color: var(--blue);
+            border: 1px solid var(--blue); border-radius: var(--radius);
+            width: 34px; height: 34px; font-size: 1rem; cursor: pointer;
+            flex-shrink: 0; transition: all 0.15s;
+        }
+        .btn-calc:hover { background: var(--blue); color: white; }
+        .modal-calc {
+            position: fixed; inset: 0; background: rgba(42,20,16,0.55);
+            backdrop-filter: blur(4px); display: none;
+            align-items: center; justify-content: center; z-index: 1000; padding: 16px;
+        }
+        .modal-calc.active { display: flex; }
+        .modal-calc-content {
+            background: var(--surface); border-radius: var(--radius-lg);
+            padding: 26px; width: 100%; max-width: 380px;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.3);
+        }
+        .modal-calc-title {
+            font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 1.15rem;
+            letter-spacing: 0.03em; text-transform: uppercase; color: var(--text);
+            margin-bottom: 4px;
+        }
+        .modal-calc-hint { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 14px; }
+        .calc-series-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .calc-series-row input {
+            flex: 1; background: var(--surface2); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 9px 10px; font-size: 0.95rem;
+            color: var(--text); outline: none;
+        }
+        .calc-series-row input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(193,39,29,0.12); }
+        .calc-series-row button {
+            background: none; border: none; color: var(--text-dim); cursor: pointer;
+            font-size: 0.95rem; padding: 4px 6px;
+        }
+        .calc-series-row button:hover { color: var(--red); }
+        .btn-calc-add {
+            background: var(--surface2); border: 1px dashed var(--border); color: var(--text-muted);
+            border-radius: var(--radius); padding: 9px; width: 100%; cursor: pointer;
+            font-size: 0.85rem; margin-top: 2px; margin-bottom: 16px;
+        }
+        .btn-calc-add:hover { border-color: var(--blue); color: var(--blue); }
+        .calc-total-row {
+            display: flex; justify-content: space-between; align-items: center;
+            font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 1.3rem;
+            color: var(--blue); background: var(--surface2); border-radius: var(--radius);
+            padding: 10px 14px; margin-bottom: 18px;
+        }
+        .modal-calc .modal-actions { display: flex; gap: 10px; }
+        .modal-calc .btn-modal-cancel {
+            flex: 1; padding: 12px; border-radius: var(--radius);
+            border: 1px solid var(--border); background: var(--surface2);
+            font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 0.9rem;
+            text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; color: var(--text-muted);
+        }
+        .modal-calc .btn-modal-cancel:hover { background: var(--border); }
+        .modal-calc .btn-modal-confirm {
+            flex: 1; padding: 12px; border-radius: var(--radius); border: none;
+            background: var(--blue); color: white;
+            font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 0.9rem;
+            text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer;
+        }
+        .modal-calc .btn-modal-confirm:hover { background: #a51e16; }
     </style>
 </head>
 <body>
@@ -519,7 +584,7 @@
             </div>
         </div>
         <div class="header-actions">
-            <span class="version-tag">v2.1</span>
+            <span class="version-tag">v2.2</span>
             <button type="button" id="btnToggleImport" class="btn-toggle-import">
                 <span>🪄</span> Import Tireurs
             </button>
@@ -646,6 +711,21 @@
                 <div class="empty-icon">🎯</div>
                 Aucun tireur enregistré pour cette compétition.
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL CALCUL DE SCORE : additionne plusieurs séries (ex: 87 89 92 93 91 90) en un total -->
+<div class="modal-calc" id="scoreCalcModal">
+    <div class="modal-calc-content">
+        <div class="modal-calc-title">🧮 Total du score — <span id="calcShooterName"></span></div>
+        <div class="modal-calc-hint">Une case par série. Le total se calcule tout seul.</div>
+        <div id="calcSeriesList"></div>
+        <button type="button" class="btn-calc-add" onclick="addSeriesField()">+ Ajouter une série</button>
+        <div class="calc-total-row">Total <span id="calcTotalValue">0</span></div>
+        <div class="modal-actions">
+            <button class="btn-modal-cancel" onclick="closeScoreCalc()">Annuler</button>
+            <button class="btn-modal-confirm" onclick="saveCalcTotal()">✅ Enregistrer le total</button>
         </div>
     </div>
 </div>
@@ -1076,6 +1156,7 @@
                 </div>
                 <div class="actions">
                     <input type="number" step="0.1" class="score-input" value="${s.score || 0}" onchange="saveScore('${s.id}', this.value)">
+                    <button type="button" class="btn-calc" title="Additionner plusieurs séries" onclick="openScoreCalc('${s.id}', '${(s.lastName + ' ' + s.firstName).replace(/'/g,"\\'")}')">🧮</button>
                     <button type="button" class="btn-action btn-edit" onclick="prepareEdit('${s.id}')">✏️</button>
                     <button type="button" class="btn-action btn-del" onclick="deleteShooter('${s.id}')">🗑️</button>
                 </div>`;
@@ -1084,6 +1165,51 @@
     }
 
     function saveScore(id, val) { db.ref(CLUB_PATH + '/' + compId + '/shooters/' + id).update({ score: parseFloat(val) || 0 }); }
+
+    // ─── Calcul de score par addition de plusieurs séries (ex: 87 89 92 93 91 90 → total 542) ───
+    // NB : seul le TOTAL est enregistré dans le champ "score" existant (le détail des séries n'est
+    // pas sauvegardé sur le tireur, pour rester dans le schéma Firebase déjà validé par les règles).
+    let calcShooterId = null;
+
+    function openScoreCalc(id, name) {
+        calcShooterId = id;
+        document.getElementById('calcShooterName').textContent = name;
+        document.getElementById('calcSeriesList').innerHTML = '';
+        for (let i = 0; i < 4; i++) addSeriesField();
+        updateCalcTotal();
+        document.getElementById('scoreCalcModal').classList.add('active');
+    }
+
+    function closeScoreCalc() {
+        document.getElementById('scoreCalcModal').classList.remove('active');
+        calcShooterId = null;
+    }
+
+    function addSeriesField(value) {
+        const list = document.getElementById('calcSeriesList');
+        const row = document.createElement('div');
+        row.className = 'calc-series-row';
+        row.innerHTML = `
+            <input type="number" step="0.1" placeholder="Série ${list.children.length + 1}" value="${value != null ? value : ''}" oninput="updateCalcTotal()">
+            <button type="button" title="Retirer" onclick="this.parentElement.remove(); updateCalcTotal();">🗑️</button>`;
+        list.appendChild(row);
+        updateCalcTotal();
+    }
+
+    function updateCalcTotal() {
+        const inputs = document.querySelectorAll('#calcSeriesList input');
+        let total = 0;
+        inputs.forEach(inp => { total += parseFloat(inp.value) || 0; });
+        // Affiche le total avec ou sans décimale selon le besoin (542 plutôt que 542.0)
+        document.getElementById('calcTotalValue').textContent = (Math.round(total * 100) / 100).toString();
+    }
+
+    function saveCalcTotal() {
+        if (!calcShooterId) return;
+        const total = parseFloat(document.getElementById('calcTotalValue').textContent) || 0;
+        saveScore(calcShooterId, total);
+        closeScoreCalc();
+    }
 
     function chercherDansArchive(val) {
         const box = document.getElementById('suggestions');
