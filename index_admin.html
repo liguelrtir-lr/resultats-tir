@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v2.1 — 03/09/2026 -->
+<!-- LIGUE LR — version v2.2 — 03/09/2026 -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
@@ -497,7 +497,7 @@
     </div>
     <button class="btn-create" onclick="openCreateModal()">+ Nouvelle Compétition</button>
     <button class="btn-logout" onclick="doLogout()" style="margin-top:auto;">⎋ Déconnexion</button>
-    <div class="sidebar-footer">LIGUE LR · v2.1 — 03/09/2026</div>
+    <div class="sidebar-footer">LIGUE LR · v2.2 — 03/09/2026</div>
   </aside>
 
   <main class="main-content">
@@ -879,7 +879,7 @@
               <span class="stat-val">${shooterCount}</span>
             </div>
             <div class="actions-grid">
-              <a href="saisie_multicomp.html?comp=${code}" class="btn-act btn-saisie">⌨️ Saisie</a>
+              <a href="saisie_multicomp.html?comp=${code}" target="_blank" class="btn-act btn-saisie">⌨️ Saisie</a>
               <button onclick="openQr('${code}','inscription')" class="btn-act btn-qr">📱 QR Inscription</button>
               <button onclick="openQr('${code}','resultats')" class="btn-act btn-qr" style="grid-column: span 2;">🏆 QR Résultats</button>
               <button onclick="openSlotsModal('${code}', '${config.name.replace(/'/g,"\\'")}')" class="btn-act btn-slots">🎟️ Séries</button>
