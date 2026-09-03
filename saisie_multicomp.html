@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v2.4 — 03/09/2026 -->
+<!-- LIGUE LR — version v2.6 — 03/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -337,6 +337,13 @@
             margin-top: 2px;
             display: flex; gap: 8px; flex-wrap: wrap;
         }
+        .volees-detail {
+            font-size: 0.78rem;
+            color: var(--text-dim);
+            margin-top: 4px;
+            font-family: 'Barlow Condensed', monospace;
+            letter-spacing: 0.03em;
+        }
         .shooter-detail .tag {
             background: var(--surface2);
             border: 1px solid var(--border);
@@ -598,7 +605,7 @@
             </div>
         </div>
         <div class="header-actions">
-            <span class="version-tag">v2.4</span>
+            <span class="version-tag">v2.6</span>
             <button type="button" id="btnToggleImport" class="btn-toggle-import">
                 <span>🪄</span> Import Tireurs
             </button>
@@ -735,17 +742,17 @@
     </div>
 </div>
 
-<!-- MODAL CALCUL DE SCORE : additionne plusieurs séries (ex: 87 89 92 93 91 90) en un total -->
+<!-- MODAL CALCUL DE SCORE : additionne plusieurs séries (ex: 90 90 92 88 82 87) en un total -->
 <div class="modal-calc" id="scoreCalcModal">
     <div class="modal-calc-content">
-        <div class="modal-calc-title">🧮 Total du score — <span id="calcShooterName"></span></div>
-        <div class="modal-calc-hint">Une case par série. Le total se calcule tout seul.</div>
+        <div class="modal-calc-title">🧮 Détail du score — <span id="calcShooterName"></span></div>
+        <div class="modal-calc-hint">Une case par série (ex : 10 tirs). Le total se calcule tout seul, et le détail des séries s'affiche ensuite dans la liste et sur l'écran TV.</div>
         <div id="calcSeriesList"></div>
         <button type="button" class="btn-calc-add" onclick="addSeriesField()">+ Ajouter une série</button>
         <div class="calc-total-row">Total <span id="calcTotalValue">0</span></div>
         <div class="modal-actions">
             <button class="btn-modal-cancel" onclick="closeScoreCalc()">Annuler</button>
-            <button class="btn-modal-confirm" onclick="saveCalcTotal()">✅ Enregistrer le total</button>
+            <button class="btn-modal-confirm" onclick="saveCalcTotal()">✅ Enregistrer</button>
         </div>
     </div>
 </div>
@@ -1257,11 +1264,12 @@
                         <span class="tag" style="border-color:rgba(217,154,28,0.4); color:#b07d10">${s.category}</span>
                         <span class="tag">${s.club}</span>
                     </div>
+                    ${s.series ? `<div class="volees-detail">Séries : ${s.series.split(',').join('  ')}</div>` : ''}
                 </div>
                 <div class="actions">
-                    ${hasSlots ? `<span class="tag slot-tag" title="Série">${(slotByShooter[s.id] && slotByShooter[s.id].label) || '—'}</span>` : ''}
+                    ${hasSlots ? `<span class="tag slot-tag" title="Série (créneau)">${(slotByShooter[s.id] && slotByShooter[s.id].label) || '—'}</span>` : ''}
                     <input type="number" step="0.1" class="score-input" value="${s.score || 0}" onchange="saveScore('${s.id}', this.value)">
-                    <button type="button" class="btn-calc" title="Additionner plusieurs séries" onclick="openScoreCalc('${s.id}', '${(s.lastName + ' ' + s.firstName).replace(/'/g,"\\'")}')">🧮</button>
+                    <button type="button" class="btn-calc" title="Détail par séries" onclick="openScoreCalc('${s.id}', '${(s.lastName + ' ' + s.firstName).replace(/'/g,"\\'")}')">🧮</button>
                     <button type="button" class="btn-action btn-edit" onclick="prepareEdit('${s.id}')">✏️</button>
                     <button type="button" class="btn-action btn-del" onclick="deleteShooter('${s.id}')">🗑️</button>
                 </div>`;
@@ -1271,16 +1279,26 @@
 
     function saveScore(id, val) { db.ref(CLUB_PATH + '/' + compId + '/shooters/' + id).update({ score: parseFloat(val) || 0 }); }
 
-    // ─── Calcul de score par addition de plusieurs séries (ex: 87 89 92 93 91 90 → total 542) ───
-    // NB : seul le TOTAL est enregistré dans le champ "score" existant (le détail des séries n'est
-    // pas sauvegardé sur le tireur, pour rester dans le schéma Firebase déjà validé par les règles).
+    // ─── Calcul de score par addition de plusieurs séries de tirs (ex: 90 90 92 88 82 87 → total 529) ───
+    // Le TOTAL est enregistré dans le champ "score" existant, et le détail série par série dans un
+    // nouveau champ "series" (texte, ex: "90,90,92,88,82,87") — ajouté au schéma Firebase (règles
+    // mises à jour) pour pouvoir l'afficher dans la liste et sur l'écran TV.
+    // NB : ce "série" (suite de tirs, ex: 10 coups = 100 points) est un mot différent de la "Série"
+    // de créneau d'inscription (places limitées) utilisée ailleurs sur le site — même mot, deux sens
+    // distincts selon le contexte, comme dans le club.
     let calcShooterId = null;
 
     function openScoreCalc(id, name) {
         calcShooterId = id;
         document.getElementById('calcShooterName').textContent = name;
         document.getElementById('calcSeriesList').innerHTML = '';
-        for (let i = 0; i < 4; i++) addSeriesField();
+        const shooter = shootersData.find(x => x.id === id);
+        const existing = (shooter && shooter.series) ? shooter.series.split(',').map(v => v.trim()).filter(v => v !== '') : [];
+        if (existing.length > 0) {
+            existing.forEach(v => addSeriesField(v));
+        } else {
+            for (let i = 0; i < 4; i++) addSeriesField();
+        }
         updateCalcTotal();
         document.getElementById('scoreCalcModal').classList.add('active');
     }
@@ -1311,8 +1329,14 @@
 
     function saveCalcTotal() {
         if (!calcShooterId) return;
+        const inputs = document.querySelectorAll('#calcSeriesList input');
+        const values = [];
+        inputs.forEach(inp => { if (inp.value.trim() !== '') values.push(parseFloat(inp.value) || 0); });
         const total = parseFloat(document.getElementById('calcTotalValue').textContent) || 0;
-        saveScore(calcShooterId, total);
+        db.ref(CLUB_PATH + '/' + compId + '/shooters/' + calcShooterId).update({
+            score: total,
+            series: values.join(',')
+        });
         closeScoreCalc();
     }
 

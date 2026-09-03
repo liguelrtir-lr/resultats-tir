@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v2.2 — 03/09/2026 -->
+<!-- LIGUE LR — version v2.3 — 03/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -162,6 +162,13 @@
         tr:nth-child(3) .rank-cell { color: #b45309; font-size: 1.15rem; }
 
         .name-cell { font-weight: 600; }
+        .volees-line {
+            font-weight: 400;
+            font-size: 0.8rem;
+            color: var(--text-light);
+            margin-top: 2px;
+            letter-spacing: 0.02em;
+        }
         .club-cell { color: var(--text-light); }
 
         .score-cell {
@@ -194,7 +201,7 @@
         <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
         <div class="header-center">
             <h1>🏆 PALMARÈS PROVISOIRE</h1>
-            <div class="version-tag">v2.2</div>
+            <div class="version-tag">v2.3</div>
             <div id="compTitle" class="comp-name">Chargement...</div>
         </div>
         <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
@@ -322,9 +329,10 @@
                     const displayScore = s.score !== undefined ? s.score : 0;
                     const medal = (index === 0) ? "🥇 " : (index === 1) ? "🥈 " : (index === 2) ? "🥉 " : "";
                     const slotLabel = slotByShooter[s.id] || '';
+                    const voleesLine = s.series ? `<div class="volees-line">${s.series.split(',').join('  ')}</div>` : '';
                     html += `<tr>
                                 <td class="rank-cell">${index + 1}</td>
-                                <td class="name-cell">${medal}${s.lastName} ${s.firstName}</td>
+                                <td class="name-cell">${medal}${s.lastName} ${s.firstName}${voleesLine}</td>
                                 <td class="club-cell">${s.club || '-'}</td>
                                 ${hasSlots ? `<td class="slot-cell">${slotLabel || '—'}</td>` : ''}
                                 <td class="score-cell">${displayScore}</td>
