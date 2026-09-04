@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<!-- LIGUE LR — version v1.0 — 04/09/2026 -->
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feuilles de séries — Impression</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <style>
+        :root {
+            --primary-bordeaux: #4a2c40;
+            --bg-pastel: #f8fafc;
+            --text-dark: #0f172a;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg-pastel);
+            color: var(--text-dark);
+            margin: 0;
+            padding: 24px;
+        }
+
+        .container { max-width: 900px; margin: 0 auto; }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--primary-bordeaux);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+        }
+
+        .header-logo { height: 60px; width: auto; object-fit: contain; }
+
+        .header-center { text-align: center; flex: 1; }
+
+        .header-center h1 { margin: 0; font-size: 1.5rem; font-weight: 800; }
+
+        .version-tag { font-size: 0.65em; opacity: 0.7; margin-top: -2px; margin-bottom: 4px; }
+
+        .comp-name {
+            margin-top: 4px;
+            font-size: 1rem;
+            color: #ffb8d9;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-bottom: 20px;
+        }
+
+        .btn-print {
+            background: var(--primary-bordeaux);
+            color: white;
+            border: none;
+            padding: 12px 22px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            cursor: pointer;
+        }
+        .btn-print:hover { opacity: 0.9; }
+
+        .generated-note {
+            text-align: center;
+            color: var(--text-light);
+            font-size: 0.85rem;
+            margin-bottom: 20px;
+        }
+
+        .serie-block {
+            background: white;
+            border-radius: 16px;
+            padding: 20px 24px;
+            margin-bottom: 24px;
+            border: 1px solid var(--border);
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
+        .serie-header {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            border-bottom: 2px solid var(--primary-bordeaux);
+            padding-bottom: 10px;
+            margin-bottom: 14px;
+        }
+
+        .serie-title { font-size: 1.2rem; font-weight: 800; color: var(--primary-bordeaux); }
+        .serie-count { font-size: 0.95rem; color: var(--text-light); font-weight: 600; }
+
+        table { width: 100%; border-collapse: collapse; }
+
+        th {
+            text-align: left;
+            color: var(--text-light);
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            padding: 6px 8px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        td { padding: 8px; border-bottom: 1px solid #f1f5f9; font-size: 0.98rem; }
+        tr:last-child td { border-bottom: none; }
+
+        .col-num { width: 34px; color: var(--text-light); }
+        .col-poste { width: 90px; }
+        .poste-box {
+            display: inline-block;
+            width: 100%;
+            min-height: 22px;
+            border-bottom: 1.5px dotted var(--text-light);
+        }
+
+        .no-data { text-align: center; padding: 40px; color: var(--text-light); font-style: italic; }
+
+        .warn-block {
+            background: #fff7e6;
+            border: 1px solid #fde3ad;
+            border-radius: 16px;
+            padding: 20px 24px;
+            margin-bottom: 24px;
+            page-break-inside: avoid;
+        }
+        .warn-title { font-size: 1.05rem; font-weight: 800; color: #b45309; margin-bottom: 10px; }
+
+        .discipline-title {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: var(--primary-bordeaux);
+            margin: 18px 0 10px;
+        }
+
+        @media print {
+            body { background: white; padding: 0; }
+            header { border-radius: 0; }
+            .toolbar { display: none; }
+            .generated-note { margin-bottom: 14px; }
+            .serie-block, .warn-block { box-shadow: none; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
+        <div class="header-center">
+            <h1>🖨️ Feuilles de séries</h1>
+            <div class="version-tag">v1.0</div>
+            <div id="compTitle" class="comp-name">Chargement...</div>
+        </div>
+        <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
+    </header>
+
+    <div class="toolbar">
+        <button class="btn-print" onclick="window.print()">🖨️ Imprimer cette page</button>
+    </div>
+    <div class="generated-note" id="generatedNote"></div>
+
+    <div id="content">
+        <div class="no-data">Connexion au serveur en cours...</div>
+    </div>
+</div>
+
+<script>
+    const CONFIG = {
+      clubName: "LIGUE LR",
+      clubKey:  "LIGUE_LR",
+      firebase: {
+        apiKey: "AIzaSyAvfMRtRrhh_e-27xHlwIx9c5DIdUQm6HM",
+        authDomain: "resultats-tir-ligue-lr.firebaseapp.com",
+        databaseURL: "https://resultats-tir-ligue-lr-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "resultats-tir-ligue-lr",
+        storageBucket: "resultats-tir-ligue-lr.firebasestorage.app",
+        appId: "1:468808300974:web:563a14cc4477c10b28303f"
+      }
+    };
+
+    firebase.initializeApp(CONFIG.firebase);
+    const db = firebase.database();
+    const CLUB_PATH = 'clubs/' + CONFIG.clubKey;
+    const compId = new URLSearchParams(window.location.search).get('comp');
+
+    document.title = "🖨️ " + CONFIG.clubName + " — Feuilles de séries";
+    document.querySelectorAll('.header-logo').forEach(img => { img.alt = "Logo " + CONFIG.clubName; });
+    document.getElementById('generatedNote').textContent =
+        "Généré le " + new Date().toLocaleDateString('fr-FR') + " à " + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+
+    function formatSlotWhen(slot) {
+        if (!slot.date) return '';
+        const [y, m, d] = slot.date.split('-');
+        return `${d}/${m}` + (slot.time ? ' ' + slot.time : '');
+    }
+
+    function sortedSlotEntries(data) {
+        return Object.keys(data).map(slotId => [slotId, data[slotId]]).sort((a, b) => {
+            const ka = a[1].datetime || null;
+            const kb = b[1].datetime || null;
+            if (ka && kb) return ka < kb ? -1 : (ka > kb ? 1 : 0);
+            if (ka && !kb) return -1;
+            if (!ka && kb) return 1;
+            return 0;
+        });
+    }
+
+    function escapeHtml(str) {
+        return (str || '').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    let lastShooters = null;
+    let lastSlots = null;
+
+    if (!compId) {
+        document.getElementById('content').innerHTML = `<div class="no-data" style="color:red; font-weight:bold;">⚠️ Erreur : Aucune compétition spécifiée.</div>`;
+    } else {
+        db.ref(CLUB_PATH + '/' + compId + '/config').on('value', snap => {
+            const config = snap.val();
+            document.getElementById('compTitle').textContent = (config && config.name) ? config.name : "Compétition";
+        });
+
+        db.ref(CLUB_PATH + '/' + compId + '/slots').on('value', snap => {
+            lastSlots = snap.val() || {};
+            render();
+        });
+
+        db.ref(CLUB_PATH + '/' + compId + '/shooters').on('value', snap => {
+            lastShooters = snap.val() || {};
+            render();
+        });
+    }
+
+    function render() {
+        if (lastShooters === null || lastSlots === null) return;
+
+        const shooters = Object.keys(lastShooters).map(key => ({ id: key, ...lastShooters[key] }));
+        const hasSlots = Object.keys(lastSlots).length > 0;
+
+        if (shooters.length === 0) {
+            document.getElementById('content').innerHTML = `<div class="no-data">Aucun tireur inscrit pour le moment.</div>`;
+            return;
+        }
+
+        let html = '';
+
+        if (hasSlots) {
+            // Pour chaque série (triée par date/heure), la liste des tireurs qui y sont inscrits.
+            const assignedIds = new Set();
+            sortedSlotEntries(lastSlots).forEach(([slotId, slot]) => {
+                const registered = slot.registered || {};
+                const ids = Object.keys(registered);
+                ids.forEach(id => assignedIds.add(id));
+                const rows = ids
+                    .map(id => shooters.find(s => s.id === id) || { id, ...registered[id] })
+                    .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
+
+                const when = formatSlotWhen(slot);
+                const title = when ? (slot.label ? `${when} — ${escapeHtml(slot.label)}` : when) : (escapeHtml(slot.label) || '(série sans nom)');
+                const capacity = Number(slot.capacity) || 0;
+                const count = rows.length;
+
+                html += `<div class="serie-block">
+                            <div class="serie-header">
+                                <div class="serie-title">🎯 ${title}</div>
+                                <div class="serie-count">${count} / ${capacity} inscrit(s)</div>
+                            </div>`;
+
+                if (rows.length === 0) {
+                    html += `<div class="no-data" style="padding:14px;">Aucun tireur inscrit dans cette série.</div>`;
+                } else {
+                    html += `<table>
+                                <thead>
+                                    <tr>
+                                        <th class="col-num">#</th>
+                                        <th>Nom</th>
+                                        <th>Prénom</th>
+                                        <th>Club</th>
+                                        <th>Discipline</th>
+                                        <th class="col-poste">Poste</th>
+                                    </tr>
+                                </thead>
+                                <tbody>`;
+                    rows.forEach((s, i) => {
+                        html += `<tr>
+                                    <td class="col-num">${i + 1}</td>
+                                    <td>${escapeHtml(s.lastName)}</td>
+                                    <td>${escapeHtml(s.firstName)}</td>
+                                    <td>${escapeHtml(s.club)}</td>
+                                    <td>${escapeHtml(s.discipline)}</td>
+                                    <td class="col-poste"><span class="poste-box"></span></td>
+                                 </tr>`;
+                    });
+                    html += `</tbody></table>`;
+                }
+                html += `</div>`;
+            });
+
+            // Tireurs inscrits à la compétition mais pas encore affectés à une série —
+            // à ne pas oublier au moment de préparer les pas de tir.
+            const unassigned = shooters.filter(s => !assignedIds.has(s.id))
+                .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
+            if (unassigned.length > 0) {
+                html += `<div class="warn-block">
+                            <div class="warn-title">⚠️ Tireurs non affectés à une série (${unassigned.length})</div>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th class="col-num">#</th>
+                                        <th>Nom</th>
+                                        <th>Prénom</th>
+                                        <th>Club</th>
+                                        <th>Discipline</th>
+                                    </tr>
+                                </thead>
+                                <tbody>`;
+                unassigned.forEach((s, i) => {
+                    html += `<tr>
+                                <td class="col-num">${i + 1}</td>
+                                <td>${escapeHtml(s.lastName)}</td>
+                                <td>${escapeHtml(s.firstName)}</td>
+                                <td>${escapeHtml(s.club)}</td>
+                                <td>${escapeHtml(s.discipline)}</td>
+                             </tr>`;
+                });
+                html += `</tbody></table></div>`;
+            }
+        } else {
+            // Pas de séries définies pour cette compétition : liste complète, groupée par
+            // discipline, pour préparer les pas de tir malgré tout.
+            html += `<div class="warn-block">
+                        <div class="warn-title">ℹ️ Aucune série définie pour cette compétition</div>
+                        Voici la liste complète des tireurs inscrits, groupée par discipline.
+                     </div>`;
+
+            const tree = {};
+            shooters.forEach(s => {
+                const disc = s.discipline ? s.discipline.trim() : "Sans discipline";
+                if (!tree[disc]) tree[disc] = [];
+                tree[disc].push(s);
+            });
+
+            Object.keys(tree).sort().forEach(disc => {
+                const rows = tree[disc].sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
+                html += `<div class="discipline-title">🎯 ${escapeHtml(disc)} (${rows.length})</div>`;
+                html += `<div class="serie-block">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th class="col-num">#</th>
+                                        <th>Nom</th>
+                                        <th>Prénom</th>
+                                        <th>Club</th>
+                                        <th class="col-poste">Poste</th>
+                                    </tr>
+                                </thead>
+                                <tbody>`;
+                rows.forEach((s, i) => {
+                    html += `<tr>
+                                <td class="col-num">${i + 1}</td>
+                                <td>${escapeHtml(s.lastName)}</td>
+                                <td>${escapeHtml(s.firstName)}</td>
+                                <td>${escapeHtml(s.club)}</td>
+                                <td class="col-poste"><span class="poste-box"></span></td>
+                             </tr>`;
+                });
+                html += `</tbody></table></div>`;
+            });
+        }
+
+        document.getElementById('content').innerHTML = html;
+    }
+</script>
+</body>
+</html>
