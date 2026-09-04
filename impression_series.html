@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v1.0 — 04/09/2026 -->
+<!-- LIGUE LR — version v1.1 — 04/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -159,7 +159,7 @@
         <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
         <div class="header-center">
             <h1>🖨️ Feuilles de séries</h1>
-            <div class="version-tag">v1.0</div>
+            <div class="version-tag">v1.1</div>
             <div id="compTitle" class="comp-name">Chargement...</div>
         </div>
         <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
@@ -196,6 +196,16 @@
 
     document.title = "🖨️ " + CONFIG.clubName + " — Feuilles de séries";
     document.querySelectorAll('.header-logo').forEach(img => { img.alt = "Logo " + CONFIG.clubName; });
+
+    // Logo personnalisé par compétition : si un fichier "logo_<code>.png" existe (uploadé sur
+    // GitHub à côté des autres fichiers), il remplace le logo de la Ligue pour cette compétition
+    // uniquement. Sinon, le logo de la Ligue (logo.png) reste affiché — aucun réglage requis.
+    if (compId) {
+        const customLogo = 'logo_' + compId + '.png';
+        const test = new Image();
+        test.onload = () => { document.querySelectorAll('.header-logo').forEach(img => { img.src = customLogo; }); };
+        test.src = customLogo;
+    }
     document.getElementById('generatedNote').textContent =
         "Généré le " + new Date().toLocaleDateString('fr-FR') + " à " + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
 

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v2.5 — 03/09/2026 -->
+<!-- LIGUE LR — version v2.6 — 04/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -202,7 +202,7 @@
         <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
         <div class="header-center">
             <h1>🏆 PALMARÈS PROVISOIRE</h1>
-            <div class="version-tag">v2.5</div>
+            <div class="version-tag">v2.6</div>
             <div id="compTitle" class="comp-name">Chargement...</div>
         </div>
         <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
@@ -234,6 +234,16 @@
 
     document.title = "🏆 " + CONFIG.clubName + " — Palmarès en Direct";
     document.querySelectorAll('.header-logo').forEach(img => { img.alt = "Logo " + CONFIG.clubName; });
+
+    // Logo personnalisé par compétition : si un fichier "logo_<code>.png" existe (uploadé sur
+    // GitHub à côté des autres fichiers), il remplace le logo de la Ligue pour cette compétition
+    // uniquement. Sinon, le logo de la Ligue (logo.png) reste affiché — aucun réglage requis.
+    if (compId) {
+        const customLogo = 'logo_' + compId + '.png';
+        const test = new Image();
+        test.onload = () => { document.querySelectorAll('.header-logo').forEach(img => { img.src = customLogo; }); };
+        test.src = customLogo;
+    }
 
     // Formate la date/heure d'une série comme sur les autres pages (ex: "08/09 09:00").
     function formatSlotWhen(slot) {
