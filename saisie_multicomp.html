@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v3.4 — 06/09/2026 -->
+<!-- LIGUE LR — version v3.5 — 06/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -624,7 +624,7 @@
             </div>
         </div>
         <div class="header-actions">
-            <span class="version-tag">v3.4</span>
+            <span class="version-tag">v3.5</span>
             <button type="button" id="btnToggleImport" class="btn-toggle-import">
                 <span>🪄</span> Import Tireurs
             </button>
@@ -949,16 +949,62 @@
     }
 
     // ─── Concours amical : appellations figées (identiques à inscription_multicomp.html) ───
-    const AMICAL_DEFAULT_DISC = ["Pistolet 10 m", "Carabine 10 m", "Pistolet 25 m", "Pistolet 50 m", "Carabine 50 m 60 BC", "Carabine 50 m 3x20"];
+    // ─── Vocabulaire tir sportif : synonymes et distances ───
+    // Permet de reconnaître « Pistolet libre » = « Pistolet 50 m », « Carabine 60 BC » = « Carabine 50 m couché »,
+    // et de déduire la distance (10 / 25 / 50 m) d'une discipline ou d'un libellé de série.
+    function discKey(name) {
+        let k = String(name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]/g, '');
+        if (/^pistolet(libre|50m?)/.test(k) || /pistoletlibre/.test(k) || /^pl50/.test(k)) return 'pistolet50m';
+        if (/60bc|carabine50m(couche|60)|carabinecouche/.test(k)) return 'carabine50m60bc';
+        if (/3x20|3x40|3positions/.test(k)) return 'carabine50m3x20';
+        if (/^pistolet(standard|vitesse|percussion|25m?)/.test(k)) return 'pistolet25m' + (/vitesse/.test(k) ? 'vitesse' : (/standard/.test(k) ? 'standard' : (/percussion/.test(k) ? 'pc' : '')));
+        if (/^(pistolet|pist|pa)10m?$/.test(k) || /^pistolet10m/.test(k)) return 'pistolet10m';
+        if (/^(carabine|car|ca)10m?$/.test(k) || /^carabine10m/.test(k)) return 'carabine10m';
+        return k;
+    }
+    function sameDisc(a, b) { return discKey(a) === discKey(b); }
+    function distanceOf(name) {
+        const k = discKey(name);
+        const m = k.match(/(10|25|50)m/);
+        if (m) return Number(m[1]);
+        if (/pistoletlibre|60bc|3x20|3x40|couche/.test(k)) return 50;
+        if (/vitesse|standard|percussion/.test(k)) return 25;
+        return null;
+    }
+    // Une discipline est-elle admise dans une série ?
+    //  - disciplines explicitement définies sur la série : oui si l'une d'elles est la même (synonymes compris) ;
+    //  - sinon, si le libellé de la série indique une distance (« 10 m », « 50 m », « 60 BC »…), la discipline doit
+    //    être de la même distance ;
+    //  - sinon (série vraiment libre) : oui.
+    function discAllowedInSlot(disc, slot) {
+        const allowed = slot && Array.isArray(slot.disciplines) ? slot.disciplines : [];
+        if (allowed.length) return allowed.some(a => sameDisc(a, disc));
+        const ds = slot ? distanceOf(slot.label) : null;
+        const dd = distanceOf(disc);
+        return !(ds && dd && ds !== dd);
+    }
+    // Nom « officiel » d'une discipline : celui du menu s'il existe un synonyme, sinon le nom tel quel
+    // (évite « Pistolet libre » et « Pistolet libre 50 m » dans deux classements différents).
+    function canonicalDisc(name, menu) {
+        const hit = (menu || []).find(m => sameDisc(m, name));
+        return hit || name;
+    }
+    function uniqDisc(list) {
+        const seen = new Set(); const out = [];
+        list.forEach(d => { const k = discKey(d); if (!seen.has(k)) { seen.add(k); out.push(d); } });
+        return out;
+    }
+    const AMICAL_DEFAULT_DISC = ["Pistolet 10 m", "Carabine 10 m", "Pistolet 25 m", "Pistolet libre 50 m", "Carabine 60 BC 50 m", "Carabine 3x20 50 m"];
     const AMICAL_CATS = ["Poussin", "Benjamin", "Minime", "Cadet", "Junior", "Dame 1", "Dame 2", "Dame 3", "Senior 1", "Senior 2", "Senior 3", "Loisir"];
     let amicalDisciplines = null; // liste propre à la compétition (tableau de bord → Modifier)
 
     function amicalDiscList() {
         const base = (Array.isArray(amicalDisciplines) && amicalDisciplines.length) ? amicalDisciplines.slice() : AMICAL_DEFAULT_DISC.slice();
         Object.values(slotsData || {}).forEach(sl => {
-            (Array.isArray(sl.disciplines) ? sl.disciplines : []).forEach(d => { if (!base.includes(d)) base.push(d); });
+            (Array.isArray(sl.disciplines) ? sl.disciplines : []).forEach(d => { if (!base.some(b => sameDisc(b, d))) base.push(d); });
         });
-        return base;
+        return uniqDisc(base);
     }
     function escAttr(v) { return String(v || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
     function optsHtml(list, selected) {
@@ -1239,10 +1285,10 @@
         document.querySelectorAll('#newSlotMulti input').forEach(inp => {
             const sl = slotsData[inp.value];
             const allowed = sl && Array.isArray(sl.disciplines) ? sl.disciplines : [];
-            const ok = allowed.length === 0 || allowed.includes(disc);
+            const ok = discAllowedInSlot(disc, sl);
             inp.disabled = !ok;
             inp.parentNode.classList.toggle('incompatible', !ok);
-            inp.parentNode.title = ok ? '' : `Cette série n'accepte pas « ${disc} » (${allowed.join(' / ')})`;
+            inp.parentNode.title = ok ? '' : `Cette série n'accepte pas « ${disc} »` + (allowed.length ? ` (${allowed.join(' / ')})` : ` (série ${distanceOf(sl.label)} m)`);
             if (!ok) { blocked++; if (inp.checked) { inp.checked = false; inp.parentNode.classList.remove('on'); } }
         });
         if (hint) {
@@ -1309,15 +1355,18 @@
         // ou des disciplines différentes (ex. 10 m le matin, pistolet 50 m l'après-midi).
         // Discipline effective par série : imposée par la série si elle n'en a qu'une ;
         // sinon celle du formulaire, qui doit faire partie des disciplines de la série si définies.
+        const menuDiscs = Array.from((document.getElementById('newDiscipline') || {}).options || []).map(o => o.value);
         const discFor = slotId => {
             const allowed = slotId && slotsData[slotId] && Array.isArray(slotsData[slotId].disciplines) ? slotsData[slotId].disciplines : [];
-            if (allowed.length === 1) return allowed[0];
+            if (allowed.length === 1) return canonicalDisc(allowed[0], menuDiscs);
             return disc;
         };
         for (const slotId of targets) {
-            const allowed = slotId && slotsData[slotId] && Array.isArray(slotsData[slotId].disciplines) ? slotsData[slotId].disciplines : [];
-            if (allowed.length > 1 && !allowed.includes(disc)) {
-                return alert(`⚠️ La série ${slotLabelOf(slotsData[slotId])} n'accepte que : ${allowed.join(' / ')}.\nChoisis une de ces disciplines (ou saisis-la en texte pour une compétition amicale).`);
+            if (!slotId) continue;
+            const sl = slotsData[slotId];
+            const allowed = sl && Array.isArray(sl.disciplines) ? sl.disciplines : [];
+            if (allowed.length !== 1 && !discAllowedInSlot(disc, sl)) {
+                return alert(`⚠️ La série ${slotLabelOf(sl)} n'accepte pas « ${disc} »` + (allowed.length ? ` (disciplines : ${allowed.join(' / ')}).` : ` (série ${distanceOf(sl.label)} m).`));
             }
         }
 
@@ -1578,7 +1627,7 @@
             bg:'Benjamin Garçon', bf:'Benjamin Fille', b:'Benjamin', pg:'Poussin Garçon', pf:'Poussin Fille', p:'Poussin' };
         const guess = (val, canon) => {
             const n = norm(val);
-            const direct = canon.find(c => norm(c) === n);
+            const direct = canon.find(c => norm(c) === n) || canon.find(c => sameDisc(c, val) && discKey(val).length > 3);
             if (direct) return direct;
             const alias = CAT_ALIAS[n];
             if (alias) {

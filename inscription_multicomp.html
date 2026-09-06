@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — Inscription publique par QR code — v2.8 — 06/09/2026 -->
+<!-- LIGUE LR — Inscription publique par QR code — v2.9 — 06/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -198,7 +198,7 @@
         <h1>Inscription en direct</h1>
         <div class="comp-name" id="compName">Chargement…</div>
         <div class="comp-type" id="compType"></div>
-        <div class="comp-type" style="margin-top:6px; opacity:0.9;">Version 2.8 — 06/09/2026</div>
+        <div class="comp-type" style="margin-top:6px; opacity:0.9;">Version 2.9 — 06/09/2026</div>
     </header>
 
     <div id="screenLoading">Connexion à la compétition…</div>
@@ -256,7 +256,7 @@
             </button>
         </div>
         <div class="footer-note">Ton inscription apparaît immédiatement dans le classement en direct.</div>
-        <div class="footer-note" style="margin-top:2px; opacity:0.6;">v2.8</div>
+        <div class="footer-note" style="margin-top:2px; opacity:0.6;">v2.9</div>
     </div>
 
     <div id="screenConfirm" style="display:none;">
@@ -312,16 +312,62 @@
     // ─── Concours amical : appellations figées (plus de texte libre) ───
     // Liste standard, complétée par la liste propre à la compétition (tableau de bord → Modifier)
     // et par les disciplines définies sur les séries.
-    const AMICAL_DEFAULT_DISC = ["Pistolet 10 m", "Carabine 10 m", "Pistolet 25 m", "Pistolet 50 m", "Carabine 50 m 60 BC", "Carabine 50 m 3x20"];
+    // ─── Vocabulaire tir sportif : synonymes et distances ───
+    // Permet de reconnaître « Pistolet libre » = « Pistolet 50 m », « Carabine 60 BC » = « Carabine 50 m couché »,
+    // et de déduire la distance (10 / 25 / 50 m) d'une discipline ou d'un libellé de série.
+    function discKey(name) {
+        let k = String(name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]/g, '');
+        if (/^pistolet(libre|50m?)/.test(k) || /pistoletlibre/.test(k) || /^pl50/.test(k)) return 'pistolet50m';
+        if (/60bc|carabine50m(couche|60)|carabinecouche/.test(k)) return 'carabine50m60bc';
+        if (/3x20|3x40|3positions/.test(k)) return 'carabine50m3x20';
+        if (/^pistolet(standard|vitesse|percussion|25m?)/.test(k)) return 'pistolet25m' + (/vitesse/.test(k) ? 'vitesse' : (/standard/.test(k) ? 'standard' : (/percussion/.test(k) ? 'pc' : '')));
+        if (/^(pistolet|pist|pa)10m?$/.test(k) || /^pistolet10m/.test(k)) return 'pistolet10m';
+        if (/^(carabine|car|ca)10m?$/.test(k) || /^carabine10m/.test(k)) return 'carabine10m';
+        return k;
+    }
+    function sameDisc(a, b) { return discKey(a) === discKey(b); }
+    function distanceOf(name) {
+        const k = discKey(name);
+        const m = k.match(/(10|25|50)m/);
+        if (m) return Number(m[1]);
+        if (/pistoletlibre|60bc|3x20|3x40|couche/.test(k)) return 50;
+        if (/vitesse|standard|percussion/.test(k)) return 25;
+        return null;
+    }
+    // Une discipline est-elle admise dans une série ?
+    //  - disciplines explicitement définies sur la série : oui si l'une d'elles est la même (synonymes compris) ;
+    //  - sinon, si le libellé de la série indique une distance (« 10 m », « 50 m », « 60 BC »…), la discipline doit
+    //    être de la même distance ;
+    //  - sinon (série vraiment libre) : oui.
+    function discAllowedInSlot(disc, slot) {
+        const allowed = slot && Array.isArray(slot.disciplines) ? slot.disciplines : [];
+        if (allowed.length) return allowed.some(a => sameDisc(a, disc));
+        const ds = slot ? distanceOf(slot.label) : null;
+        const dd = distanceOf(disc);
+        return !(ds && dd && ds !== dd);
+    }
+    // Nom « officiel » d'une discipline : celui du menu s'il existe un synonyme, sinon le nom tel quel
+    // (évite « Pistolet libre » et « Pistolet libre 50 m » dans deux classements différents).
+    function canonicalDisc(name, menu) {
+        const hit = (menu || []).find(m => sameDisc(m, name));
+        return hit || name;
+    }
+    function uniqDisc(list) {
+        const seen = new Set(); const out = [];
+        list.forEach(d => { const k = discKey(d); if (!seen.has(k)) { seen.add(k); out.push(d); } });
+        return out;
+    }
+    const AMICAL_DEFAULT_DISC = ["Pistolet 10 m", "Carabine 10 m", "Pistolet 25 m", "Pistolet libre 50 m", "Carabine 60 BC 50 m", "Carabine 3x20 50 m"];
     const AMICAL_CATS = ["Poussin", "Benjamin", "Minime", "Cadet", "Junior", "Dame 1", "Dame 2", "Dame 3", "Senior 1", "Senior 2", "Senior 3", "Loisir"];
     let amicalDisciplines = null; // liste définie pour cette compétition (ou null)
 
     function amicalDiscList() {
         const base = (Array.isArray(amicalDisciplines) && amicalDisciplines.length) ? amicalDisciplines.slice() : AMICAL_DEFAULT_DISC.slice();
         Object.values(slotsData || {}).forEach(sl => {
-            (Array.isArray(sl.disciplines) ? sl.disciplines : []).forEach(d => { if (!base.includes(d)) base.push(d); });
+            (Array.isArray(sl.disciplines) ? sl.disciplines : []).forEach(d => { if (!base.some(b => sameDisc(b, d))) base.push(d); });
         });
-        return base;
+        return uniqDisc(base);
     }
     function optionsHtml(list, selected) {
         return list.map(x => `<option value="${escapeAttr(x)}" ${x === selected ? 'selected' : ''}>${x}</option>`).join('');
@@ -368,25 +414,32 @@
 
         // Discipline imposée par la série (ex : « Pistolet libre ») : pas de choix.
         if (allowed.length === 1) {
+            const menu = isFreeText() ? amicalDiscList() : dataRef[activeTypeKey].disc;
+            const official = canonicalDisc(allowed[0], menu);
             return `<div class="field"><label>Discipline</label>
-                <div class="fixed-disc">${escapeAttr(allowed[0])}<small>imposée par la série</small></div>
-                <input type="hidden" id="sDisc_${slotId}" value="${escapeAttr(allowed[0])}"></div>`;
+                <div class="fixed-disc">${escapeAttr(official)}<small>imposée par la série</small></div>
+                <input type="hidden" id="sDisc_${slotId}" value="${escapeAttr(official)}"></div>`;
         }
         // Choix limité aux disciplines de la série (ex : Pistolet 10m ou Carabine 10m).
         if (allowed.length > 1) {
-            const d = allowed.includes(curDisc) ? curDisc : allowed[0];
+            const menu = isFreeText() ? amicalDiscList() : dataRef[activeTypeKey].disc;
+            const names = uniqDisc(allowed.map(a => canonicalDisc(a, menu)));
+            const d = names.includes(curDisc) ? curDisc : names[0];
             return `<div class="field"><label>Discipline — au choix</label>
                 <select id="sDisc_${slotId}" onchange="rememberChoice('${slotId}')">` +
-                allowed.map(x => `<option value="${escapeAttr(x)}" ${x === d ? 'selected' : ''}>${x}</option>`).join('') + `</select></div>`;
+                names.map(x => `<option value="${escapeAttr(x)}" ${x === d ? 'selected' : ''}>${x}</option>`).join('') + `</select></div>`;
         }
-        // Série sans discipline définie : catalogue complet (ou liste amicale figée).
+        // Série sans discipline définie : catalogue complet (ou liste amicale figée), limité à la
+        // distance indiquée dans le libellé de la série (« 10 m » → disciplines 10 m uniquement).
         if (isFreeText()) {
-            const list = amicalDiscList();
+            let list = amicalDiscList().filter(d => discAllowedInSlot(d, slot));
+            if (!list.length) list = amicalDiscList();
             const d = list.includes(curDisc) ? curDisc : list[0];
             return `<div class="field"><label>Discipline</label>
                 <select id="sDisc_${slotId}" onchange="rememberChoice('${slotId}')">${optionsHtml(list, d)}</select></div>`;
         }
-        const discs = dataRef[activeTypeKey].disc;
+        let discs = dataRef[activeTypeKey].disc.filter(x => discAllowedInSlot(x, slot));
+        if (!discs.length) discs = dataRef[activeTypeKey].disc;
         const d = discs.includes(curDisc) ? curDisc : discs[0];
         return `<div class="field"><label>Discipline</label>
             <select id="sDisc_${slotId}" onchange="rememberChoice('${slotId}')">` +
@@ -581,11 +634,12 @@
             // Filet de sécurité : la discipline doit être une de celles autorisées par la série
             // (imposée ou au choix), même si le menu a été contourné ou affiché avant une modification.
             for (const id of wanted) {
-                const allowed = Array.isArray(slotsData[id].disciplines) ? slotsData[id].disciplines : [];
-                if (allowed.length && !allowed.includes(choices[id].disc.trim())) {
+                const sl = slotsData[id];
+                const allowed = Array.isArray(sl.disciplines) ? sl.disciplines : [];
+                if (!discAllowedInSlot(choices[id].disc.trim(), sl)) {
                     toggleSlot(id, false); toggleSlot(id, true); // redessine le choix avec la bonne liste
                     const cb = document.querySelector(`input[name="slotChoice"][value="${id}"]`); if (cb) cb.checked = true;
-                    return showFormError(`La série ${slotDisplayLabel(slotsData[id])} n'accepte que : ${allowed.join(' / ')}. Choisis à nouveau la discipline pour cette série.`);
+                    return showFormError(`La série ${slotDisplayLabel(sl)} n'accepte pas cette discipline` + (allowed.length ? ` (${allowed.join(' / ')})` : ` (série ${distanceOf(sl.label)} m)`) + `. Choisis à nouveau la discipline pour cette série.`);
                 }
             }
         }
