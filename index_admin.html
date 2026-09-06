@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v2.3 — 04/09/2026 -->
+<!-- LIGUE LR — version v2.4 — 06/09/2026 -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
@@ -435,6 +435,20 @@
       padding: 8px 10px; margin-top: 2px;
     }
     .slot-preview.ready { color: var(--accent); font-weight: 600; border-style: solid; }
+    .slot-disc { display: block; font-size: 0.75rem; color: var(--text-muted); font-weight: 400; margin-top: 2px; }
+    .slot-draw {
+      background: none; border: 1px solid var(--border); color: var(--text-muted); cursor: pointer;
+      font-size: 0.78rem; padding: 4px 8px; margin-left: 6px; border-radius: 6px; white-space: nowrap;
+      font-family: 'Rajdhani', sans-serif; font-weight: 700;
+    }
+    .slot-draw:hover { border-color: var(--accent); color: var(--accent); }
+    .slot-draw.done { color: #0f8a5f; border-color: #bfe3d3; }
+    .btn-draw-all {
+      width: 100%; margin-bottom: 14px; background: #fff7e6; color: #8a5a00; border: 1px solid #f1d59a;
+      border-radius: var(--radius); padding: 10px 14px; cursor: pointer;
+      font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 0.95rem;
+    }
+    .btn-draw-all:hover { background: #ffefcc; }
 
     /* EMPTY STATE */
     .empty-state {
@@ -505,7 +519,7 @@
     </div>
     <button class="btn-create" onclick="openCreateModal()">+ Nouvelle Compétition</button>
     <button class="btn-logout" onclick="doLogout()" style="margin-top:auto;">⎋ Déconnexion</button>
-    <div class="sidebar-footer">LIGUE LR · v2.3 — 04/09/2026</div>
+    <div class="sidebar-footer">LIGUE LR · v2.4 — 06/09/2026</div>
   </aside>
 
   <main class="main-content">
@@ -572,8 +586,9 @@
   <div class="modal" id="slotsModal">
     <div class="modal-content slots-content">
       <div class="modal-title" id="slotsTitle">🎟️ Séries</div>
-      <div class="slots-intro">Définis les séries (date, heure, nombre de postes). Elles s'affichent triées par date/heure — pratique sur une compétition qui dure plusieurs jours. Une fois complète, une série se bloque automatiquement à l'inscription.</div>
+      <div class="slots-intro">Définis les séries (date, heure, nombre de postes, disciplines). Elles s'affichent triées par date/heure. Une fois complète, une série se bloque automatiquement à l'inscription. Quand les inscriptions sont closes, tire les postes au sort (🎲).</div>
       <div class="slots-list" id="slotsList"></div>
+      <button class="btn-draw-all" id="btnDrawAll" onclick="drawAllSlots()">🎲 Tirer au sort les postes de toutes les séries</button>
       <div class="slot-add-grid">
         <div class="slot-add-field">
           <label>Date</label>
@@ -590,6 +605,11 @@
         <div class="slot-add-field">
           <label>Postes</label>
           <input type="number" id="newSlotCapacity" placeholder="Postes" min="1" oninput="updateSlotPreview()">
+        </div>
+        <div class="slot-add-field" style="grid-column: span 2;">
+          <label>Disciplines de la série (séparées par « ; »)</label>
+          <input type="text" id="newSlotDisc" placeholder="Ex : Pistolet 10m ; Carabine 10m" oninput="updateSlotPreview()">
+          <span style="font-size:0.72rem; color:var(--text-dim);">Une seule = imposée au tireur (ex : « Pistolet libre »). Plusieurs = le tireur choisit. Vide = discipline libre. Pour le tirage des postes, la 1<sup>re</sup> discipline est placée à gauche (poste 1…), la suivante à droite.</span>
         </div>
         <div class="slot-preview" id="slotPreview" style="grid-column: span 2;">Renseigne la date et l'heure ci-dessus.</div>
         <button class="btn-slot-add" style="grid-column: span 2;" onclick="addSlot()">+ Ajouter</button>
@@ -735,6 +755,7 @@
       document.getElementById('newSlotTime').value = '';
       document.getElementById('newSlotLabel').value = '';
       document.getElementById('newSlotCapacity').value = '';
+      document.getElementById('newSlotDisc').value = '';
       updateSlotPreview();
 
       if (slotsListenerRef) slotsListenerRef.off();
@@ -788,12 +809,17 @@
         const displayLabel = when
             ? (slot.label ? `${when} — ${slot.label}` : when)
             : (slot.label || '(sans nom)');
+        const discs = Array.isArray(slot.disciplines) ? slot.disciplines : [];
+        const discTxt = discs.length === 0 ? 'Discipline libre'
+            : (discs.length === 1 ? `Discipline imposée : ${discs[0]}` : `Au choix : ${discs.join(' / ')}`);
+        const drawn = !!slot.drawn;
         const row = document.createElement('div');
         row.className = 'slot-row' + (isFull ? ' full' : '');
         row.innerHTML = `
-          <span class="slot-label">${displayLabel}</span>
+          <span class="slot-label">${displayLabel}<span class="slot-disc">${discTxt}${drawn ? ' · 🎲 postes tirés' : ''}</span></span>
           <span style="display:flex; align-items:center;">
             <span class="slot-count">${count} / ${capacity} ${isFull ? '· COMPLET' : ''}</span>
+            <button class="slot-draw ${drawn ? 'done' : ''}" title="${drawn ? 'Refaire le tirage des postes' : 'Tirer au sort les postes de tir'}" onclick="drawSlot('${slotId}')">🎲 Postes</button>
             <button class="slot-dup" title="Dupliquer" onclick="duplicateSlot('${slotId}')">📋</button>
             <button class="slot-del" title="Supprimer" onclick="deleteSlot('${slotId}')">🗑️</button>
           </span>`;
@@ -811,6 +837,7 @@
       document.getElementById('newSlotTime').value = slot.time || '';
       document.getElementById('newSlotLabel').value = slot.label || '';
       document.getElementById('newSlotCapacity').value = slot.capacity || '';
+      document.getElementById('newSlotDisc').value = Array.isArray(slot.disciplines) ? slot.disciplines.join(' ; ') : '';
       updateSlotPreview();
       document.getElementById('newSlotTime').focus();
     }
@@ -833,6 +860,9 @@
       let txt = `→ Série du ${d}/${m}/${y} à ${time}`;
       if (label) txt += ` — ${label}`;
       if (capacity) txt += ` (${capacity} postes)`;
+      const discs = parseDisciplines(document.getElementById('newSlotDisc').value);
+      if (discs.length === 1) txt += ` · imposée : ${discs[0]}`;
+      else if (discs.length > 1) txt += ` · au choix : ${discs.join(' / ')}`;
       preview.textContent = txt;
       preview.classList.add('ready');
     }
@@ -845,14 +875,95 @@
       if (!date || !time) return alert("Indique la date et l'heure de la série.");
       if (!capacity || capacity < 1) return alert("Indique un nombre de postes valide (1 ou plus).");
       const datetime = date + 'T' + time;
-      database.ref(CLUB_PATH + '/' + currentSlotsComp + '/slots').push({ date, time, datetime, label, capacity, count: 0 })
+      const disciplines = parseDisciplines(document.getElementById('newSlotDisc').value);
+      const slot = { date, time, datetime, label, capacity, count: 0 };
+      if (disciplines.length) slot.disciplines = disciplines;
+      database.ref(CLUB_PATH + '/' + currentSlotsComp + '/slots').push(slot)
         .then(() => {
           document.getElementById('newSlotDate').value = '';
           document.getElementById('newSlotTime').value = '';
           document.getElementById('newSlotLabel').value = '';
           document.getElementById('newSlotCapacity').value = '';
+          document.getElementById('newSlotDisc').value = '';
           updateSlotPreview();
         });
+    }
+
+    function parseDisciplines(txt) {
+      return String(txt || '').split(/[;\n]/).map(x => x.trim()).filter(Boolean)
+        .filter((x, i, arr) => arr.indexOf(x) === i);
+    }
+
+    // ─── Tirage au sort des postes de tir ───
+    // Règle : les tireurs sont regroupés par discipline dans l'ordre des disciplines de la série
+    // (1re discipline à gauche à partir du poste 1, suivante à droite…). Dans chaque groupe,
+    // l'ordre est tiré au sort. S'il reste des postes libres, un poste vide sépare deux groupes.
+    // Les numéros sont écrits dans slots/<série>/registered/<tireur>/poste (hors schéma "shooters").
+    function shuffle(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function computePostes(slot, shootersById) {
+      const registered = slot.registered || {};
+      const ids = Object.keys(registered);
+      const capacity = Number(slot.capacity) || ids.length;
+      const order = Array.isArray(slot.disciplines) ? slot.disciplines : [];
+      const discOf = id => (shootersById[id] && shootersById[id].discipline) || registered[id].discipline || '';
+
+      // Groupes dans l'ordre des disciplines de la série ; disciplines inconnues à la fin (ordre alphabétique)
+      const groups = new Map();
+      ids.forEach(id => { const d = discOf(id); if (!groups.has(d)) groups.set(d, []); groups.get(d).push(id); });
+      const keys = Array.from(groups.keys()).sort((a, b) => {
+        const ia = order.indexOf(a), ib = order.indexOf(b);
+        if (ia !== -1 && ib !== -1) return ia - ib;
+        if (ia !== -1) return -1;
+        if (ib !== -1) return 1;
+        return a.localeCompare(b);
+      });
+
+      const gaps = keys.length - 1;
+      const withGap = ids.length + gaps <= capacity;
+      const result = {};
+      let poste = 1;
+      keys.forEach((k, gi) => {
+        shuffle(groups.get(k)).forEach(id => { result[id] = poste++; });
+        if (withGap && gi < keys.length - 1) poste++; // poste vide entre deux disciplines
+      });
+      return { postes: result, overflow: poste - 1 > capacity };
+    }
+
+    function drawSlot(slotId, silent) {
+      const slot = lastSlotsData[slotId];
+      if (!slot) return Promise.resolve();
+      const ids = Object.keys(slot.registered || {});
+      if (ids.length === 0) { if (!silent) alert("Aucun tireur inscrit dans cette série."); return Promise.resolve(); }
+      if (slot.drawn && !silent && !confirm("Les postes de cette série ont déjà été tirés. Refaire le tirage (les numéros actuels seront remplacés) ?")) return Promise.resolve();
+
+      return database.ref(CLUB_PATH + '/' + currentSlotsComp + '/shooters').once('value').then(snap => {
+        const shootersById = snap.val() || {};
+        const { postes, overflow } = computePostes(slot, shootersById);
+        const updates = {};
+        ids.forEach(id => { updates['registered/' + id + '/poste'] = postes[id] || null; });
+        updates['drawn'] = true;
+        updates['drawnAt'] = new Date().toISOString();
+        return database.ref(CLUB_PATH + '/' + currentSlotsComp + '/slots/' + slotId).update(updates).then(() => {
+          if (!silent && overflow) alert("Attention : il y a plus de tireurs que de postes dans cette série — des numéros dépassent la capacité.");
+        });
+      });
+    }
+
+    function drawAllSlots() {
+      const entries = sortedSlotEntries(lastSlotsData).filter(([id, sl]) => Object.keys(sl.registered || {}).length > 0);
+      if (entries.length === 0) return alert("Aucun tireur inscrit dans les séries.");
+      const already = entries.some(([id, sl]) => sl.drawn);
+      if (!confirm(`Tirer au sort les postes de ${entries.length} série(s) ?` + (already ? "\nCertaines séries ont déjà des postes : ils seront remplacés." : ""))) return;
+      entries.reduce((chain, [id]) => chain.then(() => drawSlot(id, true)), Promise.resolve())
+        .then(() => alert("Tirage terminé. Les numéros de poste apparaissent sur les feuilles « 🖨️ Imprimer séries »."))
+        .catch(e => alert("Erreur pendant le tirage : " + (e.message || e)));
     }
 
     function deleteSlot(slotId) {

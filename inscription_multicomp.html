@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — Inscription publique par QR code — v2.4 — 06/09/2026 -->
+<!-- LIGUE LR — Inscription publique par QR code — v2.5 — 06/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -182,6 +182,9 @@
         .slot-detail .field { margin-bottom: 8px; }
         .slot-detail .field:last-child { margin-bottom: 0; }
         .slot-detail input[type="text"], .slot-detail select { padding: 10px 12px; font-size: 0.95rem; }
+        .slot-detail .fixed-disc { font-weight: 600; font-size: 0.95rem; padding: 6px 0 2px; }
+        .slot-detail .fixed-disc small { display:block; font-weight: 400; color: var(--text-muted); font-size: 0.75rem; }
+        .slot-discs { display: block; font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
     </style>
 </head>
 <body>
@@ -249,7 +252,7 @@
             </button>
         </div>
         <div class="footer-note">Ton inscription apparaît immédiatement dans le classement en direct.</div>
-        <div class="footer-note" style="margin-top:2px; opacity:0.6;">v2.4</div>
+        <div class="footer-note" style="margin-top:2px; opacity:0.6;">v2.5</div>
     </div>
 
     <div id="screenConfirm" style="display:none;">
@@ -336,8 +339,25 @@
     let lastDisc = '';   // mémorise le dernier choix pour pré-remplir la série suivante
 
     function slotDetailHtml(slotId) {
+        const slot = slotsData[slotId] || {};
+        const allowed = Array.isArray(slot.disciplines) ? slot.disciplines : [];
         const disc = document.getElementById('sDisc_' + slotId);
         const curDisc = disc ? disc.value : lastDisc;
+
+        // Discipline imposée par la série (ex : « Pistolet libre ») : pas de choix.
+        if (allowed.length === 1) {
+            return `<div class="field"><label>Discipline</label>
+                <div class="fixed-disc">${escapeAttr(allowed[0])}<small>imposée par la série</small></div>
+                <input type="hidden" id="sDisc_${slotId}" value="${escapeAttr(allowed[0])}"></div>`;
+        }
+        // Choix limité aux disciplines de la série (ex : Pistolet 10m ou Carabine 10m).
+        if (allowed.length > 1) {
+            const d = allowed.includes(curDisc) ? curDisc : allowed[0];
+            return `<div class="field"><label>Discipline — au choix</label>
+                <select id="sDisc_${slotId}" onchange="rememberChoice('${slotId}')">` +
+                allowed.map(x => `<option value="${escapeAttr(x)}" ${x === d ? 'selected' : ''}>${x}</option>`).join('') + `</select></div>`;
+        }
+        // Série sans discipline définie : catalogue complet ou texte libre.
         if (isFreeText()) {
             return `<div class="field"><label>Discipline</label>
                 <input type="text" id="sDisc_${slotId}" value="${escapeAttr(curDisc)}" placeholder="Ex : Pistolet 10m, Carabine 50m…" oninput="rememberChoice('${slotId}')"></div>`;
@@ -416,9 +436,11 @@
             const displayLabel = when
                 ? (slot.label ? `${when} — ${slot.label}` : when)
                 : (slot.label || '(sans nom)');
+            const allowed = Array.isArray(slot.disciplines) ? slot.disciplines : [];
+            const discsTxt = allowed.length ? `<span class="slot-discs">${allowed.join(' / ')}</span>` : '';
             html += `<tr class="${isFull ? 'full' : ''} ${checked ? 'selected' : ''}" id="slotRow_${slotId}">
                 <td><input type="checkbox" name="slotChoice" value="${slotId}" ${checked} ${isFull ? 'disabled' : ''} onchange="toggleSlot('${slotId}', this.checked)"></td>
-                <td>${displayLabel}</td>
+                <td>${displayLabel}${discsTxt}</td>
                 <td class="slot-places">${isFull ? '<span class="slot-full-tag">COMPLET</span>' : (capacity - count) + ' / ' + capacity}</td>
             </tr>`;
             if (checked) {
@@ -489,6 +511,7 @@
                     const info = { lastName: entry.lastName, firstName: entry.firstName, club: entry.club };
                     if (entry.licence) info.licence = entry.licence;
                     if (entry.category) info.category = entry.category;
+                    if (entry.discipline) info.discipline = entry.discipline;
                     return db.ref(base + '/registered/' + ref.key).set(info);
                 })
                 .then(() => { shootersSnapshot.push(entry); return { slotId, ok: true }; });

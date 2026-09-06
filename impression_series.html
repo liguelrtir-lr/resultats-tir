@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v1.2 — 06/09/2026 -->
+<!-- LIGUE LR — version v1.3 — 06/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -43,6 +43,7 @@
 
         .header-center h1 { margin: 0; font-size: 1.5rem; font-weight: 800; }
 
+        .poste-num { display: inline-block; min-width: 34px; text-align: center; font-weight: 800; font-size: 1.15em; border: 2px solid #333; border-radius: 6px; padding: 2px 6px; }
         .version-tag { font-size: 0.65em; opacity: 0.7; margin-top: -2px; margin-bottom: 4px; }
 
         .comp-name {
@@ -159,7 +160,7 @@
         <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
         <div class="header-center">
             <h1>🖨️ Feuilles de séries</h1>
-            <div class="version-tag">v1.2</div>
+            <div class="version-tag">v1.3</div>
             <div id="compTitle" class="comp-name">Chargement...</div>
         </div>
         <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
@@ -277,19 +278,24 @@
                         const sh = shooters.find(s => s.id === id);
                         const r = registered[id] || {};
                         // licence : sur la fiche tireur, sinon celle notée à l'inscription dans la série
-                        return sh ? Object.assign({}, sh, sh.licence ? {} : { licence: r.licence || '' }) : { id, ...r };
+                        const row = sh ? Object.assign({}, sh, sh.licence ? {} : { licence: r.licence || '' }) : { id, ...r };
+                        row.poste = r.poste || null; // numéro attribué par le tirage au sort (tableau de bord)
+                        return row;
                     })
-                    .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
+                    // Postes tirés : ordre des postes (pistolets à gauche, carabines à droite) ; sinon ordre alphabétique
+                    .sort((a, b) => (a.poste && b.poste) ? a.poste - b.poste
+                        : (a.poste ? -1 : (b.poste ? 1 : (a.lastName || '').localeCompare(b.lastName || ''))));
 
                 const when = formatSlotWhen(slot);
                 const title = when ? (slot.label ? `${when} — ${escapeHtml(slot.label)}` : when) : (escapeHtml(slot.label) || '(série sans nom)');
                 const capacity = Number(slot.capacity) || 0;
                 const count = rows.length;
+                const drawn = !!slot.drawn && rows.some(r => r.poste);
 
                 html += `<div class="serie-block">
                             <div class="serie-header">
                                 <div class="serie-title">🎯 ${title}</div>
-                                <div class="serie-count">${count} / ${capacity} inscrit(s)</div>
+                                <div class="serie-count">${count} / ${capacity} inscrit(s)${drawn ? ' · postes tirés au sort' : ''}</div>
                             </div>`;
 
                 if (rows.length === 0) {
@@ -316,7 +322,7 @@
                                     <td>${escapeHtml(s.licence || '')}</td>
                                     <td>${escapeHtml(s.club)}</td>
                                     <td>${escapeHtml(s.discipline)}</td>
-                                    <td class="col-poste"><span class="poste-box"></span></td>
+                                    <td class="col-poste">${s.poste ? `<span class="poste-num">${s.poste}</span>` : '<span class="poste-box"></span>'}</td>
                                  </tr>`;
                     });
                     html += `</tbody></table>`;

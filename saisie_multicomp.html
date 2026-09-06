@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v3.0 — 06/09/2026 -->
+<!-- LIGUE LR — version v3.1 — 06/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -613,7 +613,7 @@
             </div>
         </div>
         <div class="header-actions">
-            <span class="version-tag">v3.0</span>
+            <span class="version-tag">v3.1</span>
             <button type="button" id="btnToggleImport" class="btn-toggle-import">
                 <span>🪄</span> Import Tireurs
             </button>
@@ -897,7 +897,7 @@
                     const when = formatSlotWhen(slot);
                     const label = when ? (slot.label ? `${when} — ${slot.label}` : when) : (slot.label || '');
                     const registered = slot.registered || {};
-                    Object.keys(registered).forEach(shooterId => { map[shooterId] = { slotId, label }; any = true; });
+                    Object.keys(registered).forEach(shooterId => { map[shooterId] = { slotId, label, poste: registered[shooterId].poste || null }; any = true; });
                 });
                 slotByShooter = map;
                 hasSlots = any;
@@ -1157,9 +1157,11 @@
             const capacity = Number(slot.capacity) || 0, count = Number(slot.count) || 0;
             const isFull = count >= capacity;
             const on = checked.has(slotId);
-            return `<label class="slot-check ${isFull ? 'full' : ''} ${on ? 'on' : ''}">
+            const allowed = Array.isArray(slot.disciplines) ? slot.disciplines : [];
+            const discTxt = allowed.length === 1 ? ` · imposée : ${allowed[0]}` : (allowed.length > 1 ? ` · ${allowed.join(' / ')}` : '');
+            return `<label class="slot-check ${isFull ? 'full' : ''} ${on ? 'on' : ''}" title="${allowed.length === 1 ? 'Discipline imposée par la série' : (allowed.length > 1 ? 'Disciplines possibles dans cette série' : 'Discipline libre')}">
                 <input type="checkbox" value="${slotId}" ${on ? 'checked' : ''} onchange="this.parentNode.classList.toggle('on', this.checked)">
-                ${slotLabelOf(slot)} <span style="color:var(--text-muted);">(${count}/${capacity})</span></label>`;
+                ${slotLabelOf(slot)} <span style="color:var(--text-muted);">(${count}/${capacity})${discTxt}</span></label>`;
         }).join('');
     }
 
@@ -1210,17 +1212,33 @@
         const targets = slotIds.length ? slotIds : [''];
 
         if (!nom || !prenom) return alert("Nom et Prénom requis");
-        if (!disc) return alert("Discipline requise");
+        const fixedDisc = id => id && slotsData[id] && Array.isArray(slotsData[id].disciplines) && slotsData[id].disciplines.length === 1;
+        if (!disc && targets.some(id => !fixedDisc(id))) return alert("Discipline requise");
 
         // Doublon = même tireur, même discipline, même série (ou tous deux sans série).
         // Le même tireur peut donc s'engager dans plusieurs séries, avec la même discipline
         // ou des disciplines différentes (ex. 10 m le matin, pistolet 50 m l'après-midi).
+        // Discipline effective par série : imposée par la série si elle n'en a qu'une ;
+        // sinon celle du formulaire, qui doit faire partie des disciplines de la série si définies.
+        const discFor = slotId => {
+            const allowed = slotId && slotsData[slotId] && Array.isArray(slotsData[slotId].disciplines) ? slotsData[slotId].disciplines : [];
+            if (allowed.length === 1) return allowed[0];
+            return disc;
+        };
+        for (const slotId of targets) {
+            const allowed = slotId && slotsData[slotId] && Array.isArray(slotsData[slotId].disciplines) ? slotsData[slotId].disciplines : [];
+            if (allowed.length > 1 && !allowed.includes(disc)) {
+                return alert(`⚠️ La série ${slotLabelOf(slotsData[slotId])} n'accepte que : ${allowed.join(' / ')}.\nChoisis une de ces disciplines (ou saisis-la en texte pour une compétition amicale).`);
+            }
+        }
+
         const slotOf = id => (slotByShooter[id] && slotByShooter[id].slotId) || '';
         for (const slotId of targets) {
-            const existeDeja = shootersData.some(s => s.lastName === nom && s.firstName === prenom && s.discipline === disc && slotOf(s.id) === slotId);
+            const d = discFor(slotId);
+            const existeDeja = shootersData.some(s => s.lastName === nom && s.firstName === prenom && s.discipline === d && slotOf(s.id) === slotId);
             if (existeDeja) {
                 const where = slotId ? ` dans la série ${(slotsData[slotId] && slotLabelOf(slotsData[slotId])) || ''}` : '';
-                return alert(`⚠️ IMPOSSIBLE : ${nom} ${prenom} est DÉJÀ inscrit en ${disc}${where}.`);
+                return alert(`⚠️ IMPOSSIBLE : ${nom} ${prenom} est DÉJÀ inscrit en ${d}${where}.`);
             }
         }
 
@@ -1233,8 +1251,9 @@
 
         targets.forEach(slotId => {
             const newRef = db.ref(CLUB_PATH + '/' + compId + '/shooters').push();
-            writeShooter(newRef, Object.assign({}, base), false)
-                .then(() => { if (slotId) assignSlot(newRef.key, slotId, info); })
+            const d = discFor(slotId);
+            writeShooter(newRef, Object.assign({}, base, { discipline: d }), false)
+                .then(() => { if (slotId) assignSlot(newRef.key, slotId, Object.assign({}, info, { discipline: d, category: cat })); })
                 .catch(e => alert("Échec de l'enregistrement : " + (e.message || e.code || e)));
         });
 
@@ -1368,7 +1387,7 @@
                         ${s.licence ? `<span class="tag" title="N° de licence">🪪 ${s.licence}</span>` : ''}
                     </div>
                 </div>
-                ${hasSlots ? `<span class="tag slot-tag" title="Série (créneau)">${(slotByShooter[s.id] && slotByShooter[s.id].label) || '—'}</span>` : ''}
+                ${hasSlots ? `<span class="tag slot-tag" title="Série (créneau)">${(slotByShooter[s.id] && slotByShooter[s.id].label) || '—'}${(slotByShooter[s.id] && slotByShooter[s.id].poste) ? ` · <b>Poste ${slotByShooter[s.id].poste}</b>` : ''}</span>` : ''}
                 ${s.series ? `<div class="volees-detail">${s.series.split(',').join('  ')}</div>` : ''}
                 <div class="actions">
                     <input type="number" step="0.1" class="score-input" value="${s.score || 0}" onchange="saveScore('${s.id}', this.value)">
