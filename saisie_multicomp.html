@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v2.8 — 03/09/2026 -->
+<!-- LIGUE LR — version v2.9 — 06/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -608,7 +608,7 @@
             </div>
         </div>
         <div class="header-actions">
-            <span class="version-tag">v2.8</span>
+            <span class="version-tag">v2.9</span>
             <button type="button" id="btnToggleImport" class="btn-toggle-import">
                 <span>🪄</span> Import Tireurs
             </button>
@@ -715,6 +715,9 @@
         <div class="btn-row">
             <button type="button" id="btnAdd" class="btn btn-primary" onclick="addShooter()">
                 + Enregistrer le tireur
+            </button>
+            <button type="button" id="btnAddMore" class="btn btn-secondary" style="display:block;" onclick="addShooter(true)" title="Enregistre cet engagement et garde nom / prénom / club pour en saisir un autre (autre série ou autre discipline)">
+                ➕ Enregistrer et ajouter une autre série / discipline
             </button>
             <button type="button" id="btnUpdate" class="btn btn-warning" onclick="saveModification()">
                 ✅ Appliquer les corrections
@@ -1143,7 +1146,9 @@
         db.ref(CLUB_PATH + '/' + compId + '/slots/' + slotId + '/count').transaction(c => Math.max(0, (c || 0) - 1));
     }
 
-    function addShooter() {
+    // keepIdentity = true : garde nom/prénom/club après l'enregistrement pour saisir
+    // un autre engagement du même tireur (autre série, et/ou autre discipline).
+    function addShooter(keepIdentity) {
         const nom = document.getElementById('newNom').value.toUpperCase().trim();
         const prenom = document.getElementById('newPrenom').value.trim();
         const club = document.getElementById('newClub').value.trim() || "-";
@@ -1154,9 +1159,14 @@
         if (!nom || !prenom) return alert("Nom et Prénom requis");
         if (!disc) return alert("Discipline requise");
 
-        let existeDeja = shootersData.some(s => s.lastName === nom && s.firstName === prenom && s.discipline === disc);
+        // Doublon = même tireur, même discipline, même série (ou tous deux sans série).
+        // Le même tireur peut donc s'engager dans plusieurs séries, avec la même discipline
+        // ou des disciplines différentes (ex. 10 m le matin, pistolet 50 m l'après-midi).
+        const slotOf = id => (slotByShooter[id] && slotByShooter[id].slotId) || '';
+        let existeDeja = shootersData.some(s => s.lastName === nom && s.firstName === prenom && s.discipline === disc && slotOf(s.id) === slotId);
         if (existeDeja) {
-            return alert(`⚠️ IMPOSSIBLE : ${nom} ${prenom} est DÉJÀ inscrit en ${disc}.`);
+            const where = slotId ? ` dans la série ${(slotsData[slotId] && slotLabelOf(slotsData[slotId])) || ''}` : '';
+            return alert(`⚠️ IMPOSSIBLE : ${nom} ${prenom} est DÉJÀ inscrit en ${disc}${where}.`);
         }
 
         // NB : le schéma de validation Firebase (Realtime Database → Rules) n'autorise que ces
@@ -1167,7 +1177,19 @@
         if (slotId) assignSlot(newRef.key, slotId, { lastName: nom, firstName: prenom, club: club });
         const key = nom.replace(/[^a-zA-Z]/g, "") + "_" + prenom.replace(/[^a-zA-Z]/g, "");
         db.ref('Ligue_Tireurs_Archive/' + key).set({ lastName: nom, firstName: prenom, club: club });
-        resetForm();
+        if (keepIdentity) {
+            // Identité conservée, série remise à zéro : il ne reste qu'à choisir série/discipline.
+            document.getElementById('newSlot').value = '';
+            const sel = document.getElementById('newSlot');
+            if (hasSlots) sel.focus(); else document.getElementById('newDiscipline').focus();
+        } else {
+            resetForm();
+        }
+    }
+
+    function slotLabelOf(slot) {
+        const when = formatSlotWhen(slot);
+        return when ? (slot.label ? `${when} — ${slot.label}` : when) : (slot.label || '(sans nom)');
     }
 
     function prepareEdit(id) {
@@ -1177,6 +1199,7 @@
         document.getElementById('newPrenom').value = s.firstName;
         document.getElementById('newClub').value = s.club;
         document.getElementById('btnAdd').style.display = 'none';
+        document.getElementById('btnAddMore').style.display = 'none';
         document.getElementById('btnUpdate').style.display = 'block';
         document.getElementById('btnCancel').style.display = 'block';
         document.getElementById('formTireur').classList.add('panel-edit-mode');
@@ -1244,6 +1267,7 @@
         document.getElementById('newClub').value = '';
         document.getElementById('newSlot').value = '';
         document.getElementById('btnAdd').style.display = 'block';
+        document.getElementById('btnAddMore').style.display = 'block';
         document.getElementById('btnUpdate').style.display = 'none';
         document.getElementById('btnCancel').style.display = 'none';
         document.getElementById('formTireur').classList.remove('panel-edit-mode');
