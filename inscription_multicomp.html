@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — Inscription publique par QR code — v2.1 — 03/09/2026 -->
+<!-- LIGUE LR — Inscription publique par QR code — v2.3 — 06/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -175,6 +175,13 @@
         .slot-places { text-align: right; font-weight: 700; color: var(--accent); }
         .slots-table tr.full .slot-places { color: var(--red, #ef4444); }
         .slot-full-tag { font-size: 0.68rem; letter-spacing: 0.05em; text-transform: uppercase; }
+        .slots-table input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent); cursor: pointer; }
+        .slots-table tr.selected td { background: #fff4ef; }
+        .slots-hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 8px; }
+        .slots-table tr.slot-detail td { padding: 6px 8px 12px; background: #fff4ef; border-bottom: 1px solid var(--border); }
+        .slot-detail .field { margin-bottom: 8px; }
+        .slot-detail .field:last-child { margin-bottom: 0; }
+        .slot-detail input[type="text"], .slot-detail select { padding: 10px 12px; font-size: 0.95rem; }
     </style>
 </head>
 <body>
@@ -196,13 +203,6 @@
     </div>
 
     <div id="screenForm" style="display:none;">
-        <div class="panel" id="slotsPanel" style="display:none;">
-            <div class="field" style="margin-bottom:6px;">
-                <label>Série</label>
-            </div>
-            <table class="slots-table" id="slotsTable"></table>
-        </div>
-
         <div class="panel">
             <div class="msg msg-error" id="formError"></div>
 
@@ -218,21 +218,34 @@
                 <label>Club</label>
                 <input type="text" id="fClub" placeholder="ST BÉZIERS">
             </div>
-            <div class="field" id="discWrap">
-                <label>Discipline</label>
-                <select id="fDiscSelect"></select>
+            <!-- Discipline/catégorie globales : utilisées seulement quand la compétition n'a pas de séries -->
+            <div id="globalDiscBlock">
+                <div class="field" id="discWrap">
+                    <label>Discipline</label>
+                    <select id="fDiscSelect"></select>
+                </div>
+                <div class="field" id="catWrap">
+                    <label>Catégorie</label>
+                    <select id="fCatSelect"></select>
+                </div>
             </div>
-            <div class="field" id="catWrap">
-                <label>Catégorie</label>
-                <select id="fCatSelect"></select>
-            </div>
+        </div>
 
+        <div class="panel" id="slotsPanel" style="display:none;">
+            <div class="field" style="margin-bottom:6px;">
+                <label>Séries — coche celles où tu veux tirer</label>
+            </div>
+            <table class="slots-table" id="slotsTable"></table>
+            <div class="slots-hint" id="slotsHint">Pour chaque série cochée, indique la discipline tirée (elle peut être différente d'une série à l'autre).</div>
+        </div>
+
+        <div class="panel">
             <button type="button" class="btn btn-primary" id="btnSubmit" onclick="submitInscription()">
                 ✓ Je m'inscris
             </button>
         </div>
         <div class="footer-note">Ton inscription apparaît immédiatement dans le classement en direct.</div>
-        <div class="footer-note" style="margin-top:2px; opacity:0.6;">v2.1</div>
+        <div class="footer-note" style="margin-top:2px; opacity:0.6;">v2.3</div>
     </div>
 
     <div id="screenConfirm" style="display:none;">
@@ -241,7 +254,7 @@
             <h2>Inscription enregistrée</h2>
             <p>Tu es bien inscrit à cette compétition.</p>
             <div class="recap" id="recapBox"></div>
-            <button type="button" class="btn btn-primary" onclick="registerAnother()">+ Inscrire un autre engagement</button>
+            <button type="button" class="btn btn-primary" onclick="registerAnother()">+ Autre inscription (autre série, discipline ou tireur)</button>
             <button type="button" class="btn btn-secondary" id="btnResults" onclick="location.href=resultsUrl">🏆 Voir le classement en direct</button>
         </div>
     </div>
@@ -287,7 +300,7 @@
     let activeTypeKey = 'AMICAL';
     let shootersSnapshot = [];
     let slotsData = {};
-    let selectedSlotId = null;
+    let selectedSlotIds = new Set();
     let slotsRef = null;
 
     function showScreen(id) {
@@ -313,12 +326,11 @@
         }
     }
 
-    function rebuildCategories(typeKey) {
-        const cat = dataRef[typeKey];
-        const catWrap = document.getElementById('catWrap');
+    function catsFor(typeKey, discValue) {
+        const cat = dataRef[typeKey] || dataRef.AMICAL;
         let cats = cat.cats;
         if (typeKey === 'ISSF2550') {
-            const discValue = document.getElementById('fDiscSelect').value || '';
+            discValue = discValue || '';
             if (discValue.match(/^(501|502)/)) {
                 cats = ["Minime F","Minime G","Cadet F","Cadet G","Junior Fille","Junior Garçon","Dame 1","Dame 2","Dame 3","Senior 1","Senior 2","Senior 3"];
             } else if (discValue.match(/^(250|251|252|253|500)/)) {
@@ -327,8 +339,67 @@
                 cats = ["Senior 1"];
             }
         }
+        return cats;
+    }
+
+    function rebuildCategories(typeKey) {
+        const catWrap = document.getElementById('catWrap');
+        const discValue = document.getElementById('fDiscSelect').value || '';
         catWrap.innerHTML = '<label>Catégorie</label><select id="fCatSelect">' +
-            cats.map(c => `<option value="${c}">${c}</option>`).join('') + '</select>';
+            catsFor(typeKey, discValue).map(c => `<option value="${c}">${c}</option>`).join('') + '</select>';
+    }
+
+    // ─── Discipline / catégorie PAR SÉRIE (un tireur peut tirer 10m dans une série, 50m dans une autre) ───
+    const isFreeText = () => { const c = dataRef[activeTypeKey] || dataRef.AMICAL; return c.freeText || c.disc.length === 0; };
+    let lastDisc = '', lastCat = '';   // mémorise le dernier choix pour pré-remplir la série suivante
+
+    function slotDetailHtml(slotId) {
+        const disc = document.getElementById('sDisc_' + slotId);
+        const catv = document.getElementById('sCat_' + slotId);
+        const curDisc = disc ? disc.value : lastDisc;
+        const curCat = catv ? catv.value : lastCat;
+        if (isFreeText()) {
+            return `<div class="field"><label>Discipline</label>
+                <input type="text" id="sDisc_${slotId}" value="${escapeAttr(curDisc)}" placeholder="Ex : Pistolet 10m, Carabine 50m…" oninput="rememberChoice('${slotId}')"></div>
+                <div class="field"><label>Catégorie</label>
+                <input type="text" id="sCat_${slotId}" value="${escapeAttr(curCat)}" placeholder="Ex : Senior, Loisir, Mixte…" oninput="rememberChoice('${slotId}')"></div>`;
+        }
+        const discs = dataRef[activeTypeKey].disc;
+        const d = discs.includes(curDisc) ? curDisc : discs[0];
+        const cats = catsFor(activeTypeKey, d);
+        const c = cats.includes(curCat) ? curCat : cats[0];
+        return `<div class="field"><label>Discipline</label>
+            <select id="sDisc_${slotId}" onchange="onSlotDiscChange('${slotId}')">` +
+            discs.map(x => `<option value="${escapeAttr(x)}" ${x === d ? 'selected' : ''}>${x}</option>`).join('') + `</select></div>
+            <div class="field"><label>Catégorie</label>
+            <select id="sCat_${slotId}" onchange="rememberChoice('${slotId}')">` +
+            cats.map(x => `<option value="${escapeAttr(x)}" ${x === c ? 'selected' : ''}>${x}</option>`).join('') + `</select></div>`;
+    }
+
+    function escapeAttr(v) { return String(v || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+
+    function onSlotDiscChange(slotId) {
+        const d = document.getElementById('sDisc_' + slotId).value;
+        const catSel = document.getElementById('sCat_' + slotId);
+        const cats = catsFor(activeTypeKey, d);
+        const keep = cats.includes(catSel.value) ? catSel.value : cats[0];
+        catSel.innerHTML = cats.map(x => `<option value="${escapeAttr(x)}" ${x === keep ? 'selected' : ''}>${x}</option>`).join('');
+        rememberChoice(slotId);
+    }
+
+    function rememberChoice(slotId) {
+        const d = document.getElementById('sDisc_' + slotId); const c = document.getElementById('sCat_' + slotId);
+        if (d) lastDisc = d.value; if (c) lastCat = c.value;
+    }
+
+    // Valeurs saisies par série (conservées si le tableau est redessiné par une mise à jour en direct)
+    function collectSlotChoices() {
+        const out = {};
+        selectedSlotIds.forEach(id => {
+            const d = document.getElementById('sDisc_' + id); const c = document.getElementById('sCat_' + id);
+            if (d) out[id] = { disc: d.value, cat: c ? c.value : '' };
+        });
+        return out;
     }
 
     // Trie les séries par date/heure croissante (utile sur une compétition à plusieurs jours).
@@ -351,43 +422,94 @@
     }
 
     function renderSlotsTable(data) {
+        const saved = collectSlotChoices();
         slotsData = data || {};
+        document.getElementById('globalDiscBlock').style.display = Object.keys(slotsData).length ? 'none' : 'block';
         const panel = document.getElementById('slotsPanel');
         const table = document.getElementById('slotsTable');
         const entries = sortedSlotEntries(slotsData);
 
         if (entries.length === 0) {
             panel.style.display = 'none';
-            selectedSlotId = null;
+            selectedSlotIds.clear();
             return;
         }
         panel.style.display = 'block';
 
-        // Si la série choisie a disparu ou est maintenant complète, on redemande un choix.
-        if (selectedSlotId && !slotsData[selectedSlotId]) selectedSlotId = null;
+        // Une série cochée qui a disparu ou s'est remplie entre-temps est décochée.
+        selectedSlotIds.forEach(id => {
+            const sl = slotsData[id];
+            if (!sl || (Number(sl.count) || 0) >= (Number(sl.capacity) || 0)) selectedSlotIds.delete(id);
+        });
 
         let html = '<thead><tr><th></th><th>Série</th><th style="text-align:right;">Places</th></tr></thead><tbody>';
         entries.forEach(([slotId, slot]) => {
             const capacity = Number(slot.capacity) || 0;
             const count = Number(slot.count) || 0;
             const isFull = count >= capacity;
-            const checked = (selectedSlotId === slotId) ? 'checked' : '';
+            const checked = selectedSlotIds.has(slotId) ? 'checked' : '';
             const when = formatSlotWhen(slot);
             const displayLabel = when
                 ? (slot.label ? `${when} — ${slot.label}` : when)
                 : (slot.label || '(sans nom)');
-            html += `<tr class="${isFull ? 'full' : ''}">
-                <td><input type="radio" name="slotChoice" value="${slotId}" ${checked} ${isFull ? 'disabled' : ''} onchange="selectSlot('${slotId}')"></td>
+            html += `<tr class="${isFull ? 'full' : ''} ${checked ? 'selected' : ''}" id="slotRow_${slotId}">
+                <td><input type="checkbox" name="slotChoice" value="${slotId}" ${checked} ${isFull ? 'disabled' : ''} onchange="toggleSlot('${slotId}', this.checked)"></td>
                 <td>${displayLabel}</td>
                 <td class="slot-places">${isFull ? '<span class="slot-full-tag">COMPLET</span>' : (capacity - count) + ' / ' + capacity}</td>
             </tr>`;
+            if (checked) {
+                if (saved[slotId]) { lastDisc = saved[slotId].disc; lastCat = saved[slotId].cat; }
+                html += `<tr class="slot-detail" id="slotDetail_${slotId}"><td></td><td colspan="2">${slotDetailHtml(slotId)}</td></tr>`;
+            }
         });
         html += '</tbody>';
         table.innerHTML = html;
     }
 
-    function selectSlot(slotId) {
-        selectedSlotId = slotId;
+    function toggleSlot(slotId, on) {
+        if (on) selectedSlotIds.add(slotId); else selectedSlotIds.delete(slotId);
+        const row = document.getElementById('slotRow_' + slotId);
+        if (row) row.classList.toggle('selected', on);
+        const existing = document.getElementById('slotDetail_' + slotId);
+        if (existing) existing.remove();
+        if (on && row) {
+            const tr = document.createElement('tr');
+            tr.className = 'slot-detail'; tr.id = 'slotDetail_' + slotId;
+            tr.innerHTML = `<td></td><td colspan="2">${slotDetailHtml(slotId)}</td>`;
+            row.after(tr);
+        }
+    }
+
+    function slotDisplayLabel(slot) {
+        const when = formatSlotWhen(slot || {});
+        return when
+            ? (slot.label ? `${when} — ${slot.label}` : when)
+            : ((slot && slot.label) || '');
+    }
+
+    // Vrai si ce tireur est déjà inscrit dans cette série (via slots/registered).
+    function alreadyInSlot(slotId, nom, prenom) {
+        const reg = (slotsData[slotId] || {}).registered || {};
+        return Object.values(reg).some(r => (r.lastName || '').toUpperCase() === nom && (r.firstName || '') === prenom);
+    }
+
+    // Réserve une place (transaction atomique anti sur-booking), puis crée l'engagement
+    // du tireur pour cette série. Un tireur inscrit dans N séries = N lignes dans la
+    // compétition (une par série, chacune avec son propre score), comme dans la saisie admin.
+    function registerInSlot(slotId, entry) {
+        const base = CLUB_PATH + '/' + compId + '/slots/' + slotId;
+        return db.ref(base + '/count').transaction(current => {
+            current = current || 0;
+            const capacity = Number((slotsData[slotId] || {}).capacity) || 0;
+            if (current >= capacity) return; // annule : plus de place
+            return current + 1;
+        }).then(result => {
+            if (!result.committed) return { slotId, ok: false, reason: 'complet' };
+            return db.ref(CLUB_PATH + '/' + compId + '/shooters').push(entry)
+                .then(ref => db.ref(base + '/registered/' + ref.key)
+                    .set({ lastName: entry.lastName, firstName: entry.firstName, club: entry.club }))
+                .then(() => { shootersSnapshot.push(entry); return { slotId, ok: true }; });
+        });
     }
 
     function fieldValue(id) {
@@ -402,17 +524,35 @@
         const nom = fieldValue('fNom').toUpperCase();
         const prenom = fieldValue('fPrenom');
         const club = fieldValue('fClub') || '-';
-        const disc = fieldValue('fDiscSelect');
-        const cat = fieldValue('fCatSelect');
+        const hasSlots = Object.keys(slotsData).length > 0;
+        const disc = hasSlots ? '' : fieldValue('fDiscSelect');
+        const cat = hasSlots ? '' : fieldValue('fCatSelect');
 
         if (!nom || !prenom) { return showFormError("Merci de renseigner ton nom et ton prénom."); }
-        if (!disc) { return showFormError("Merci d'indiquer la discipline."); }
+        if (!hasSlots && !disc) { return showFormError("Merci d'indiquer la discipline."); }
 
-        const hasSlots = Object.keys(slotsData).length > 0;
-        if (hasSlots && !selectedSlotId) { return showFormError("Merci de choisir une série dans le tableau ci-dessus."); }
+        const wanted = sortedSlotEntries(slotsData).map(e => e[0]).filter(id => selectedSlotIds.has(id));
+        if (hasSlots && wanted.length === 0) { return showFormError("Merci de cocher au moins une série dans le tableau ci-dessus."); }
 
-        const already = shootersSnapshot.some(s => s.lastName === nom && s.firstName === prenom && s.discipline === disc);
-        if (already) { return showFormError(`${nom} ${prenom} est déjà inscrit·e dans cette discipline.`); }
+        // Discipline / catégorie propres à chaque série cochée
+        const choices = collectSlotChoices();
+        if (hasSlots) {
+            const missing = wanted.filter(id => !(choices[id] && choices[id].disc.trim()));
+            if (missing.length) {
+                return showFormError("Indique la discipline pour : " + missing.map(id => slotDisplayLabel(slotsData[id])).join(', ') + '.');
+            }
+        }
+
+        if (hasSlots) {
+            const dup = wanted.filter(id => alreadyInSlot(id, nom, prenom));
+            if (dup.length) {
+                return showFormError(`${nom} ${prenom} est déjà inscrit·e dans : ` +
+                    dup.map(id => slotDisplayLabel(slotsData[id])).join(', ') + '. Décoche ces séries.');
+            }
+        } else {
+            const already = shootersSnapshot.some(s => s.lastName === nom && s.firstName === prenom && s.discipline === disc);
+            if (already) { return showFormError(`${nom} ${prenom} est déjà inscrit·e dans cette discipline.`); }
+        }
 
         const btn = document.getElementById('btnSubmit');
         btn.disabled = true;
@@ -421,65 +561,56 @@
         // NB : le schéma de validation Firebase (Realtime Database → Rules) n'autorise que ces
         // champs exacts sur un tireur (lastName, firstName, club, discipline, category, score) —
         // tout champ supplémentaire fait échouer l'écriture avec PERMISSION_DENIED.
-        const entry = {
+        const entryFor = (d, c) => ({
             lastName: nom, firstName: prenom, club: club,
-            discipline: disc, category: cat || 'Général',
+            discipline: d, category: c || 'Général',
             score: 0
-        };
+        });
+        const entry = entryFor(disc, cat);
 
-        // Si une série a été choisie, on réserve d'abord une place de façon atomique
-        // (transaction Firebase) pour éviter le sur-booking en cas d'inscriptions simultanées.
-        const reserveStep = hasSlots
-            ? db.ref(CLUB_PATH + '/' + compId + '/slots/' + selectedSlotId + '/count').transaction(current => {
-                  current = current || 0;
-                  const capacity = Number((slotsData[selectedSlotId] || {}).capacity) || 0;
-                  if (current >= capacity) return; // annule la transaction : plus de place
-                  return current + 1;
-              }).then(result => {
-                  if (!result.committed) {
-                      const e = new Error("Cette série vient de se remplir. Choisis-en une autre.");
-                      e.slotFull = true;
-                      throw e;
+        const archiveKey = nom.replace(/[^a-zA-Z]/g, "") + "_" + prenom.replace(/[^a-zA-Z]/g, "");
+        const archiveStep = db.ref('Ligue_Tireurs_Archive/' + archiveKey).update({ lastName: nom, firstName: prenom, club: club });
+
+        // Sans série : un seul engagement. Avec séries : un engagement par série cochée,
+        // traitées l'une après l'autre (une série devenue complète n'empêche pas les autres).
+        const work = hasSlots
+            ? wanted.reduce((chain, id) => chain.then(acc =>
+                  registerInSlot(id, entryFor(choices[id].disc.trim(), choices[id].cat.trim())).then(r => { acc.push(r); return acc; })), Promise.resolve([]))
+            : db.ref(CLUB_PATH + '/' + compId + '/shooters').push(entry)
+                  .then(() => { shootersSnapshot.push(entry); return [{ ok: true }]; });
+
+        work
+          .then(results => archiveStep.catch(() => {}).then(() => results))
+          .then(results => {
+              const done = results.filter(r => r.ok);
+              const failed = results.filter(r => !r.ok);
+
+              if (done.length === 0) {
+                  selectedSlotIds.clear();
+                  renderSlotsTable(slotsData);
+                  return showFormError("Ces séries viennent de se remplir. Choisis-en d'autres.");
+              }
+
+              let slotLines = '';
+              if (hasSlots) {
+                  slotLines = '<div style="margin-top:8px;"><b>Séries :</b></div>' +
+                      done.map(r => `<div>✓ ${slotDisplayLabel(slotsData[r.slotId])} — ${choices[r.slotId].disc} (${choices[r.slotId].cat || 'Général'})</div>`).join('');
+                  if (failed.length) {
+                      slotLines += failed.map(r => `<div style="color:var(--accent);">✗ ${slotDisplayLabel(slotsData[r.slotId])} — complète, non inscrit</div>`).join('');
                   }
-              })
-            : Promise.resolve();
-
-        let shooterKey = null;
-
-        reserveStep
-          .then(() => db.ref(CLUB_PATH + '/' + compId + '/shooters').push(entry))
-          .then(ref => {
-              shooterKey = ref.key;
-              const key = nom.replace(/[^a-zA-Z]/g, "") + "_" + prenom.replace(/[^a-zA-Z]/g, "");
-              return db.ref('Ligue_Tireurs_Archive/' + key).update({ lastName: nom, firstName: prenom, club: club });
-          })
-          .then(() => {
-              if (!hasSlots) return;
-              // Trace de qui occupe la série, hors du schéma "shooters" (pas de champ en plus requis là-bas).
-              return db.ref(CLUB_PATH + '/' + compId + '/slots/' + selectedSlotId + '/registered/' + shooterKey)
-                  .set({ lastName: nom, firstName: prenom, club: club });
-          })
-          .then(() => {
-              const chosenSlot = slotsData[selectedSlotId] || {};
-              const chosenWhen = formatSlotWhen(chosenSlot);
-              const chosenLabel = chosenWhen
-                  ? (chosenSlot.label ? `${chosenWhen} — ${chosenSlot.label}` : chosenWhen)
-                  : (chosenSlot.label || '');
-              const slotLine = hasSlots ? `<div>${chosenLabel}</div>` : '';
+              }
               document.getElementById('recapBox').innerHTML = `
                   <div><b>${nom} ${prenom}</b></div>
                   <div>${club}</div>
-                  <div>${disc}</div>
-                  <div>${cat || 'Général'}</div>
-                  ${slotLine}`;
+                  ${hasSlots ? '' : `<div>${disc}</div><div>${cat || 'Général'}</div>`}
+                  ${slotLines}`;
+              document.querySelector('#screenConfirm h2').textContent =
+                  done.length > 1 ? `${done.length} inscriptions enregistrées` : 'Inscription enregistrée';
+              selectedSlotIds.clear();
               showScreen('screenConfirm');
           })
           .catch(e => {
-              if (e && e.slotFull) {
-                  showFormError(e.message);
-              } else {
-                  showFormError("Échec de l'enregistrement : " + (e.message || e.code || e));
-              }
+              showFormError("Échec de l'enregistrement : " + (e.message || e.code || e));
           })
           .finally(() => {
               btn.disabled = false;
@@ -494,9 +625,9 @@
     }
 
     function registerAnother() {
-        document.getElementById('fNom').value = '';
-        document.getElementById('fPrenom').value = '';
-        selectedSlotId = null;
+        // Nom/prénom/club conservés : le cas courant est le même tireur qui ajoute
+        // une autre discipline ou d'autres séries. Il peut les modifier s'il s'agit d'un autre tireur.
+        selectedSlotIds.clear();
         renderSlotsTable(slotsData);
         buildDisciplineUI(activeTypeKey);
         showScreen('screenForm');
