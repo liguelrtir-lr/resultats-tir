@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v2.9 — 06/09/2026 -->
+<!-- LIGUE LR — version v3.0 — 06/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -249,6 +249,11 @@
 
         /* BUTTONS */
         .btn-row { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+        .slot-checks { display: flex; flex-wrap: wrap; gap: 8px; }
+        .slot-check { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface2); font-size: 0.9rem; cursor: pointer; user-select: none; }
+        .slot-check input { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; cursor: pointer; }
+        .slot-check.full { opacity: 0.55; }
+        .slot-check.on { border-color: var(--accent); background: #fff4ef; }
         .btn {
             font-family: 'Rajdhani', sans-serif;
             font-weight: 700;
@@ -608,7 +613,7 @@
             </div>
         </div>
         <div class="header-actions">
-            <span class="version-tag">v2.9</span>
+            <span class="version-tag">v3.0</span>
             <button type="button" id="btnToggleImport" class="btn-toggle-import">
                 <span>🪄</span> Import Tireurs
             </button>
@@ -694,6 +699,10 @@
                 <label>Club</label>
                 <input type="text" id="newClub" autocomplete="off" placeholder="ST BEZIERS">
             </div>
+            <div class="field">
+                <label>N° de licence</label>
+                <input type="text" id="newLicence" autocomplete="off" inputmode="numeric" placeholder="01234567">
+            </div>
         </div>
         <div class="form-row">
             <div class="field" id="discFieldWrap">
@@ -706,7 +715,13 @@
             </div>
         </div>
         <div class="form-row" id="slotFieldRow" style="display:none;">
-            <div class="field">
+            <!-- Ajout : plusieurs séries cochables → un engagement par série cochée (même discipline) -->
+            <div class="field" id="slotMultiWrap">
+                <label>Séries — coche une ou plusieurs (optionnel)</label>
+                <div class="slot-checks" id="newSlotMulti"></div>
+            </div>
+            <!-- Modification : un engagement = une seule série -->
+            <div class="field" id="slotSingleWrap" style="display:none;">
                 <label>Série (optionnel)</label>
                 <select id="newSlot"><option value="">— Aucune —</option></select>
             </div>
@@ -1133,6 +1148,40 @@
         });
         sel.innerHTML = html;
         if (currentVal && slotsData[currentVal]) sel.value = currentVal;
+
+        // Cases à cocher (mode ajout) — on conserve ce qui était déjà coché lors des rafraîchissements en direct
+        const multi = document.getElementById('newSlotMulti');
+        const checked = new Set(getCheckedSlots());
+        multi.innerHTML = Object.keys(slotsData).map(slotId => {
+            const slot = slotsData[slotId];
+            const capacity = Number(slot.capacity) || 0, count = Number(slot.count) || 0;
+            const isFull = count >= capacity;
+            const on = checked.has(slotId);
+            return `<label class="slot-check ${isFull ? 'full' : ''} ${on ? 'on' : ''}">
+                <input type="checkbox" value="${slotId}" ${on ? 'checked' : ''} onchange="this.parentNode.classList.toggle('on', this.checked)">
+                ${slotLabelOf(slot)} <span style="color:var(--text-muted);">(${count}/${capacity})</span></label>`;
+        }).join('');
+    }
+
+    function getCheckedSlots() {
+        return Array.from(document.querySelectorAll('#newSlotMulti input:checked')).map(i => i.value);
+    }
+    function clearCheckedSlots() {
+        document.querySelectorAll('#newSlotMulti input').forEach(i => { i.checked = false; i.parentNode.classList.remove('on'); });
+    }
+
+    // Écrit la fiche tireur ; si les règles Firebase n'acceptent pas encore le champ "licence",
+    // réessaie sans lui pour ne jamais bloquer la saisie.
+    function writeShooter(ref, data, isUpdate) {
+        const op = d => isUpdate ? ref.update(d) : ref.set(d);
+        return op(data).catch(e => {
+            if (data.licence !== undefined && /PERMISSION_DENIED/i.test((e && (e.code || e.message)) || '')) {
+                const lite = Object.assign({}, data); delete lite.licence;
+                console.warn('Champ "licence" refusé par les règles Firebase — écriture sans licence.');
+                return op(lite);
+            }
+            throw e;
+        });
     }
 
     function assignSlot(shooterId, slotId, info) {
@@ -1146,15 +1195,19 @@
         db.ref(CLUB_PATH + '/' + compId + '/slots/' + slotId + '/count').transaction(c => Math.max(0, (c || 0) - 1));
     }
 
-    // keepIdentity = true : garde nom/prénom/club après l'enregistrement pour saisir
+    // keepIdentity = true : garde nom/prénom/club/licence après l'enregistrement pour saisir
     // un autre engagement du même tireur (autre série, et/ou autre discipline).
     function addShooter(keepIdentity) {
         const nom = document.getElementById('newNom').value.toUpperCase().trim();
         const prenom = document.getElementById('newPrenom').value.trim();
         const club = document.getElementById('newClub').value.trim() || "-";
+        const licence = document.getElementById('newLicence').value.replace(/\s+/g, '');
         const disc = document.getElementById('newDiscipline').value.trim();
         const cat = document.getElementById('newCategorie').value.trim() || "Général";
-        const slotId = document.getElementById('newSlot').value;
+        // Plusieurs séries cochées = un engagement par série (même discipline / catégorie).
+        // Aucune série cochée = un seul engagement sans série.
+        const slotIds = hasSlots ? getCheckedSlots() : [];
+        const targets = slotIds.length ? slotIds : [''];
 
         if (!nom || !prenom) return alert("Nom et Prénom requis");
         if (!disc) return alert("Discipline requise");
@@ -1163,25 +1216,37 @@
         // Le même tireur peut donc s'engager dans plusieurs séries, avec la même discipline
         // ou des disciplines différentes (ex. 10 m le matin, pistolet 50 m l'après-midi).
         const slotOf = id => (slotByShooter[id] && slotByShooter[id].slotId) || '';
-        let existeDeja = shootersData.some(s => s.lastName === nom && s.firstName === prenom && s.discipline === disc && slotOf(s.id) === slotId);
-        if (existeDeja) {
-            const where = slotId ? ` dans la série ${(slotsData[slotId] && slotLabelOf(slotsData[slotId])) || ''}` : '';
-            return alert(`⚠️ IMPOSSIBLE : ${nom} ${prenom} est DÉJÀ inscrit en ${disc}${where}.`);
+        for (const slotId of targets) {
+            const existeDeja = shootersData.some(s => s.lastName === nom && s.firstName === prenom && s.discipline === disc && slotOf(s.id) === slotId);
+            if (existeDeja) {
+                const where = slotId ? ` dans la série ${(slotsData[slotId] && slotLabelOf(slotsData[slotId])) || ''}` : '';
+                return alert(`⚠️ IMPOSSIBLE : ${nom} ${prenom} est DÉJÀ inscrit en ${disc}${where}.`);
+            }
         }
 
-        // NB : le schéma de validation Firebase (Realtime Database → Rules) n'autorise que ces
-        // champs exacts sur un tireur — un champ en plus (ex: typeGroup) fait échouer l'écriture
-        // avec PERMISSION_DENIED. Le type est redéduit à l'édition dans prepareEdit() ci-dessous.
-        const s = { lastName: nom, firstName: prenom, club: club, discipline: disc, category: cat, score: 0 };
-        const newRef = db.ref(CLUB_PATH + '/' + compId + '/shooters').push(s);
-        if (slotId) assignSlot(newRef.key, slotId, { lastName: nom, firstName: prenom, club: club });
+        // NB : le schéma de validation Firebase (Realtime Database → Rules) n'autorise que les
+        // champs de la liste blanche sur un tireur — "licence" doit y être ajouté (comme "series").
+        const base = { lastName: nom, firstName: prenom, club: club, discipline: disc, category: cat, score: 0 };
+        if (licence) base.licence = licence;
+        const info = { lastName: nom, firstName: prenom, club: club };
+        if (licence) info.licence = licence;
+
+        targets.forEach(slotId => {
+            const newRef = db.ref(CLUB_PATH + '/' + compId + '/shooters').push();
+            writeShooter(newRef, Object.assign({}, base), false)
+                .then(() => { if (slotId) assignSlot(newRef.key, slotId, info); })
+                .catch(e => alert("Échec de l'enregistrement : " + (e.message || e.code || e)));
+        });
+
         const key = nom.replace(/[^a-zA-Z]/g, "") + "_" + prenom.replace(/[^a-zA-Z]/g, "");
-        db.ref('Ligue_Tireurs_Archive/' + key).set({ lastName: nom, firstName: prenom, club: club });
+        db.ref('Ligue_Tireurs_Archive/' + key).update(info);
+
         if (keepIdentity) {
-            // Identité conservée, série remise à zéro : il ne reste qu'à choisir série/discipline.
+            // Identité conservée, séries décochées : il ne reste qu'à choisir série(s)/discipline.
+            clearCheckedSlots();
             document.getElementById('newSlot').value = '';
-            const sel = document.getElementById('newSlot');
-            if (hasSlots) sel.focus(); else document.getElementById('newDiscipline').focus();
+            if (hasSlots) document.getElementById('newSlotMulti').scrollIntoView({ block: 'center' });
+            document.getElementById('newDiscipline').focus();
         } else {
             resetForm();
         }
@@ -1198,6 +1263,9 @@
         document.getElementById('newNom').value = s.lastName;
         document.getElementById('newPrenom').value = s.firstName;
         document.getElementById('newClub').value = s.club;
+        document.getElementById('newLicence').value = s.licence || '';
+        document.getElementById('slotMultiWrap').style.display = 'none';
+        document.getElementById('slotSingleWrap').style.display = 'block';
         document.getElementById('btnAdd').style.display = 'none';
         document.getElementById('btnAddMore').style.display = 'none';
         document.getElementById('btnUpdate').style.display = 'block';
@@ -1237,7 +1305,10 @@
             discipline: document.getElementById('newDiscipline').value.trim(),
             category: document.getElementById('newCategorie').value.trim() || "Général"
         };
-        db.ref(CLUB_PATH + '/' + compId + '/shooters/' + id).update(updates);
+        const lic = document.getElementById('newLicence').value.replace(/\s+/g, '');
+        if (lic) updates.licence = lic;
+        writeShooter(db.ref(CLUB_PATH + '/' + compId + '/shooters/' + id), updates, true)
+            .catch(e => alert("Échec de la modification : " + (e.message || e.code || e)));
 
         // Si la série a été changée dans le formulaire, on désinscrit de l'ancienne et on
         // inscrit dans la nouvelle (les deux nœuds sont indépendants du tireur lui-même).
@@ -1265,7 +1336,11 @@
         document.getElementById('newNom').value = '';
         document.getElementById('newPrenom').value = '';
         document.getElementById('newClub').value = '';
+        document.getElementById('newLicence').value = '';
         document.getElementById('newSlot').value = '';
+        clearCheckedSlots();
+        document.getElementById('slotMultiWrap').style.display = 'block';
+        document.getElementById('slotSingleWrap').style.display = 'none';
         document.getElementById('btnAdd').style.display = 'block';
         document.getElementById('btnAddMore').style.display = 'block';
         document.getElementById('btnUpdate').style.display = 'none';
@@ -1290,6 +1365,7 @@
                         <span class="tag">${s.discipline}</span>
                         <span class="tag" style="border-color:rgba(217,154,28,0.4); color:#b07d10">${s.category}</span>
                         <span class="tag">${s.club}</span>
+                        ${s.licence ? `<span class="tag" title="N° de licence">🪪 ${s.licence}</span>` : ''}
                     </div>
                 </div>
                 ${hasSlots ? `<span class="tag slot-tag" title="Série (créneau)">${(slotByShooter[s.id] && slotByShooter[s.id].label) || '—'}</span>` : ''}
@@ -1372,15 +1448,16 @@
         if (val.length < 3) { box.style.display = 'none'; return; }
         const matches = archiveTireurs.filter(t => t.lastName.includes(val.toUpperCase())).slice(0, 5);
         if (matches.length > 0) {
-            box.innerHTML = matches.map(m => `<div class="suggestion-item" onclick="remplirTireur('${m.lastName}', '${m.firstName}', '${m.club}')"><b>${m.lastName}</b> ${m.firstName} — ${m.club}</div>`).join('');
+            box.innerHTML = matches.map(m => `<div class="suggestion-item" onclick="remplirTireur('${m.lastName}', '${m.firstName}', '${m.club}', '${m.licence || ''}')"><b>${m.lastName}</b> ${m.firstName} — ${m.club}${m.licence ? ' · ' + m.licence : ''}</div>`).join('');
             box.style.display = 'block';
         } else { box.style.display = 'none'; }
     }
 
-    function remplirTireur(n, p, c) {
+    function remplirTireur(n, p, c, l) {
         document.getElementById('newNom').value = n;
         document.getElementById('newPrenom').value = p;
         document.getElementById('newClub').value = c;
+        document.getElementById('newLicence').value = l || '';
         document.getElementById('suggestions').style.display = 'none';
     }
 

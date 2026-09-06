@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v1.1 — 04/09/2026 -->
+<!-- LIGUE LR — version v1.2 — 06/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -159,7 +159,7 @@
         <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
         <div class="header-center">
             <h1>🖨️ Feuilles de séries</h1>
-            <div class="version-tag">v1.1</div>
+            <div class="version-tag">v1.2</div>
             <div id="compTitle" class="comp-name">Chargement...</div>
         </div>
         <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
@@ -273,7 +273,12 @@
                 const ids = Object.keys(registered);
                 ids.forEach(id => assignedIds.add(id));
                 const rows = ids
-                    .map(id => shooters.find(s => s.id === id) || { id, ...registered[id] })
+                    .map(id => {
+                        const sh = shooters.find(s => s.id === id);
+                        const r = registered[id] || {};
+                        // licence : sur la fiche tireur, sinon celle notée à l'inscription dans la série
+                        return sh ? Object.assign({}, sh, sh.licence ? {} : { licence: r.licence || '' }) : { id, ...r };
+                    })
                     .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
 
                 const when = formatSlotWhen(slot);
@@ -296,6 +301,7 @@
                                         <th class="col-num">#</th>
                                         <th>Nom</th>
                                         <th>Prénom</th>
+                                        <th>Licence</th>
                                         <th>Club</th>
                                         <th>Discipline</th>
                                         <th class="col-poste">Poste</th>
@@ -307,6 +313,7 @@
                                     <td class="col-num">${i + 1}</td>
                                     <td>${escapeHtml(s.lastName)}</td>
                                     <td>${escapeHtml(s.firstName)}</td>
+                                    <td>${escapeHtml(s.licence || '')}</td>
                                     <td>${escapeHtml(s.club)}</td>
                                     <td>${escapeHtml(s.discipline)}</td>
                                     <td class="col-poste"><span class="poste-box"></span></td>
@@ -330,6 +337,7 @@
                                         <th class="col-num">#</th>
                                         <th>Nom</th>
                                         <th>Prénom</th>
+                                        <th>Licence</th>
                                         <th>Club</th>
                                         <th>Discipline</th>
                                     </tr>
@@ -340,6 +348,7 @@
                                 <td class="col-num">${i + 1}</td>
                                 <td>${escapeHtml(s.lastName)}</td>
                                 <td>${escapeHtml(s.firstName)}</td>
+                                <td>${escapeHtml(s.licence || '')}</td>
                                 <td>${escapeHtml(s.club)}</td>
                                 <td>${escapeHtml(s.discipline)}</td>
                              </tr>`;
@@ -371,6 +380,7 @@
                                         <th class="col-num">#</th>
                                         <th>Nom</th>
                                         <th>Prénom</th>
+                                        <th>Licence</th>
                                         <th>Club</th>
                                         <th class="col-poste">Poste</th>
                                     </tr>
@@ -381,6 +391,7 @@
                                 <td class="col-num">${i + 1}</td>
                                 <td>${escapeHtml(s.lastName)}</td>
                                 <td>${escapeHtml(s.firstName)}</td>
+                                <td>${escapeHtml(s.licence || '')}</td>
                                 <td>${escapeHtml(s.club)}</td>
                                 <td class="col-poste"><span class="poste-box"></span></td>
                              </tr>`;
