@@ -1,9 +1,12 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — Inscription publique par QR code — v2.7 — 06/09/2026 -->
+<!-- LIGUE LR — Inscription publique par QR code — v2.8 — 06/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Inscription — Compétition</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Barlow:wght@300;400;500;600&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet">
@@ -195,7 +198,7 @@
         <h1>Inscription en direct</h1>
         <div class="comp-name" id="compName">Chargement…</div>
         <div class="comp-type" id="compType"></div>
-        <div class="comp-type" style="margin-top:6px; opacity:0.9;">Version 2.7 — 06/09/2026</div>
+        <div class="comp-type" style="margin-top:6px; opacity:0.9;">Version 2.8 — 06/09/2026</div>
     </header>
 
     <div id="screenLoading">Connexion à la compétition…</div>
@@ -253,7 +256,7 @@
             </button>
         </div>
         <div class="footer-note">Ton inscription apparaît immédiatement dans le classement en direct.</div>
-        <div class="footer-note" style="margin-top:2px; opacity:0.6;">v2.7</div>
+        <div class="footer-note" style="margin-top:2px; opacity:0.6;">v2.8</div>
     </div>
 
     <div id="screenConfirm" style="display:none;">
@@ -574,6 +577,16 @@
             const missing = wanted.filter(id => !(choices[id] && choices[id].disc.trim()));
             if (missing.length) {
                 return showFormError("Indique la discipline pour : " + missing.map(id => slotDisplayLabel(slotsData[id])).join(', ') + '.');
+            }
+            // Filet de sécurité : la discipline doit être une de celles autorisées par la série
+            // (imposée ou au choix), même si le menu a été contourné ou affiché avant une modification.
+            for (const id of wanted) {
+                const allowed = Array.isArray(slotsData[id].disciplines) ? slotsData[id].disciplines : [];
+                if (allowed.length && !allowed.includes(choices[id].disc.trim())) {
+                    toggleSlot(id, false); toggleSlot(id, true); // redessine le choix avec la bonne liste
+                    const cb = document.querySelector(`input[name="slotChoice"][value="${id}"]`); if (cb) cb.checked = true;
+                    return showFormError(`La série ${slotDisplayLabel(slotsData[id])} n'accepte que : ${allowed.join(' / ')}. Choisis à nouveau la discipline pour cette série.`);
+                }
             }
         }
 
