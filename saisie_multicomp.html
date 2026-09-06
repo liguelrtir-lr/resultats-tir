@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v3.2 — 06/09/2026 -->
+<!-- LIGUE LR — version v3.3 — 06/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -254,6 +254,9 @@
         .slot-check input { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; cursor: pointer; }
         .slot-check.full { opacity: 0.55; }
         .slot-check.on { border-color: var(--accent); background: #fff4ef; }
+        .disc-hint { font-size: 0.75rem; color: var(--accent); font-weight: 600; margin-top: 4px; display: none; }
+        .disc-hint.show { display: block; }
+        select#newDiscipline:disabled { opacity: 0.7; background: #f3ede5; }
         .btn {
             font-family: 'Rajdhani', sans-serif;
             font-weight: 700;
@@ -620,7 +623,7 @@
             </div>
         </div>
         <div class="header-actions">
-            <span class="version-tag">v3.2</span>
+            <span class="version-tag">v3.3</span>
             <button type="button" id="btnToggleImport" class="btn-toggle-import">
                 <span>🪄</span> Import Tireurs
             </button>
@@ -724,6 +727,7 @@
                 <select id="newCategorie"></select>
             </div>
         </div>
+        <div class="disc-hint" id="discHint" style="margin:-6px 0 10px;"></div>
         <div class="form-row" id="slotFieldRow" style="display:none;">
             <!-- Ajout : plusieurs séries cochables → un engagement par série cochée (même discipline) -->
             <div class="field" id="slotMultiWrap">
@@ -976,6 +980,8 @@
             const cats = AMICAL_CATS.includes(curC) || !curC ? AMICAL_CATS : [curC].concat(AMICAL_CATS);
             discWrap.innerHTML = '<label>Discipline</label><select id="newDiscipline">' + optsHtml(discs, curD || discs[0]) + '</select>';
             catWrap.innerHTML = '<label>Catégorie</label><select id="newCategorie">' + optsHtml(cats, curC || 'Senior 1') + '</select>';
+            fullDiscOptions = null;
+            applySlotDisciplineConstraint();
             return;
         }
 
@@ -983,6 +989,8 @@
         document.getElementById('newDiscipline').innerHTML = catDef.disc.map(d => `<option value="${d}">${d}</option>`).join('');
         catWrap.innerHTML = '<label>Catégorie</label><select id="newCategorie"></select>';
         updateCategories();
+        fullDiscOptions = null;
+        applySlotDisciplineConstraint();
     }
 
     function updateCategories() {
@@ -1211,9 +1219,61 @@
             const allowed = Array.isArray(slot.disciplines) ? slot.disciplines : [];
             const discTxt = allowed.length === 1 ? ` · imposée : ${allowed[0]}` : (allowed.length > 1 ? ` · ${allowed.join(' / ')}` : '');
             return `<label class="slot-check ${isFull ? 'full' : ''} ${on ? 'on' : ''}" title="${allowed.length === 1 ? 'Discipline imposée par la série' : (allowed.length > 1 ? 'Disciplines possibles dans cette série' : 'Discipline libre')}">
-                <input type="checkbox" value="${slotId}" ${on ? 'checked' : ''} onchange="this.parentNode.classList.toggle('on', this.checked)">
+                <input type="checkbox" value="${slotId}" ${on ? 'checked' : ''} onchange="this.parentNode.classList.toggle('on', this.checked); applySlotDisciplineConstraint()">
                 ${slotLabelOf(slot)} <span style="color:var(--text-muted);">(${count}/${capacity})${discTxt}</span></label>`;
         }).join('');
+        applySlotDisciplineConstraint();
+    }
+
+    // ─── Cohérence discipline ↔ séries cochées ───
+    // Le menu Discipline ne propose plus que ce que les séries cochées autorisent :
+    //  - série à discipline imposée (1 seule) : elle s'applique d'office (menu grisé si toutes le sont) ;
+    //  - série "au choix" (plusieurs) : le menu est réduit à ces disciplines (intersection si plusieurs séries) ;
+    //  - série libre : aucune restriction.
+    let fullDiscOptions = null; // options complètes du menu, pour pouvoir les restaurer
+
+    function applySlotDisciplineConstraint() {
+        const sel = document.getElementById('newDiscipline');
+        const hint = document.getElementById('discHint');
+        if (!sel || sel.tagName !== 'SELECT' || document.getElementById('editId').value) return;
+        if (!fullDiscOptions || fullDiscOptions.type !== document.getElementById('typeSelector').value) {
+            fullDiscOptions = { type: document.getElementById('typeSelector').value, list: Array.from(sel.options).map(o => o.value) };
+        }
+        const checked = getCheckedSlots().map(id => slotsData[id]).filter(Boolean);
+        const fixed = checked.filter(sl => Array.isArray(sl.disciplines) && sl.disciplines.length === 1);
+        const choice = checked.filter(sl => Array.isArray(sl.disciplines) && sl.disciplines.length > 1);
+
+        let allowed = fullDiscOptions.list.slice();
+        choice.forEach(sl => { allowed = allowed.filter(d => sl.disciplines.includes(d)); });
+        // Les disciplines "au choix" d'une série peuvent ne pas être dans le menu (liste amicale) : on les ajoute
+        choice.forEach(sl => sl.disciplines.forEach(d => { if (!allowed.includes(d) && choice.every(o => o.disciplines.includes(d))) allowed.push(d); }));
+
+        const cur = sel.value;
+        const onlyFixed = checked.length > 0 && fixed.length === checked.length;
+        if (onlyFixed) {
+            const names = [...new Set(fixed.map(sl => sl.disciplines[0]))];
+            sel.innerHTML = optsHtml(names, names[0]);
+            sel.disabled = true;
+            hint.textContent = '🔒 Discipline imposée par la série cochée : ' + names.join(' / ');
+            hint.classList.add('show');
+            return;
+        }
+        sel.disabled = false;
+        if (choice.length && allowed.length) {
+            sel.innerHTML = optsHtml(allowed, allowed.includes(cur) ? cur : allowed[0]);
+            hint.textContent = '🎯 Choix limité par la série cochée : ' + allowed.join(' / ') +
+                (fixed.length ? ' — les séries à discipline imposée gardent la leur.' : '');
+            hint.classList.add('show');
+        } else if (choice.length && !allowed.length) {
+            sel.innerHTML = optsHtml(fullDiscOptions.list, cur);
+            hint.textContent = '⚠️ Les séries cochées n\'ont aucune discipline en commun : enregistre-les séparément.';
+            hint.classList.add('show');
+        } else {
+            sel.innerHTML = optsHtml(fullDiscOptions.list, fullDiscOptions.list.includes(cur) ? cur : fullDiscOptions.list[0]);
+            hint.textContent = fixed.length ? '🔒 Série(s) à discipline imposée : ' + [...new Set(fixed.map(sl => sl.disciplines[0]))].join(' / ') + ' — le menu sert aux autres séries.' : '';
+            hint.classList.toggle('show', !!fixed.length);
+        }
+        if (typeof updateCategories === 'function' && !dataRef[document.getElementById('typeSelector').value].freeText) updateCategories();
     }
 
     function getCheckedSlots() {
@@ -1221,6 +1281,7 @@
     }
     function clearCheckedSlots() {
         document.querySelectorAll('#newSlotMulti input').forEach(i => { i.checked = false; i.parentNode.classList.remove('on'); });
+        applySlotDisciplineConstraint();
     }
 
     // Écrit la fiche tireur ; si les règles Firebase n'acceptent pas encore le champ "licence",
@@ -1361,6 +1422,8 @@
             if (!sel || sel.tagName !== 'SELECT' || !val) return;
             if (!Array.from(sel.options).some(o => o.value === val)) sel.insertAdjacentHTML('afterbegin', `<option value="${escAttr(val)}">${val}</option>`);
         };
+        document.getElementById('newDiscipline').disabled = false;
+        document.getElementById('discHint').classList.remove('show');
         ensureOpt(document.getElementById('newDiscipline'), s.discipline);
         document.getElementById('newDiscipline').value = s.discipline;
         if (!dataRef[foundType].freeText) { updateCategories(); }
