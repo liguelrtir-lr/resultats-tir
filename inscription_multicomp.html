@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — Inscription publique par QR code — v2.3 — 06/09/2026 -->
+<!-- LIGUE LR — Inscription publique par QR code — v2.4 — 06/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -215,18 +215,22 @@
                 <input type="text" id="fPrenom" placeholder="Jean">
             </div>
             <div class="field">
+                <label>N° de licence</label>
+                <input type="text" id="fLicence" placeholder="Ex : 01234567" inputmode="numeric" autocomplete="off">
+            </div>
+            <div class="field">
                 <label>Club</label>
                 <input type="text" id="fClub" placeholder="ST BÉZIERS">
             </div>
-            <!-- Discipline/catégorie globales : utilisées seulement quand la compétition n'a pas de séries -->
+            <div class="field" id="catWrap">
+                <label>Catégorie</label>
+                <select id="fCatSelect"></select>
+            </div>
+            <!-- Discipline globale : utilisée seulement quand la compétition n'a pas de séries -->
             <div id="globalDiscBlock">
                 <div class="field" id="discWrap">
                     <label>Discipline</label>
                     <select id="fDiscSelect"></select>
-                </div>
-                <div class="field" id="catWrap">
-                    <label>Catégorie</label>
-                    <select id="fCatSelect"></select>
                 </div>
             </div>
         </div>
@@ -245,7 +249,7 @@
             </button>
         </div>
         <div class="footer-note">Ton inscription apparaît immédiatement dans le classement en direct.</div>
-        <div class="footer-note" style="margin-top:2px; opacity:0.6;">v2.3</div>
+        <div class="footer-note" style="margin-top:2px; opacity:0.6;">v2.4</div>
     </div>
 
     <div id="screenConfirm" style="display:none;">
@@ -317,87 +321,47 @@
 
         if (cat.freeText || cat.disc.length === 0) {
             discWrap.innerHTML = '<label>Discipline</label><input type="text" id="fDiscSelect" placeholder="Ex : Pistolet vitesse, Ball-trap amical…">';
-            catWrap.innerHTML = '<label>Catégorie</label><input type="text" id="fCatSelect" placeholder="Ex : Senior, Loisir, Mixte…">';
+            catWrap.innerHTML = '<label>Catégorie</label><input type="text" id="fCatSelect" placeholder="Ex : S1, D2, JG, Loisir…">';
         } else {
             discWrap.innerHTML = '<label>Discipline</label><select id="fDiscSelect">' +
                 cat.disc.map(d => `<option value="${d}">${d}</option>`).join('') + '</select>';
-            document.getElementById('fDiscSelect').addEventListener('change', () => rebuildCategories(typeKey));
-            rebuildCategories(typeKey);
+            // La catégorie est celle du tireur (âge/sexe) : choisie une fois, valable pour toutes ses séries.
+            catWrap.innerHTML = '<label>Catégorie</label><select id="fCatSelect">' +
+                cat.cats.map(c => `<option value="${c}">${c}</option>`).join('') + '</select>';
         }
     }
 
-    function catsFor(typeKey, discValue) {
-        const cat = dataRef[typeKey] || dataRef.AMICAL;
-        let cats = cat.cats;
-        if (typeKey === 'ISSF2550') {
-            discValue = discValue || '';
-            if (discValue.match(/^(501|502)/)) {
-                cats = ["Minime F","Minime G","Cadet F","Cadet G","Junior Fille","Junior Garçon","Dame 1","Dame 2","Dame 3","Senior 1","Senior 2","Senior 3"];
-            } else if (discValue.match(/^(250|251|252|253|500)/)) {
-                cats = ["Cadet F","Cadet G","Junior Fille","Junior Garçon","Dame 1","Dame 2","Dame 3","Senior 1","Senior 2","Senior 3"];
-            } else if (discValue.match(/^(27|57)/)) {
-                cats = ["Senior 1"];
-            }
-        }
-        return cats;
-    }
-
-    function rebuildCategories(typeKey) {
-        const catWrap = document.getElementById('catWrap');
-        const discValue = document.getElementById('fDiscSelect').value || '';
-        catWrap.innerHTML = '<label>Catégorie</label><select id="fCatSelect">' +
-            catsFor(typeKey, discValue).map(c => `<option value="${c}">${c}</option>`).join('') + '</select>';
-    }
-
-    // ─── Discipline / catégorie PAR SÉRIE (un tireur peut tirer 10m dans une série, 50m dans une autre) ───
+    // ─── Discipline PAR SÉRIE (un tireur peut tirer 10m dans une série, 50m dans une autre) ───
     const isFreeText = () => { const c = dataRef[activeTypeKey] || dataRef.AMICAL; return c.freeText || c.disc.length === 0; };
-    let lastDisc = '', lastCat = '';   // mémorise le dernier choix pour pré-remplir la série suivante
+    let lastDisc = '';   // mémorise le dernier choix pour pré-remplir la série suivante
 
     function slotDetailHtml(slotId) {
         const disc = document.getElementById('sDisc_' + slotId);
-        const catv = document.getElementById('sCat_' + slotId);
         const curDisc = disc ? disc.value : lastDisc;
-        const curCat = catv ? catv.value : lastCat;
         if (isFreeText()) {
             return `<div class="field"><label>Discipline</label>
-                <input type="text" id="sDisc_${slotId}" value="${escapeAttr(curDisc)}" placeholder="Ex : Pistolet 10m, Carabine 50m…" oninput="rememberChoice('${slotId}')"></div>
-                <div class="field"><label>Catégorie</label>
-                <input type="text" id="sCat_${slotId}" value="${escapeAttr(curCat)}" placeholder="Ex : Senior, Loisir, Mixte…" oninput="rememberChoice('${slotId}')"></div>`;
+                <input type="text" id="sDisc_${slotId}" value="${escapeAttr(curDisc)}" placeholder="Ex : Pistolet 10m, Carabine 50m…" oninput="rememberChoice('${slotId}')"></div>`;
         }
         const discs = dataRef[activeTypeKey].disc;
         const d = discs.includes(curDisc) ? curDisc : discs[0];
-        const cats = catsFor(activeTypeKey, d);
-        const c = cats.includes(curCat) ? curCat : cats[0];
         return `<div class="field"><label>Discipline</label>
-            <select id="sDisc_${slotId}" onchange="onSlotDiscChange('${slotId}')">` +
-            discs.map(x => `<option value="${escapeAttr(x)}" ${x === d ? 'selected' : ''}>${x}</option>`).join('') + `</select></div>
-            <div class="field"><label>Catégorie</label>
-            <select id="sCat_${slotId}" onchange="rememberChoice('${slotId}')">` +
-            cats.map(x => `<option value="${escapeAttr(x)}" ${x === c ? 'selected' : ''}>${x}</option>`).join('') + `</select></div>`;
+            <select id="sDisc_${slotId}" onchange="rememberChoice('${slotId}')">` +
+            discs.map(x => `<option value="${escapeAttr(x)}" ${x === d ? 'selected' : ''}>${x}</option>`).join('') + `</select></div>`;
     }
 
     function escapeAttr(v) { return String(v || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
 
-    function onSlotDiscChange(slotId) {
-        const d = document.getElementById('sDisc_' + slotId).value;
-        const catSel = document.getElementById('sCat_' + slotId);
-        const cats = catsFor(activeTypeKey, d);
-        const keep = cats.includes(catSel.value) ? catSel.value : cats[0];
-        catSel.innerHTML = cats.map(x => `<option value="${escapeAttr(x)}" ${x === keep ? 'selected' : ''}>${x}</option>`).join('');
-        rememberChoice(slotId);
-    }
-
     function rememberChoice(slotId) {
-        const d = document.getElementById('sDisc_' + slotId); const c = document.getElementById('sCat_' + slotId);
-        if (d) lastDisc = d.value; if (c) lastCat = c.value;
+        const d = document.getElementById('sDisc_' + slotId);
+        if (d) lastDisc = d.value;
     }
 
     // Valeurs saisies par série (conservées si le tableau est redessiné par une mise à jour en direct)
     function collectSlotChoices() {
         const out = {};
         selectedSlotIds.forEach(id => {
-            const d = document.getElementById('sDisc_' + id); const c = document.getElementById('sCat_' + id);
-            if (d) out[id] = { disc: d.value, cat: c ? c.value : '' };
+            const d = document.getElementById('sDisc_' + id);
+            if (d) out[id] = { disc: d.value };
         });
         return out;
     }
@@ -458,7 +422,7 @@
                 <td class="slot-places">${isFull ? '<span class="slot-full-tag">COMPLET</span>' : (capacity - count) + ' / ' + capacity}</td>
             </tr>`;
             if (checked) {
-                if (saved[slotId]) { lastDisc = saved[slotId].disc; lastCat = saved[slotId].cat; }
+                if (saved[slotId]) lastDisc = saved[slotId].disc;
                 html += `<tr class="slot-detail" id="slotDetail_${slotId}"><td></td><td colspan="2">${slotDetailHtml(slotId)}</td></tr>`;
             }
         });
@@ -493,6 +457,21 @@
         return Object.values(reg).some(r => (r.lastName || '').toUpperCase() === nom && (r.firstName || '') === prenom);
     }
 
+    // Crée la fiche tireur. Le champ "licence" doit être autorisé dans les règles Firebase
+    // (liste blanche de shooters/$id) ; si ce n'est pas encore le cas, on réessaie sans lui
+    // pour ne jamais bloquer une inscription (la licence reste dans slots/registered et l'archive).
+    function pushShooter(entry) {
+        const ref = db.ref(CLUB_PATH + '/' + compId + '/shooters').push();
+        return ref.set(entry).then(() => ref).catch(e => {
+            if (entry.licence && e && /PERMISSION_DENIED/i.test(e.code || e.message || '')) {
+                const lite = Object.assign({}, entry); delete lite.licence;
+                console.warn('Champ licence refusé par les règles Firebase — inscription sans licence sur la fiche.');
+                return ref.set(lite).then(() => ref);
+            }
+            throw e;
+        });
+    }
+
     // Réserve une place (transaction atomique anti sur-booking), puis crée l'engagement
     // du tireur pour cette série. Un tireur inscrit dans N séries = N lignes dans la
     // compétition (une par série, chacune avec son propre score), comme dans la saisie admin.
@@ -505,9 +484,13 @@
             return current + 1;
         }).then(result => {
             if (!result.committed) return { slotId, ok: false, reason: 'complet' };
-            return db.ref(CLUB_PATH + '/' + compId + '/shooters').push(entry)
-                .then(ref => db.ref(base + '/registered/' + ref.key)
-                    .set({ lastName: entry.lastName, firstName: entry.firstName, club: entry.club }))
+            return pushShooter(entry)
+                .then(ref => {
+                    const info = { lastName: entry.lastName, firstName: entry.firstName, club: entry.club };
+                    if (entry.licence) info.licence = entry.licence;
+                    if (entry.category) info.category = entry.category;
+                    return db.ref(base + '/registered/' + ref.key).set(info);
+                })
                 .then(() => { shootersSnapshot.push(entry); return { slotId, ok: true }; });
         });
     }
@@ -526,9 +509,12 @@
         const club = fieldValue('fClub') || '-';
         const hasSlots = Object.keys(slotsData).length > 0;
         const disc = hasSlots ? '' : fieldValue('fDiscSelect');
-        const cat = hasSlots ? '' : fieldValue('fCatSelect');
+        const cat = fieldValue('fCatSelect');
+        const licence = fieldValue('fLicence').replace(/\s+/g, '');
 
         if (!nom || !prenom) { return showFormError("Merci de renseigner ton nom et ton prénom."); }
+        if (!licence && !isFreeText()) { return showFormError("Merci d'indiquer ton numéro de licence."); }
+        if (!cat) { return showFormError("Merci d'indiquer ta catégorie."); }
         if (!hasSlots && !disc) { return showFormError("Merci d'indiquer la discipline."); }
 
         const wanted = sortedSlotEntries(slotsData).map(e => e[0]).filter(id => selectedSlotIds.has(id));
@@ -561,23 +547,24 @@
         // NB : le schéma de validation Firebase (Realtime Database → Rules) n'autorise que ces
         // champs exacts sur un tireur (lastName, firstName, club, discipline, category, score) —
         // tout champ supplémentaire fait échouer l'écriture avec PERMISSION_DENIED.
-        const entryFor = (d, c) => ({
-            lastName: nom, firstName: prenom, club: club,
-            discipline: d, category: c || 'Général',
-            score: 0
-        });
+        const entryFor = (d, c) => {
+            const e = { lastName: nom, firstName: prenom, club: club, discipline: d, category: c || 'Général', score: 0 };
+            if (licence) e.licence = licence;
+            return e;
+        };
         const entry = entryFor(disc, cat);
 
         const archiveKey = nom.replace(/[^a-zA-Z]/g, "") + "_" + prenom.replace(/[^a-zA-Z]/g, "");
-        const archiveStep = db.ref('Ligue_Tireurs_Archive/' + archiveKey).update({ lastName: nom, firstName: prenom, club: club });
+        const archiveData = { lastName: nom, firstName: prenom, club: club };
+        if (licence) archiveData.licence = licence;
+        const archiveStep = db.ref('Ligue_Tireurs_Archive/' + archiveKey).update(archiveData);
 
         // Sans série : un seul engagement. Avec séries : un engagement par série cochée,
         // traitées l'une après l'autre (une série devenue complète n'empêche pas les autres).
         const work = hasSlots
             ? wanted.reduce((chain, id) => chain.then(acc =>
-                  registerInSlot(id, entryFor(choices[id].disc.trim(), choices[id].cat.trim())).then(r => { acc.push(r); return acc; })), Promise.resolve([]))
-            : db.ref(CLUB_PATH + '/' + compId + '/shooters').push(entry)
-                  .then(() => { shootersSnapshot.push(entry); return [{ ok: true }]; });
+                  registerInSlot(id, entryFor(choices[id].disc.trim(), cat)).then(r => { acc.push(r); return acc; })), Promise.resolve([]))
+            : pushShooter(entry).then(() => { shootersSnapshot.push(entry); return [{ ok: true }]; });
 
         work
           .then(results => archiveStep.catch(() => {}).then(() => results))
@@ -594,15 +581,15 @@
               let slotLines = '';
               if (hasSlots) {
                   slotLines = '<div style="margin-top:8px;"><b>Séries :</b></div>' +
-                      done.map(r => `<div>✓ ${slotDisplayLabel(slotsData[r.slotId])} — ${choices[r.slotId].disc} (${choices[r.slotId].cat || 'Général'})</div>`).join('');
+                      done.map(r => `<div>✓ ${slotDisplayLabel(slotsData[r.slotId])} — ${choices[r.slotId].disc}</div>`).join('');
                   if (failed.length) {
                       slotLines += failed.map(r => `<div style="color:var(--accent);">✗ ${slotDisplayLabel(slotsData[r.slotId])} — complète, non inscrit</div>`).join('');
                   }
               }
               document.getElementById('recapBox').innerHTML = `
-                  <div><b>${nom} ${prenom}</b></div>
-                  <div>${club}</div>
-                  ${hasSlots ? '' : `<div>${disc}</div><div>${cat || 'Général'}</div>`}
+                  <div><b>${nom} ${prenom}</b>${licence ? ` — licence ${licence}` : ''}</div>
+                  <div>${club} · ${cat || 'Général'}</div>
+                  ${hasSlots ? '' : `<div>${disc}</div>`}
                   ${slotLines}`;
               document.querySelector('#screenConfirm h2').textContent =
                   done.length > 1 ? `${done.length} inscriptions enregistrées` : 'Inscription enregistrée';
