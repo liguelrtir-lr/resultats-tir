@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v3.5 — 06/09/2026 -->
+<!-- LIGUE LR — version v3.6 — 06/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -624,7 +624,7 @@
             </div>
         </div>
         <div class="header-actions">
-            <span class="version-tag">v3.5</span>
+            <span class="version-tag">v3.6</span>
             <button type="button" id="btnToggleImport" class="btn-toggle-import">
                 <span>🪄</span> Import Tireurs
             </button>
@@ -963,7 +963,17 @@
         if (/^(carabine|car|ca)10m?$/.test(k) || /^carabine10m/.test(k)) return 'carabine10m';
         return k;
     }
-    function sameDisc(a, b) { return discKey(a) === discKey(b); }
+    // Même discipline ? Synonymes compris, et nom GÉNÉRIQUE admis : « Carabine 50 m » (sans précision)
+    // couvre Carabine 60 BC 50 m et Carabine 3x20 50 m ; « Pistolet 25 m » couvre standard / vitesse / PC.
+    const GENERIC = /^(pistolet|carabine)(10|25|50)m$/;
+    function sameDisc(a, b) {
+        const ka = discKey(a), kb = discKey(b);
+        if (ka === kb) return true;
+        if (GENERIC.test(ka) && kb.startsWith(ka)) return true;
+        if (GENERIC.test(kb) && ka.startsWith(kb)) return true;
+        return false;
+    }
+    function isGenericDisc(name) { return GENERIC.test(discKey(name)); }
     function distanceOf(name) {
         const k = discKey(name);
         const m = k.match(/(10|25|50)m/);
@@ -1358,7 +1368,13 @@
         const menuDiscs = Array.from((document.getElementById('newDiscipline') || {}).options || []).map(o => o.value);
         const discFor = slotId => {
             const allowed = slotId && slotsData[slotId] && Array.isArray(slotsData[slotId].disciplines) ? slotsData[slotId].disciplines : [];
-            if (allowed.length === 1) return canonicalDisc(allowed[0], menuDiscs);
+            if (allowed.length === 1) {
+                // Série à discipline imposée : si la discipline du formulaire lui correspond (synonyme ou
+                // précision d'un nom générique, ex. « Carabine 50 m » → « Carabine 60 BC 50 m »), on garde
+                // la discipline précise du formulaire ; sinon le nom officiel du menu.
+                if (disc && sameDisc(allowed[0], disc)) return disc;
+                return canonicalDisc(allowed[0], menuDiscs);
+            }
             return disc;
         };
         for (const slotId of targets) {

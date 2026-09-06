@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — Inscription publique par QR code — v2.9 — 06/09/2026 -->
+<!-- LIGUE LR — Inscription publique par QR code — v2.10 — 06/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -198,7 +198,7 @@
         <h1>Inscription en direct</h1>
         <div class="comp-name" id="compName">Chargement…</div>
         <div class="comp-type" id="compType"></div>
-        <div class="comp-type" style="margin-top:6px; opacity:0.9;">Version 2.9 — 06/09/2026</div>
+        <div class="comp-type" style="margin-top:6px; opacity:0.9;">Version 2.10 — 06/09/2026</div>
     </header>
 
     <div id="screenLoading">Connexion à la compétition…</div>
@@ -256,7 +256,7 @@
             </button>
         </div>
         <div class="footer-note">Ton inscription apparaît immédiatement dans le classement en direct.</div>
-        <div class="footer-note" style="margin-top:2px; opacity:0.6;">v2.9</div>
+        <div class="footer-note" style="margin-top:2px; opacity:0.6;">v2.10</div>
     </div>
 
     <div id="screenConfirm" style="display:none;">
@@ -326,7 +326,17 @@
         if (/^(carabine|car|ca)10m?$/.test(k) || /^carabine10m/.test(k)) return 'carabine10m';
         return k;
     }
-    function sameDisc(a, b) { return discKey(a) === discKey(b); }
+    // Même discipline ? Synonymes compris, et nom GÉNÉRIQUE admis : « Carabine 50 m » (sans précision)
+    // couvre Carabine 60 BC 50 m et Carabine 3x20 50 m ; « Pistolet 25 m » couvre standard / vitesse / PC.
+    const GENERIC = /^(pistolet|carabine)(10|25|50)m$/;
+    function sameDisc(a, b) {
+        const ka = discKey(a), kb = discKey(b);
+        if (ka === kb) return true;
+        if (GENERIC.test(ka) && kb.startsWith(ka)) return true;
+        if (GENERIC.test(kb) && ka.startsWith(kb)) return true;
+        return false;
+    }
+    function isGenericDisc(name) { return GENERIC.test(discKey(name)); }
     function distanceOf(name) {
         const k = discKey(name);
         const m = k.match(/(10|25|50)m/);
@@ -412,18 +422,20 @@
         const disc = document.getElementById('sDisc_' + slotId);
         const curDisc = disc ? disc.value : lastDisc;
 
+        const menu = isFreeText() ? amicalDiscList() : dataRef[activeTypeKey].disc;
+        // Disciplines du menu correspondant à celles de la série (synonymes + noms génériques :
+        // « Carabine 50 m » sur la série → Carabine 60 BC 50 m et Carabine 3x20 50 m au choix).
+        const expand = a => { const m = menu.filter(x => sameDisc(a, x)); return m.length ? m : [a]; };
         // Discipline imposée par la série (ex : « Pistolet libre ») : pas de choix.
-        if (allowed.length === 1) {
-            const menu = isFreeText() ? amicalDiscList() : dataRef[activeTypeKey].disc;
-            const official = canonicalDisc(allowed[0], menu);
+        if (allowed.length === 1 && expand(allowed[0]).length === 1) {
+            const official = expand(allowed[0])[0];
             return `<div class="field"><label>Discipline</label>
                 <div class="fixed-disc">${escapeAttr(official)}<small>imposée par la série</small></div>
                 <input type="hidden" id="sDisc_${slotId}" value="${escapeAttr(official)}"></div>`;
         }
-        // Choix limité aux disciplines de la série (ex : Pistolet 10m ou Carabine 10m).
-        if (allowed.length > 1) {
-            const menu = isFreeText() ? amicalDiscList() : dataRef[activeTypeKey].disc;
-            const names = uniqDisc(allowed.map(a => canonicalDisc(a, menu)));
+        // Choix limité aux disciplines de la série (ex : Pistolet 10 m ou Carabine 10 m, ou 60 BC / 3x20).
+        if (allowed.length >= 1) {
+            const names = uniqDisc(allowed.flatMap(expand));
             const d = names.includes(curDisc) ? curDisc : names[0];
             return `<div class="field"><label>Discipline — au choix</label>
                 <select id="sDisc_${slotId}" onchange="rememberChoice('${slotId}')">` +
