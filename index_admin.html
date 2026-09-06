@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v2.5 — 06/09/2026 -->
+<!-- LIGUE LR — version v2.6 — 06/09/2026 -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
@@ -413,6 +413,12 @@
     .slot-edit { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 1rem; padding: 4px 8px; margin-left: 4px; }
     .slot-edit:hover { color: var(--accent); }
     .slot-disc.none { color: #b45309; }
+    .slot-row.editing { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(193,39,29,0.12); }
+    .slot-add-grid.editing { background: #fff4ef; border: 1px solid #f3c9bf; border-radius: var(--radius); padding: 12px; }
+    .slot-edit-banner { grid-column: span 2; font-size: 0.82rem; font-weight: 600; color: var(--accent); display: none; }
+    .slot-add-grid.editing .slot-edit-banner { display: block; }
+    .btn-slot-cancel { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 16px; font-family: 'Rajdhani', sans-serif; font-weight: 700; cursor: pointer; display: none; }
+    .slot-add-grid.editing .btn-slot-cancel { display: block; }
     .slot-dup:hover { color: var(--accent); }
     .slot-empty { color: var(--text-dim); font-size: 0.85rem; text-align: center; padding: 14px; }
     .slot-when { font-family: 'Rajdhani', sans-serif; font-weight: 700; color: var(--text-muted); font-size: 0.85rem; margin-right: 8px; white-space: nowrap; }
@@ -522,7 +528,7 @@
     </div>
     <button class="btn-create" onclick="openCreateModal()">+ Nouvelle Compétition</button>
     <button class="btn-logout" onclick="doLogout()" style="margin-top:auto;">⎋ Déconnexion</button>
-    <div class="sidebar-footer">LIGUE LR · v2.5 — 06/09/2026</div>
+    <div class="sidebar-footer">LIGUE LR · v2.6 — 06/09/2026</div>
   </aside>
 
   <main class="main-content">
@@ -592,7 +598,8 @@
       <div class="slots-intro">Définis les séries (date, heure, nombre de postes, disciplines). Elles s'affichent triées par date/heure. Une fois complète, une série se bloque automatiquement à l'inscription. Quand les inscriptions sont closes, tire les postes au sort (🎲).</div>
       <div class="slots-list" id="slotsList"></div>
       <button class="btn-draw-all" id="btnDrawAll" onclick="drawAllSlots()">🎲 Tirer au sort les postes de toutes les séries</button>
-      <div class="slot-add-grid">
+      <div class="slot-add-grid" id="slotAddGrid">
+        <div class="slot-edit-banner" id="slotEditBanner">✏️ Modification d'une série existante — les tireurs déjà inscrits sont conservés.</div>
         <div class="slot-add-field">
           <label>Date</label>
           <input type="date" id="newSlotDate" oninput="updateSlotPreview()">
@@ -615,7 +622,8 @@
           <span style="font-size:0.72rem; color:var(--text-dim);">Une seule = imposée au tireur (ex : « Pistolet libre »). Plusieurs = le tireur choisit. Vide = discipline libre. Pour le tirage des postes, la 1<sup>re</sup> discipline est placée à gauche (poste 1…), la suivante à droite.</span>
         </div>
         <div class="slot-preview" id="slotPreview" style="grid-column: span 2;">Renseigne la date et l'heure ci-dessus.</div>
-        <button class="btn-slot-add" style="grid-column: span 2;" onclick="addSlot()">+ Ajouter</button>
+        <button class="btn-slot-add" style="grid-column: span 2;" id="btnSlotSave" onclick="addSlot()">+ Ajouter</button>
+        <button class="btn-slot-cancel" style="grid-column: span 2;" onclick="cancelEditSlot()">✕ Annuler la modification</button>
       </div>
       <div class="modal-actions">
         <button class="btn-modal-cancel" style="width:100%;" onclick="closeSlotsModal()">Fermer</button>
@@ -750,15 +758,18 @@
     // ─── Séries / Créneaux (places limitées) ───
     let currentSlotsComp = null;
     let slotsListenerRef = null;
+    let editingSlotId = null;   // série en cours de modification (null = mode ajout)
 
     function openSlotsModal(code, name) {
       currentSlotsComp = code;
+      lastSlotsData = {};
       document.getElementById('slotsTitle').textContent = '🎟️ Séries — ' + name;
       document.getElementById('newSlotDate').value = '';
       document.getElementById('newSlotTime').value = '';
       document.getElementById('newSlotLabel').value = '';
       document.getElementById('newSlotCapacity').value = '';
       document.getElementById('newSlotDisc').value = '';
+      cancelEditSlot();
       updateSlotPreview();
 
       if (slotsListenerRef) slotsListenerRef.off();
@@ -770,6 +781,9 @@
 
     function closeSlotsModal() {
       if (slotsListenerRef) { slotsListenerRef.off(); slotsListenerRef = null; }
+      editingSlotId = null;
+      document.getElementById('slotAddGrid').classList.remove('editing');
+      document.getElementById('btnSlotSave').textContent = '+ Ajouter';
       currentSlotsComp = null;
       document.getElementById('slotsModal').classList.remove('active');
     }
@@ -813,17 +827,17 @@
             ? (slot.label ? `${when} — ${slot.label}` : when)
             : (slot.label || '(sans nom)');
         const discs = Array.isArray(slot.disciplines) ? slot.disciplines : [];
-        const discTxt = discs.length === 0 ? '⚠️ Discipline libre — clique ✏️ pour la définir'
+        const discTxt = discs.length === 0 ? '⚠️ Discipline libre — clique ✏️ pour la fixer'
             : (discs.length === 1 ? `Discipline imposée : ${discs[0]}` : `Au choix : ${discs.join(' / ')}`);
         const drawn = !!slot.drawn;
         const row = document.createElement('div');
-        row.className = 'slot-row' + (isFull ? ' full' : '');
+        row.className = 'slot-row' + (isFull ? ' full' : '') + (editingSlotId === slotId ? ' editing' : '');
         row.innerHTML = `
           <span class="slot-label">${displayLabel}<span class="slot-disc ${discs.length ? '' : 'none'}">${discTxt}${drawn ? ' · 🎲 postes tirés' : ''}</span></span>
           <span style="display:flex; align-items:center;">
             <span class="slot-count">${count} / ${capacity} ${isFull ? '· COMPLET' : ''}</span>
             <button class="slot-draw ${drawn ? 'done' : ''}" title="${drawn ? 'Refaire le tirage des postes' : 'Tirer au sort les postes de tir'}" onclick="drawSlot('${slotId}')">🎲 Postes</button>
-            <button class="slot-edit" title="Modifier les disciplines de cette série" onclick="editSlotDisciplines('${slotId}')">✏️</button>
+            <button class="slot-edit" title="Modifier cette série (date, heure, libellé, postes, disciplines)" onclick="editSlot('${slotId}')">✏️</button>
             <button class="slot-dup" title="Dupliquer" onclick="duplicateSlot('${slotId}')">📋</button>
             <button class="slot-del" title="Supprimer" onclick="deleteSlot('${slotId}')">🗑️</button>
           </span>`;
@@ -837,6 +851,7 @@
     function duplicateSlot(slotId) {
       const slot = lastSlotsData[slotId];
       if (!slot) return;
+      if (editingSlotId) cancelEditSlot();
       document.getElementById('newSlotDate').value = slot.date || '';
       document.getElementById('newSlotTime').value = slot.time || '';
       document.getElementById('newSlotLabel').value = slot.label || '';
@@ -880,32 +895,60 @@
       if (!capacity || capacity < 1) return alert("Indique un nombre de postes valide (1 ou plus).");
       const datetime = date + 'T' + time;
       const disciplines = parseDisciplines(document.getElementById('newSlotDisc').value);
+
+      if (editingSlotId) {
+        // Mise à jour partielle : count / registered / drawn restent intacts.
+        const existing = lastSlotsData[editingSlotId] || {};
+        const count = Number(existing.count) || 0;
+        if (capacity < count && !confirm(`Cette série compte déjà ${count} inscrit(s) pour ${capacity} poste(s). Continuer quand même ?`)) return;
+        const updates = { date, time, datetime, label, capacity, disciplines: disciplines.length ? disciplines : null };
+        database.ref(CLUB_PATH + '/' + currentSlotsComp + '/slots/' + editingSlotId).update(updates)
+          .then(() => cancelEditSlot())
+          .catch(e => alert("Échec de la modification : " + (e.message || e)));
+        return;
+      }
+
       const slot = { date, time, datetime, label, capacity, count: 0 };
       if (disciplines.length) slot.disciplines = disciplines;
       database.ref(CLUB_PATH + '/' + currentSlotsComp + '/slots').push(slot)
-        .then(() => {
-          document.getElementById('newSlotDate').value = '';
-          document.getElementById('newSlotTime').value = '';
-          document.getElementById('newSlotLabel').value = '';
-          document.getElementById('newSlotCapacity').value = '';
-          document.getElementById('newSlotDisc').value = '';
-          updateSlotPreview();
-        });
+        .then(() => clearSlotForm());
     }
 
-    // Modifie les disciplines d'une série existante (créée avant cette fonctionnalité, ou à corriger).
-    function editSlotDisciplines(slotId) {
+    // Charge une série existante dans le formulaire pour la modifier (date, heure, libellé,
+    // postes, disciplines). Les inscrits (count / registered / postes tirés) ne sont pas touchés.
+    function editSlot(slotId) {
       const slot = lastSlotsData[slotId];
       if (!slot) return;
-      const current = Array.isArray(slot.disciplines) ? slot.disciplines.join(' ; ') : '';
-      const txt = prompt(
-        "Disciplines de la série « " + (slot.label || formatSlotWhen(slot)) + " »\n" +
-        "Séparées par « ; ». Une seule = imposée au tireur. Plusieurs = au choix. Vide = discipline libre.\n" +
-        "Ex : Pistolet 10m ; Carabine 10m", current);
-      if (txt === null) return;
-      const disciplines = parseDisciplines(txt);
-      database.ref(CLUB_PATH + '/' + currentSlotsComp + '/slots/' + slotId + '/disciplines')
-        .set(disciplines.length ? disciplines : null);
+      editingSlotId = slotId;
+      document.getElementById('newSlotDate').value = slot.date || '';
+      document.getElementById('newSlotTime').value = slot.time || '';
+      document.getElementById('newSlotLabel').value = slot.label || '';
+      document.getElementById('newSlotCapacity').value = slot.capacity || '';
+      document.getElementById('newSlotDisc').value = Array.isArray(slot.disciplines) ? slot.disciplines.join(' ; ') : '';
+      document.getElementById('slotAddGrid').classList.add('editing');
+      document.getElementById('btnSlotSave').textContent = '✅ Enregistrer les modifications';
+      document.querySelectorAll('.slot-row').forEach(r => r.classList.remove('editing'));
+      updateSlotPreview();
+      document.getElementById('newSlotDisc').focus();
+      document.getElementById('slotAddGrid').scrollIntoView({ block: 'nearest' });
+      renderSlotsListFromData();
+    }
+
+    function cancelEditSlot() {
+      editingSlotId = null;
+      document.getElementById('slotAddGrid').classList.remove('editing');
+      document.getElementById('btnSlotSave').textContent = '+ Ajouter';
+      clearSlotForm();
+      renderSlotsListFromData();
+    }
+
+    function clearSlotForm() {
+      ['newSlotDate','newSlotTime','newSlotLabel','newSlotCapacity','newSlotDisc'].forEach(id => document.getElementById(id).value = '');
+      updateSlotPreview();
+    }
+
+    function renderSlotsListFromData() {
+      renderSlotsList({ val: () => (Object.keys(lastSlotsData).length ? lastSlotsData : null) });
     }
 
     function parseDisciplines(txt) {
@@ -988,6 +1031,7 @@
     function deleteSlot(slotId) {
       if (confirm("Supprimer cette série ? Les places libérées ne seront plus comptabilisées.")) {
         database.ref(CLUB_PATH + '/' + currentSlotsComp + '/slots/' + slotId).remove();
+        if (editingSlotId === slotId) cancelEditSlot();
       }
     }
 
