@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v2.7 — 06/09/2026 -->
+<!-- LIGUE LR — version v2.8 — 06/09/2026 -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
@@ -531,7 +531,7 @@
     </div>
     <button class="btn-create" onclick="openCreateModal()">+ Nouvelle Compétition</button>
     <button class="btn-logout" onclick="doLogout()" style="margin-top:auto;">⎋ Déconnexion</button>
-    <div class="sidebar-footer">LIGUE LR · v2.7 — 06/09/2026</div>
+    <div class="sidebar-footer">LIGUE LR · v2.8 — 06/09/2026</div>
   </aside>
 
   <main class="main-content">
@@ -577,6 +577,11 @@
         <option value="2550">ISSF 25/50 Mètres</option>
         <option value="AMICAL">Concours Amical</option>
       </select>
+      <div id="editAmicalWrap" style="display:none; text-align:left; margin-top:4px;">
+        <label style="font-family:'Barlow Condensed',sans-serif; font-size:0.7rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-dim);">Disciplines du concours amical (séparées par « ; »)</label>
+        <textarea id="editAmicalDisc" rows="3" style="width:100%; box-sizing:border-box; margin-top:4px; font-family:'Barlow',sans-serif; font-size:0.95rem; padding:10px; border:1px solid var(--border); border-radius:var(--radius);" placeholder="Pistolet 10 m ; Carabine 10 m ; Pistolet 25 m ; Pistolet 50 m ; Carabine 50 m 60 BC ; Carabine 50 m 3x20"></textarea>
+        <div style="font-size:0.75rem; color:var(--text-dim); margin-top:4px;">Les tireurs choisissent dans cette liste (plus de texte libre), ce qui évite « Pistolet » / « pistolet 10m » / « Pistolet 10 m » dans trois classements différents. Vide = liste standard ci-dessus. Les disciplines définies sur les séries s'ajoutent automatiquement.</div>
+      </div>
       <div class="modal-actions">
         <button class="btn-modal-cancel" onclick="closeEditModal()">Annuler</button>
         <button class="btn-modal-confirm" onclick="saveCompEdit()">Enregistrer</button>
@@ -713,8 +718,22 @@
       document.getElementById('editCompCode').value = code;
       document.getElementById('editCompName').value = name;
       document.getElementById('editCompType').value = type || 'AMICAL';
+      document.getElementById('editAmicalDisc').value = '';
+      toggleAmicalWrap();
+      // Liste de disciplines propre à ce concours amical (nœud "amicalDisciplines", hors schéma "config")
+      database.ref(CLUB_PATH + '/' + code + '/amicalDisciplines').once('value').then(snap => {
+        const list = snap.val();
+        if (Array.isArray(list) && document.getElementById('editCompCode').value === code) {
+          document.getElementById('editAmicalDisc').value = list.join(' ; ');
+        }
+      });
       document.getElementById('editModal').classList.add('active');
     }
+    function toggleAmicalWrap() {
+      document.getElementById('editAmicalWrap').style.display =
+        document.getElementById('editCompType').value === 'AMICAL' ? 'block' : 'none';
+    }
+    document.getElementById('editCompType').addEventListener('change', toggleAmicalWrap);
     function closeEditModal() { document.getElementById('editModal').classList.remove('active'); }
 
     function saveCompEdit() {
@@ -722,6 +741,10 @@
       const name = document.getElementById('editCompName').value.trim();
       const type = document.getElementById('editCompType').value;
       if (!name) return alert("Le nom ne peut pas être vide.");
+      if (type === 'AMICAL') {
+        const list = parseDisciplines(document.getElementById('editAmicalDisc').value);
+        database.ref(CLUB_PATH + '/' + code + '/amicalDisciplines').set(list.length ? list : null);
+      }
       database.ref(CLUB_PATH + '/' + code + '/config').update({ name, type }).then(() => {
         closeEditModal();
       });

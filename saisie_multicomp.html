@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v3.1 — 06/09/2026 -->
+<!-- LIGUE LR — version v3.2 — 06/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -542,6 +542,13 @@
             padding: 26px; width: 100%; max-width: 380px;
             box-shadow: 0 24px 60px rgba(0,0,0,0.3);
         }
+        .harm-table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+        .harm-table th { text-align: left; font-family: 'Barlow Condensed', sans-serif; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim); padding: 6px 4px; border-bottom: 1px solid var(--border); }
+        .harm-table td { padding: 6px 4px; border-bottom: 1px solid var(--border); font-size: 0.9rem; vertical-align: middle; }
+        .harm-table select { width: 100%; padding: 8px 10px; font-size: 0.9rem; }
+        .harm-table .cnt { color: var(--text-muted); white-space: nowrap; }
+        .harm-table tr.changed td { background: #fff4ef; }
+        .modal-calc-content.wide { max-width: 640px; max-height: 90vh; overflow-y: auto; }
         .modal-calc-title {
             font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 1.15rem;
             letter-spacing: 0.03em; text-transform: uppercase; color: var(--text);
@@ -613,12 +620,15 @@
             </div>
         </div>
         <div class="header-actions">
-            <span class="version-tag">v3.1</span>
+            <span class="version-tag">v3.2</span>
             <button type="button" id="btnToggleImport" class="btn-toggle-import">
                 <span>🪄</span> Import Tireurs
             </button>
             <button type="button" id="btnToggleScoreImport" class="btn-toggle-import">
                 <span>📊</span> Import Résultats
+            </button>
+            <button type="button" class="btn-toggle-import" onclick="openHarmonize()" title="Fusionner les appellations différentes d'une même discipline / catégorie">
+                <span>🧹</span> Harmoniser
             </button>
             <a href="index_admin.html" class="link-back">← Retour</a>
             <a href="#" class="link-back" onclick="doLogout(); return false;">⎋ Déconnexion</a>
@@ -764,6 +774,18 @@
 </div>
 
 <!-- MODAL CALCUL DE SCORE : additionne plusieurs séries (ex: 90 90 92 88 82 87) en un total -->
+<div class="modal-calc" id="harmonizeModal">
+    <div class="modal-calc-content wide">
+        <div class="modal-calc-title">🧹 Harmoniser les appellations</div>
+        <div class="modal-calc-hint">Les tireurs n'écrivent pas tous pareil (« Pistolet », « pistolet 10m », « Pistolet 10 m »…), ce qui crée plusieurs classements pour une même discipline. Pour chaque appellation trouvée, choisis le nom officiel à appliquer. Les lignes inchangées ne sont pas touchées.</div>
+        <div id="harmonizeBody"></div>
+        <div class="modal-actions">
+            <button class="btn-modal-cancel" onclick="closeHarmonize()">Annuler</button>
+            <button class="btn-modal-confirm" onclick="applyHarmonize()">✅ Appliquer</button>
+        </div>
+    </div>
+</div>
+
 <div class="modal-calc" id="scoreCalcModal">
     <div class="modal-calc-content">
         <div class="modal-calc-title">🧮 Détail du score — <span id="calcShooterName"></span></div>
@@ -902,9 +924,14 @@
                 slotByShooter = map;
                 hasSlots = any;
                 populateSlotSelect();
+                if (dataRef[document.getElementById('typeSelector').value].freeText && !document.getElementById('editId').value) updateMenus();
                 filterList();
             });
             // Présélectionne le type de discipline en fonction de la compétition créée dans index_admin.html
+            db.ref(CLUB_PATH + '/' + compId + '/amicalDisciplines').on('value', snap => {
+                amicalDisciplines = snap.val();
+                if (dataRef[document.getElementById('typeSelector').value].freeText) updateMenus();
+            });
             db.ref(CLUB_PATH + '/' + compId + '/config').once('value').then(snap => {
                 const cfg = snap.val();
                 const mapped = cfg && cfg.type && TYPE_MAP[cfg.type];
@@ -916,6 +943,23 @@
         }
     }
 
+    // ─── Concours amical : appellations figées (identiques à inscription_multicomp.html) ───
+    const AMICAL_DEFAULT_DISC = ["Pistolet 10 m", "Carabine 10 m", "Pistolet 25 m", "Pistolet 50 m", "Carabine 50 m 60 BC", "Carabine 50 m 3x20"];
+    const AMICAL_CATS = ["Poussin", "Benjamin", "Minime", "Cadet", "Junior", "Dame 1", "Dame 2", "Dame 3", "Senior 1", "Senior 2", "Senior 3", "Loisir"];
+    let amicalDisciplines = null; // liste propre à la compétition (tableau de bord → Modifier)
+
+    function amicalDiscList() {
+        const base = (Array.isArray(amicalDisciplines) && amicalDisciplines.length) ? amicalDisciplines.slice() : AMICAL_DEFAULT_DISC.slice();
+        Object.values(slotsData || {}).forEach(sl => {
+            (Array.isArray(sl.disciplines) ? sl.disciplines : []).forEach(d => { if (!base.includes(d)) base.push(d); });
+        });
+        return base;
+    }
+    function escAttr(v) { return String(v || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+    function optsHtml(list, selected) {
+        return list.map(x => `<option value="${escAttr(x)}" ${x === selected ? 'selected' : ''}>${x}</option>`).join('');
+    }
+
     function updateMenus() {
         const type = document.getElementById('typeSelector').value;
         const catDef = dataRef[type];
@@ -923,8 +967,15 @@
         const catWrap = document.getElementById('catFieldWrap');
 
         if (catDef.freeText || catDef.disc.length === 0) {
-            discWrap.innerHTML = '<label>Discipline</label><input type="text" id="newDiscipline" placeholder="Ex : Pistolet vitesse, Ball-trap amical…">';
-            catWrap.innerHTML = '<label>Catégorie</label><input type="text" id="newCategorie" placeholder="Ex : Senior, Loisir, Mixte…">';
+            // Amical : menus figés (liste de la compétition + disciplines des séries) — plus de texte libre,
+            // pour éviter « Pistolet » / « pistolet 10m » / « Pistolet 10 m » dans trois classements.
+            const curD = (document.getElementById('newDiscipline') || {}).value || '';
+            const curC = (document.getElementById('newCategorie') || {}).value || '';
+            const list = amicalDiscList();
+            const discs = list.includes(curD) || !curD ? list : [curD].concat(list); // conserve une ancienne valeur en édition
+            const cats = AMICAL_CATS.includes(curC) || !curC ? AMICAL_CATS : [curC].concat(AMICAL_CATS);
+            discWrap.innerHTML = '<label>Discipline</label><select id="newDiscipline">' + optsHtml(discs, curD || discs[0]) + '</select>';
+            catWrap.innerHTML = '<label>Catégorie</label><select id="newCategorie">' + optsHtml(cats, curC || 'Senior 1') + '</select>';
             return;
         }
 
@@ -1306,8 +1357,14 @@
 
         document.getElementById('typeSelector').value = foundType;
         updateMenus();
+        const ensureOpt = (sel, val) => {
+            if (!sel || sel.tagName !== 'SELECT' || !val) return;
+            if (!Array.from(sel.options).some(o => o.value === val)) sel.insertAdjacentHTML('afterbegin', `<option value="${escAttr(val)}">${val}</option>`);
+        };
+        ensureOpt(document.getElementById('newDiscipline'), s.discipline);
         document.getElementById('newDiscipline').value = s.discipline;
         if (!dataRef[foundType].freeText) { updateCategories(); }
+        ensureOpt(document.getElementById('newCategorie'), s.category);
         document.getElementById('newCategorie').value = s.category;
 
         populateSlotSelect();
@@ -1460,6 +1517,70 @@
             series: values.join(',')
         });
         closeScoreCalc();
+    }
+
+    // ─── Harmonisation des appellations (disciplines / catégories) ───
+    function openHarmonize() {
+        const type = document.getElementById('typeSelector').value;
+        const discCanon = dataRef[type].freeText ? amicalDiscList() : dataRef[type].disc.slice();
+        const catCanon = dataRef[type].freeText ? AMICAL_CATS.slice() : dataRef[type].cats.slice();
+
+        const count = (field) => {
+            const m = {};
+            shootersData.forEach(s => { const v = (s[field] || '').trim(); if (v) m[v] = (m[v] || 0) + 1; });
+            return Object.keys(m).sort((a, b) => a.localeCompare(b, 'fr')).map(k => [k, m[k]]);
+        };
+        const norm = v => v.toLowerCase().replace(/\s+/g, '').replace(/[-_.]/g, '');
+        // Proposition automatique : même texte sans espaces/majuscules, ou nom canonique contenu dans la valeur
+        // Abréviations courantes de catégories : S1 → Senior 1, D2 → Dame 2, JG/JF → Junior…
+        const CAT_ALIAS = { s1:'Senior 1', s2:'Senior 2', s3:'Senior 3', d1:'Dame 1', d2:'Dame 2', d3:'Dame 3',
+            jg:'Junior Garçon', jf:'Junior Fille', j:'Junior', cg:'Cadet G', cf:'Cadet F', c:'Cadet', mg:'Minime G', mf:'Minime F', m:'Minime',
+            bg:'Benjamin Garçon', bf:'Benjamin Fille', b:'Benjamin', pg:'Poussin Garçon', pf:'Poussin Fille', p:'Poussin' };
+        const guess = (val, canon) => {
+            const n = norm(val);
+            const direct = canon.find(c => norm(c) === n);
+            if (direct) return direct;
+            const alias = CAT_ALIAS[n];
+            if (alias) {
+                const hit = canon.find(c => norm(c) === norm(alias)) || canon.find(c => norm(alias).startsWith(norm(c)));
+                if (hit) return hit;
+            }
+            return canon.find(c => n.includes(norm(c)) || norm(c).includes(n)) || '';
+        };
+        const section = (title, field, canon) => {
+            const rows = count(field);
+            if (!rows.length) return '';
+            const allNames = canon.slice();
+            rows.forEach(([k]) => { if (!allNames.includes(k)) allNames.push(k); });
+            return `<div class="modal-calc-title" style="font-size:1rem; margin-top:10px;">${title}</div>
+                <table class="harm-table"><thead><tr><th>Trouvé dans la saisie</th><th class="cnt">Tireurs</th><th>→ Remplacer par</th></tr></thead><tbody>` +
+                rows.map(([k, n]) => {
+                    const g = canon.includes(k) ? k : (guess(k, canon) || k);
+                    return `<tr class="${g !== k ? 'changed' : ''}"><td>${escAttr(k)}</td><td class="cnt">${n}</td>
+                        <td><select data-field="${field}" data-from="${escAttr(k)}" onchange="this.closest('tr').classList.toggle('changed', this.value !== this.dataset.from)">${optsHtml(allNames, g)}</select></td></tr>`;
+                }).join('') + `</tbody></table>`;
+        };
+        const html = section('Disciplines', 'discipline', discCanon) + section('Catégories', 'category', catCanon);
+        document.getElementById('harmonizeBody').innerHTML = html || '<div class="modal-calc-hint">Aucun tireur inscrit.</div>';
+        document.getElementById('harmonizeModal').classList.add('active');
+    }
+    function closeHarmonize() { document.getElementById('harmonizeModal').classList.remove('active'); }
+    function applyHarmonize() {
+        const changes = Array.from(document.querySelectorAll('#harmonizeBody select'))
+            .filter(sel => sel.value !== sel.dataset.from)
+            .map(sel => ({ field: sel.dataset.field, from: sel.dataset.from, to: sel.value }));
+        if (!changes.length) return closeHarmonize();
+        const updates = {};
+        let n = 0;
+        shootersData.forEach(s => {
+            changes.forEach(c => {
+                if ((s[c.field] || '').trim() === c.from) { updates[s.id + '/' + c.field] = c.to; n++; }
+            });
+        });
+        if (!confirm(`Appliquer ${changes.length} renommage(s) sur ${n} ligne(s) de tireur ?`)) return;
+        db.ref(CLUB_PATH + '/' + compId + '/shooters').update(updates)
+            .then(() => { closeHarmonize(); alert(`✅ ${n} ligne(s) mise(s) à jour. Les classements sont recalculés automatiquement.`); })
+            .catch(e => alert("Échec : " + (e.message || e)));
     }
 
     function chercherDansArchive(val) {
