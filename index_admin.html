@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v2.6 — 06/09/2026 -->
+<!-- LIGUE LR — version v2.7 — 06/09/2026 -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
@@ -230,6 +230,9 @@
       align-items: center;
       margin-bottom: 20px;
     }
+    a.stat-pill { text-decoration: none; cursor: pointer; transition: all 0.15s; }
+    a.stat-pill:hover { border-color: var(--accent); background: #fff4ef; transform: translateY(-1px); }
+    a.stat-pill .stat-label::after { content: " · voir la liste ↗"; font-size: 0.75rem; color: var(--accent); font-weight: 600; }
     .stat-label {
       font-size: 0.85rem;
       color: var(--text-muted);
@@ -528,7 +531,7 @@
     </div>
     <button class="btn-create" onclick="openCreateModal()">+ Nouvelle Compétition</button>
     <button class="btn-logout" onclick="doLogout()" style="margin-top:auto;">⎋ Déconnexion</button>
-    <div class="sidebar-footer">LIGUE LR · v2.6 — 06/09/2026</div>
+    <div class="sidebar-footer">LIGUE LR · v2.7 — 06/09/2026</div>
   </aside>
 
   <main class="main-content">
@@ -1056,10 +1059,10 @@
             <div class="type-tag">${config.type || 'MULTI'}</div>
             <div class="card-title">${config.name}</div>
             <div class="card-code">#${code}</div>
-            <div class="stat-pill">
+            <a href="liste_inscrits.html?comp=${code}" target="_blank" class="stat-pill" title="Ouvrir la liste alphabétique des inscrits">
               <span class="stat-label">Tireurs inscrits</span>
               <span class="stat-val">${shooterCount}</span>
-            </div>
+            </a>
             <div class="actions-grid">
               <a href="saisie_multicomp.html?comp=${code}" target="_blank" class="btn-act btn-saisie">⌨️ Saisie</a>
               <button onclick="openQr('${code}','inscription')" class="btn-act btn-qr">📱 QR Inscription</button>
