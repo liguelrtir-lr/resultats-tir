@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v2.4 — 06/09/2026 -->
+<!-- LIGUE LR — version v2.5 — 06/09/2026 -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
@@ -410,6 +410,9 @@
       font-size: 1rem; padding: 4px 8px; margin-left: 4px;
     }
     .slot-del:hover { color: var(--red); }
+    .slot-edit { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 1rem; padding: 4px 8px; margin-left: 4px; }
+    .slot-edit:hover { color: var(--accent); }
+    .slot-disc.none { color: #b45309; }
     .slot-dup:hover { color: var(--accent); }
     .slot-empty { color: var(--text-dim); font-size: 0.85rem; text-align: center; padding: 14px; }
     .slot-when { font-family: 'Rajdhani', sans-serif; font-weight: 700; color: var(--text-muted); font-size: 0.85rem; margin-right: 8px; white-space: nowrap; }
@@ -519,7 +522,7 @@
     </div>
     <button class="btn-create" onclick="openCreateModal()">+ Nouvelle Compétition</button>
     <button class="btn-logout" onclick="doLogout()" style="margin-top:auto;">⎋ Déconnexion</button>
-    <div class="sidebar-footer">LIGUE LR · v2.4 — 06/09/2026</div>
+    <div class="sidebar-footer">LIGUE LR · v2.5 — 06/09/2026</div>
   </aside>
 
   <main class="main-content">
@@ -810,16 +813,17 @@
             ? (slot.label ? `${when} — ${slot.label}` : when)
             : (slot.label || '(sans nom)');
         const discs = Array.isArray(slot.disciplines) ? slot.disciplines : [];
-        const discTxt = discs.length === 0 ? 'Discipline libre'
+        const discTxt = discs.length === 0 ? '⚠️ Discipline libre — clique ✏️ pour la définir'
             : (discs.length === 1 ? `Discipline imposée : ${discs[0]}` : `Au choix : ${discs.join(' / ')}`);
         const drawn = !!slot.drawn;
         const row = document.createElement('div');
         row.className = 'slot-row' + (isFull ? ' full' : '');
         row.innerHTML = `
-          <span class="slot-label">${displayLabel}<span class="slot-disc">${discTxt}${drawn ? ' · 🎲 postes tirés' : ''}</span></span>
+          <span class="slot-label">${displayLabel}<span class="slot-disc ${discs.length ? '' : 'none'}">${discTxt}${drawn ? ' · 🎲 postes tirés' : ''}</span></span>
           <span style="display:flex; align-items:center;">
             <span class="slot-count">${count} / ${capacity} ${isFull ? '· COMPLET' : ''}</span>
             <button class="slot-draw ${drawn ? 'done' : ''}" title="${drawn ? 'Refaire le tirage des postes' : 'Tirer au sort les postes de tir'}" onclick="drawSlot('${slotId}')">🎲 Postes</button>
+            <button class="slot-edit" title="Modifier les disciplines de cette série" onclick="editSlotDisciplines('${slotId}')">✏️</button>
             <button class="slot-dup" title="Dupliquer" onclick="duplicateSlot('${slotId}')">📋</button>
             <button class="slot-del" title="Supprimer" onclick="deleteSlot('${slotId}')">🗑️</button>
           </span>`;
@@ -887,6 +891,21 @@
           document.getElementById('newSlotDisc').value = '';
           updateSlotPreview();
         });
+    }
+
+    // Modifie les disciplines d'une série existante (créée avant cette fonctionnalité, ou à corriger).
+    function editSlotDisciplines(slotId) {
+      const slot = lastSlotsData[slotId];
+      if (!slot) return;
+      const current = Array.isArray(slot.disciplines) ? slot.disciplines.join(' ; ') : '';
+      const txt = prompt(
+        "Disciplines de la série « " + (slot.label || formatSlotWhen(slot)) + " »\n" +
+        "Séparées par « ; ». Une seule = imposée au tireur. Plusieurs = au choix. Vide = discipline libre.\n" +
+        "Ex : Pistolet 10m ; Carabine 10m", current);
+      if (txt === null) return;
+      const disciplines = parseDisciplines(txt);
+      database.ref(CLUB_PATH + '/' + currentSlotsComp + '/slots/' + slotId + '/disciplines')
+        .set(disciplines.length ? disciplines : null);
     }
 
     function parseDisciplines(txt) {
