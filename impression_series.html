@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v1.4 — 09/09/2026 -->
+<!-- LIGUE LR — version v1.5 — 09/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -7,6 +7,7 @@
     <title>Feuilles de séries — Impression</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <script src="config.js"></script>
     <style>
         :root {
             --primary-bordeaux: #4a2c40;
@@ -160,7 +161,7 @@
         <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
         <div class="header-center">
             <h1>🖨️ Feuilles de séries</h1>
-            <div class="version-tag">v1.4</div>
+            <div class="version-tag">v1.5</div>
             <div id="compTitle" class="comp-name">Chargement...</div>
         </div>
         <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
@@ -177,18 +178,7 @@
 </div>
 
 <script>
-    const CONFIG = {
-      clubName: "LIGUE LR",
-      clubKey:  "LIGUE_LR",
-      firebase: {
-        apiKey: "AIzaSyAvfMRtRrhh_e-27xHlwIx9c5DIdUQm6HM",
-        authDomain: "resultats-tir-ligue-lr.firebaseapp.com",
-        databaseURL: "https://resultats-tir-ligue-lr-default-rtdb.europe-west1.firebasedatabase.app",
-        projectId: "resultats-tir-ligue-lr",
-        storageBucket: "resultats-tir-ligue-lr.firebasestorage.app",
-        appId: "1:468808300974:web:563a14cc4477c10b28303f"
-      }
-    };
+    // La configuration (nom du club, clés Firebase, adresse du site) est dans config.js
 
     firebase.initializeApp(CONFIG.firebase);
     const db = firebase.database();

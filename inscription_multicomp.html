@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — Inscription publique par QR code — v2.10 — 06/09/2026 -->
+<!-- LIGUE LR — Inscription publique par QR code — v2.11 — 09/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -13,6 +13,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="config.js"></script>
     <style>
         :root {
             --bg: #fdf6ee;
@@ -198,7 +199,7 @@
         <h1>Inscription en direct</h1>
         <div class="comp-name" id="compName">Chargement…</div>
         <div class="comp-type" id="compType"></div>
-        <div class="comp-type" style="margin-top:6px; opacity:0.9;">Version 2.10 — 06/09/2026</div>
+        <div class="comp-type" style="margin-top:6px; opacity:0.9;">Version 2.11 — 09/09/2026</div>
     </header>
 
     <div id="screenLoading">Connexion à la compétition…</div>
@@ -256,7 +257,7 @@
             </button>
         </div>
         <div class="footer-note">Ton inscription apparaît immédiatement dans le classement en direct.</div>
-        <div class="footer-note" style="margin-top:2px; opacity:0.6;">v2.10</div>
+        <div class="footer-note" style="margin-top:2px; opacity:0.6;">v2.11</div>
     </div>
 
     <div id="screenConfirm" style="display:none;">
@@ -289,18 +290,7 @@
         TAR: "TAR — Armes Réglementaires", ISSF2550: "ISSF 25 & 50 Mètres", AMICAL: "Concours Amical"
     };
 
-    const CONFIG = {
-      clubName: "LIGUE LR",
-      clubKey:  "LIGUE_LR",
-      firebase: {
-        apiKey: "AIzaSyAvfMRtRrhh_e-27xHlwIx9c5DIdUQm6HM",
-        authDomain: "resultats-tir-ligue-lr.firebaseapp.com",
-        databaseURL: "https://resultats-tir-ligue-lr-default-rtdb.europe-west1.firebasedatabase.app",
-        projectId: "resultats-tir-ligue-lr",
-        storageBucket: "resultats-tir-ligue-lr.firebasestorage.app",
-        appId: "1:468808300974:web:563a14cc4477c10b28303f"
-      }
-    };
+    // La configuration (nom du club, clés Firebase, adresse du site) est dans config.js
     firebase.initializeApp(CONFIG.firebase);
     const db = firebase.database();
     const auth = firebase.auth();

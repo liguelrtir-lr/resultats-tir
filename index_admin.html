@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v2.9 — 09/09/2026 -->
+<!-- LIGUE LR — version v2.10 — 09/09/2026 -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
@@ -11,6 +11,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="config.js"></script>
 
   <style>
     :root {
@@ -531,7 +532,7 @@
     </div>
     <button class="btn-create" onclick="openCreateModal()">+ Nouvelle Compétition</button>
     <button class="btn-logout" onclick="doLogout()" style="margin-top:auto;">⎋ Déconnexion</button>
-    <div class="sidebar-footer">LIGUE LR · v2.9 — 09/09/2026</div>
+    <div class="sidebar-footer"><span id="footerClub"></span> · v2.10 — 09/09/2026</div>
   </aside>
 
   <main class="main-content">
@@ -645,28 +646,7 @@
     // ║  CONFIGURATION DU CLUB                                         ║
     // ║  >>> C'EST LE SEUL BLOC À MODIFIER POUR CHAQUE NOUVEAU CLUB <<<║
     // ╚══════════════════════════════════════════════════════════════╝
-    const CONFIG = {
-
-      // 1) Nom du club (s'affiche dans le titre et la barre latérale)
-      clubName: "LIGUE LR",
-
-      // 1bis) Identifiant technique du club = son dossier dans Firebase.
-      //       SANS espaces ni accents. Doit être différent pour chaque club.
-      clubKey: "LIGUE_LR",
-
-      // 2) Adresse du site sur GitHub Pages — sert à générer les QR codes.
-      githubBase: "https://liguelrtir-lr.github.io/resultats-tir",
-
-      // 3) Configuration Firebase
-      firebase: {
-        apiKey: "AIzaSyAvfMRtRrhh_e-27xHlwIx9c5DIdUQm6HM",
-        authDomain: "resultats-tir-ligue-lr.firebaseapp.com",
-        databaseURL: "https://resultats-tir-ligue-lr-default-rtdb.europe-west1.firebasedatabase.app",
-        projectId: "resultats-tir-ligue-lr",
-        storageBucket: "resultats-tir-ligue-lr.firebasestorage.app",
-        appId: "1:468808300974:web:563a14cc4477c10b28303f"
-      }
-    };
+    // La configuration (nom du club, clés Firebase, adresse du site) est dans config.js
     // ─── Fin de la configuration — ne rien modifier en dessous ───────
 
     firebase.initializeApp(CONFIG.firebase);
@@ -677,6 +657,7 @@
     // Applique le nom du club au titre et à la barre latérale
     document.title = "🎯 " + CONFIG.clubName + " — Admin";
     document.getElementById('clubNameDisplay').textContent = CONFIG.clubName;
+    document.getElementById('footerClub').textContent = CONFIG.clubName;
     document.getElementById('clubLogo').alt = "Logo " + CONFIG.clubName;
 
     // ─── Authentification (protection de l'admin) ───
