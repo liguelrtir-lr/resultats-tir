@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v1.3 — 06/09/2026 -->
+<!-- LIGUE LR — version v1.4 — 09/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -160,7 +160,7 @@
         <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
         <div class="header-center">
             <h1>🖨️ Feuilles de séries</h1>
-            <div class="version-tag">v1.3</div>
+            <div class="version-tag">v1.4</div>
             <div id="compTitle" class="comp-name">Chargement...</div>
         </div>
         <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
@@ -271,7 +271,9 @@
             const assignedIds = new Set();
             sortedSlotEntries(lastSlots).forEach(([slotId, slot]) => {
                 const registered = slot.registered || {};
-                const ids = Object.keys(registered);
+                // Seuls les tireurs qui existent encore dans la compétition sont listés : une inscription
+                // dont la fiche a été supprimée (trace "fantôme") est ignorée.
+                const ids = Object.keys(registered).filter(id => lastShooters[id]);
                 ids.forEach(id => assignedIds.add(id));
                 const rows = ids
                     .map(id => {

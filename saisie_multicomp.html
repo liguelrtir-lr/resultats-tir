@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v3.6 — 06/09/2026 -->
+<!-- LIGUE LR — version v3.7 — 09/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -624,7 +624,7 @@
             </div>
         </div>
         <div class="header-actions">
-            <span class="version-tag">v3.6</span>
+            <span class="version-tag">v3.7</span>
             <button type="button" id="btnToggleImport" class="btn-toggle-import">
                 <span>🪄</span> Import Tireurs
             </button>
@@ -901,6 +901,34 @@
     }
 
     let slotByShooter = {}; // shooterId -> { slotId, label }
+    let shootersLoaded = false, slotsLoaded = false, repairing = false;
+
+    // ─── Réparation automatique des séries ───
+    // Un tireur supprimé (par un autre écran, un ancien fichier, ou directement dans Firebase) peut
+    // laisser une trace "fantôme" dans slots/<série>/registered : il apparaît encore sur les feuilles
+    // de série et occupe une place. À chaque chargement, on retire ces traces et on remet le compteur
+    // de chaque série au nombre réel d'inscrits.
+    function repairSlots() {
+        if (!shootersLoaded || !slotsLoaded || repairing) return;
+        const existing = new Set(shootersData.map(s => s.id));
+        const updates = {}; let ghosts = 0, fixedCounts = 0;
+        Object.keys(slotsData).forEach(slotId => {
+            const sl = slotsData[slotId];
+            const reg = sl.registered || {};
+            let n = 0;
+            Object.keys(reg).forEach(id => {
+                if (existing.has(id)) n++;
+                else { updates[slotId + '/registered/' + id] = null; ghosts++; }
+            });
+            if ((Number(sl.count) || 0) !== n) { updates[slotId + '/count'] = n; fixedCounts++; }
+        });
+        if (!Object.keys(updates).length) return;
+        repairing = true;
+        db.ref(CLUB_PATH + '/' + compId + '/slots').update(updates)
+            .then(() => console.info(`Séries réparées : ${ghosts} inscription(s) fantôme(s) retirée(s), ${fixedCounts} compteur(s) corrigé(s).`))
+            .catch(e => console.warn('Réparation des séries impossible :', e.message || e))
+            .finally(() => { repairing = false; });
+    }
     let slotsData = {};     // slotId -> slot (label, capacity, count, date, time, registered)
     let hasSlots = false;
 
@@ -910,7 +938,9 @@
             db.ref(CLUB_PATH + '/' + compId + '/shooters').on('value', snap => {
                 const data = snap.val() || {};
                 shootersData = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+                shootersLoaded = true;
                 filterList();
+                repairSlots();
             });
             // Reconstitue, pour chaque tireur, la série où il est inscrit (si la compétition en utilise),
             // à partir du même lien slots/registered créé au moment de l'inscription.
@@ -928,6 +958,8 @@
                 });
                 slotByShooter = map;
                 hasSlots = any;
+                slotsLoaded = true;
+                repairSlots();
                 populateSlotSelect();
                 if (dataRef[document.getElementById('typeSelector').value].freeText && !document.getElementById('editId').value) updateMenus();
                 filterList();

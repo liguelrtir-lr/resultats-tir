@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v2.8 — 06/09/2026 -->
+<!-- LIGUE LR — version v2.9 — 09/09/2026 -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
@@ -531,7 +531,7 @@
     </div>
     <button class="btn-create" onclick="openCreateModal()">+ Nouvelle Compétition</button>
     <button class="btn-logout" onclick="doLogout()" style="margin-top:auto;">⎋ Déconnexion</button>
-    <div class="sidebar-footer">LIGUE LR · v2.8 — 06/09/2026</div>
+    <div class="sidebar-footer">LIGUE LR · v2.9 — 09/09/2026</div>
   </aside>
 
   <main class="main-content">
@@ -606,6 +606,7 @@
       <div class="slots-intro">Définis les séries (date, heure, nombre de postes, disciplines). Elles s'affichent triées par date/heure. Une fois complète, une série se bloque automatiquement à l'inscription. Quand les inscriptions sont closes, tire les postes au sort (🎲).</div>
       <div class="slots-list" id="slotsList"></div>
       <button class="btn-draw-all" id="btnDrawAll" onclick="drawAllSlots()">🎲 Tirer au sort les postes de toutes les séries</button>
+      <button class="btn-draw-all" style="background:#eef6ff; color:#1d4ed8; border-color:#bfd6ff;" onclick="cleanSlots()" title="Retire des séries les tireurs dont la fiche a été supprimée et recalcule les places occupées">🧹 Vérifier / nettoyer les séries</button>
       <div class="slot-add-grid" id="slotAddGrid">
         <div class="slot-edit-banner" id="slotEditBanner">✏️ Modification d'une série existante — les tireurs déjà inscrits sont conservés.</div>
         <div class="slot-add-field">
@@ -975,6 +976,28 @@
 
     function renderSlotsListFromData() {
       renderSlotsList({ val: () => (Object.keys(lastSlotsData).length ? lastSlotsData : null) });
+    }
+
+    // Retire des séries les inscriptions "fantômes" (tireur supprimé mais encore présent dans
+    // slots/registered) et remet chaque compteur au nombre réel d'inscrits.
+    function cleanSlots() {
+      if (!currentSlotsComp) return;
+      database.ref(CLUB_PATH + '/' + currentSlotsComp + '/shooters').once('value').then(snap => {
+        const existing = new Set(Object.keys(snap.val() || {}));
+        const updates = {}; let ghosts = [], fixedCounts = 0;
+        Object.keys(lastSlotsData).forEach(slotId => {
+          const sl = lastSlotsData[slotId]; const reg = sl.registered || {}; let n = 0;
+          Object.keys(reg).forEach(id => {
+            if (existing.has(id)) n++;
+            else { updates[slotId + '/registered/' + id] = null; ghosts.push(`${reg[id].lastName || '?'} ${reg[id].firstName || ''} (${formatSlotWhen(sl)} ${sl.label || ''})`); }
+          });
+          if ((Number(sl.count) || 0) !== n) { updates[slotId + '/count'] = n; fixedCounts++; }
+        });
+        if (!Object.keys(updates).length) return alert("✅ Séries cohérentes : aucune inscription fantôme, compteurs corrects.");
+        return database.ref(CLUB_PATH + '/' + currentSlotsComp + '/slots').update(updates).then(() => {
+          alert(`🧹 Nettoyage effectué :\n- ${ghosts.length} inscription(s) fantôme(s) retirée(s)${ghosts.length ? ' :\n   • ' + ghosts.join('\n   • ') : ''}\n- ${fixedCounts} compteur(s) de places corrigé(s).`);
+        });
+      }).catch(e => alert("Nettoyage impossible : " + (e.message || e)));
     }
 
     function parseDisciplines(txt) {
