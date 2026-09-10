@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — Inscription publique par QR code — v2.11 — 09/09/2026 -->
+<!-- LIGUE LR — Inscription publique par QR code — v2.12 — 10/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -199,7 +199,7 @@
         <h1>Inscription en direct</h1>
         <div class="comp-name" id="compName">Chargement…</div>
         <div class="comp-type" id="compType"></div>
-        <div class="comp-type" style="margin-top:6px; opacity:0.9;">Version 2.11 — 09/09/2026</div>
+        <div class="comp-type" style="margin-top:6px; opacity:0.9;">Version 2.12 — 10/09/2026</div>
     </header>
 
     <div id="screenLoading">Connexion à la compétition…</div>
@@ -257,7 +257,7 @@
             </button>
         </div>
         <div class="footer-note">Ton inscription apparaît immédiatement dans le classement en direct.</div>
-        <div class="footer-note" style="margin-top:2px; opacity:0.6;">v2.11</div>
+        <div class="footer-note" style="margin-top:2px; opacity:0.6;">v2.12</div>
     </div>
 
     <div id="screenConfirm" style="display:none;">
@@ -306,24 +306,43 @@
     // Permet de reconnaître « Pistolet libre » = « Pistolet 50 m », « Carabine 60 BC » = « Carabine 50 m couché »,
     // et de déduire la distance (10 / 25 / 50 m) d'une discipline ou d'un libellé de série.
     function discKey(name) {
-        let k = String(name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        // Retire un éventuel code numérique de catalogue officiel en préfixe (ex. "103 - Pistolet Standard 10m")
+        // — sans ça, aucune reconnaissance de synonyme/distance ne fonctionnait pour TAR/ISSF/MLAIC/EDT,
+        // seulement pour les noms libres du concours amical.
+        let raw = String(name || '').replace(/^\s*\d+\s*[-–]\s*/, '');
+        let k = raw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
             .replace(/[^a-z0-9]/g, '');
-        if (/^pistolet(libre|50m?)/.test(k) || /pistoletlibre/.test(k) || /^pl50/.test(k)) return 'pistolet50m';
-        if (/60bc|carabine50m(couche|60)|carabinecouche/.test(k)) return 'carabine50m60bc';
-        if (/3x20|3x40|3positions/.test(k)) return 'carabine50m3x20';
-        if (/^pistolet(standard|vitesse|percussion|25m?)/.test(k)) return 'pistolet25m' + (/vitesse/.test(k) ? 'vitesse' : (/standard/.test(k) ? 'standard' : (/percussion/.test(k) ? 'pc' : '')));
-        if (/^(pistolet|pist|pa)10m?$/.test(k) || /^pistolet10m/.test(k)) return 'pistolet10m';
-        if (/^(carabine|car|ca)10m?$/.test(k) || /^carabine10m/.test(k)) return 'carabine10m';
-        return k;
+        // Distance déduite du nom (10 / 25 / 50 m), indépendamment de la variante (Standard/Vitesse/…) :
+        // « Standard » et « Vitesse » existent aussi bien en 10 m (ex. codes 102/103) qu'en 25 m (ex. codes
+        // 250/253) — ce n'est donc plus la variante qui décide la distance, contrairement à avant.
+        let dist = '';
+        const dm = k.match(/(10|25|50)m/);
+        if (dm) dist = dm[1] + 'm';
+        else if (/pistoletlibre|60bc|3x20|3x40|couche/.test(k)) dist = '50m';
+        const base = k.startsWith('pistolet') ? 'pistolet' : (k.startsWith('carabine') ? 'carabine' : null);
+        if (!base) return k; // discipline hors pistolet/carabine (fusil, arbalète, cible mobile…) : comparaison stricte uniquement
+        let variant = '';
+        if (/60bc|carabinecouche/.test(k)) variant = '60bc';
+        else if (/3x20|3x40/.test(k)) variant = '3x20';
+        else if (/vitesse/.test(k)) variant = 'vitesse';
+        else if (/standard/.test(k)) variant = 'standard';
+        else if (/percussion/.test(k)) variant = 'pc';
+        else if (/libre/.test(k)) variant = 'libre';
+        return base + dist + variant;
     }
     // Même discipline ? Synonymes compris, et nom GÉNÉRIQUE admis : « Carabine 50 m » (sans précision)
     // couvre Carabine 60 BC 50 m et Carabine 3x20 50 m ; « Pistolet 25 m » couvre standard / vitesse / PC.
+    // La fusion "générique couvre ses variantes" ne s'applique qu'au 25 m et au 50 m carabine — PAS
+    // au 10 m : au 10 m, Pistolet 10 m (Précision, mixte avec Carabine 10 m), Pistolet Standard 10 m
+    // et Pistolet Vitesse 10 m sont trois disciplines à part entière, chacune sa propre série, jamais
+    // interchangeables entre elles ni avec le "Pistolet 10 m" générique.
     const GENERIC = /^(pistolet|carabine)(10|25|50)m$/;
+    const SUBSUMABLE_GENERIC = /^(pistolet|carabine)(25|50)m$/;
     function sameDisc(a, b) {
         const ka = discKey(a), kb = discKey(b);
         if (ka === kb) return true;
-        if (GENERIC.test(ka) && kb.startsWith(ka)) return true;
-        if (GENERIC.test(kb) && ka.startsWith(kb)) return true;
+        if (SUBSUMABLE_GENERIC.test(ka) && kb.startsWith(ka)) return true;
+        if (SUBSUMABLE_GENERIC.test(kb) && ka.startsWith(kb)) return true;
         return false;
     }
     function isGenericDisc(name) { return GENERIC.test(discKey(name)); }
