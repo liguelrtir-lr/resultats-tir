@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v3.11 — 10/09/2026 -->
+<!-- LIGUE LR — version v3.12 — 11/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -14,6 +14,10 @@
          Si cette librairie ne se charge pas (réseau, CDN indisponible), l'import PDF affichera un message
          clair invitant à copier-coller le texte à la place — le reste de la page n'en dépend pas. -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <!-- SheetJS : génère le fichier Excel exporté et relit le fichier corrigé réimporté (voir
+         exportExcelList / handleReimportFile). Si le CDN ne charge pas, ces deux boutons afficheront
+         un message clair — le reste de la page n'en dépend pas. -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root {
             --bg: #fdf6ee;
@@ -625,12 +629,18 @@
             </div>
         </div>
         <div class="header-actions">
-            <span class="version-tag">v3.11</span>
+            <span class="version-tag">v3.12</span>
             <button type="button" id="btnToggleImport" class="btn-toggle-import">
                 <span>🪄</span> Import Tireurs
             </button>
             <button type="button" id="btnToggleScoreImport" class="btn-toggle-import">
                 <span>📊</span> Import Résultats
+            </button>
+            <button type="button" class="btn-toggle-import" onclick="exportExcelList()" title="Télécharge la liste des inscrits de cette compétition au format Excel">
+                <span>📥</span> Export Excel
+            </button>
+            <button type="button" id="btnToggleReimport" class="btn-toggle-import">
+                <span>🔁</span> Réimporter
             </button>
             <button type="button" class="btn-toggle-import" onclick="openHarmonize()" title="Fusionner les appellations différentes d'une même discipline / catégorie">
                 <span>🧹</span> Harmoniser
@@ -681,6 +691,30 @@
             </button>
         </div>
         <div id="scoreImportReport" style="margin-top:10px; font-size:0.85rem; color:var(--text-muted); white-space:pre-line;"></div>
+    </div>
+
+    <!-- RÉIMPORT D'UNE LISTE CORRIGÉE (après export Excel + corrections manuelles dans le tableur) -->
+    <div class="panel panel-import" id="reimportBlock">
+        <div class="panel-title"><span>🔁</span> Réimporter une liste corrigée (Excel)</div>
+        <div class="import-hint">
+            Exporte d'abord la liste avec <strong>📥 Export Excel</strong>, corrige les erreurs dans le
+            fichier (orthographe, club, discipline…) <strong>sans toucher la colonne ID</strong>, puis
+            réimporte-le ici. Une ligne avec un ID reconnu met à jour la fiche existante ; une ligne sans
+            ID (ou avec un ID inconnu) crée un nouveau tireur. Les séries/créneaux ne sont pas concernés
+            par ce réimport — à gérer séparément via « 🎟️ Séries » sur le tableau de bord si besoin.
+        </div>
+        <div class="field" style="margin-bottom:12px;">
+            <label>Fichier corrigé (.xlsx ou .csv)</label>
+            <input type="file" id="reimportFileInput" accept=".xlsx,.xls,.csv" onchange="handleReimportFile(event)">
+            <div id="reimportFileStatus" style="font-size:0.78rem; color:var(--text-dim); margin-top:5px;"></div>
+        </div>
+        <div id="reimportPreview" style="font-size:0.85rem; color:var(--text-muted); margin-bottom:10px;"></div>
+        <div class="btn-row">
+            <button type="button" class="btn btn-import-run" onclick="applyReimport()">
+                ✅ Appliquer les corrections
+            </button>
+        </div>
+        <div id="reimportReport" style="margin-top:10px; font-size:0.85rem; color:var(--text-muted); white-space:pre-line;"></div>
     </div>
 
     <!-- MANUAL ENTRY FORM -->
@@ -819,6 +853,9 @@
     });
     document.getElementById('btnToggleScoreImport').addEventListener('click', function() {
         toggleImportPanel('scoreImportBlock', this, '<span>📊</span> Import Résultats');
+    });
+    document.getElementById('btnToggleReimport').addEventListener('click', function() {
+        toggleImportPanel('reimportBlock', this, '<span>🔁</span> Réimporter');
     });
 </script>
 
@@ -1286,6 +1323,112 @@
             document.getElementById('scoreImportArea').value = '';
             document.getElementById('scoreFileStatus').textContent = '';
         }
+    }
+
+    // ─── Export / Réimport Excel de la liste complète ───
+    // L'export inclut une colonne ID (identifiant interne Firebase) invisible à l'usage mais
+    // essentielle au réimport : c'est elle qui permet de mettre à jour la BONNE fiche plutôt que
+    // d'en créer une nouvelle ou de se tromper en cas d'homonymes. Ne jamais la modifier à la main.
+    function exportExcelList() {
+        if (typeof XLSX === 'undefined') {
+            return alert("La génération du fichier Excel n'a pas pu se charger (réseau). Réessaie dans un instant.");
+        }
+        if (!shootersData.length) return alert("Aucun tireur à exporter pour cette compétition.");
+        const rows = shootersData.map(s => ({
+            ID: s.id,
+            Nom: s.lastName || '',
+            'Prénom': s.firstName || '',
+            Club: s.club || '',
+            Discipline: s.discipline || '',
+            'Catégorie': s.category || '',
+            Licence: s.licence || '',
+            Score: s.score || 0,
+            'Série (info, ne pas modifier)': (slotByShooter[s.id] && slotByShooter[s.id].label) || ''
+        }));
+        const ws = XLSX.utils.json_to_sheet(rows);
+        ws['!cols'] = [{ wch: 22 }, { wch: 16 }, { wch: 14 }, { wch: 16 }, { wch: 22 }, { wch: 14 }, { wch: 12 }, { wch: 8 }, { wch: 20 }];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Inscrits');
+        XLSX.writeFile(wb, `inscrits_${compId || 'competition'}.xlsx`);
+    }
+
+    let pendingReimportRows = null;
+
+    function handleReimportFile(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const status = document.getElementById('reimportFileStatus');
+        if (typeof XLSX === 'undefined') {
+            status.textContent = "La lecture du fichier n'a pas pu se charger (réseau). Réessaie dans un instant.";
+            return;
+        }
+        status.textContent = 'Lecture du fichier…';
+        document.getElementById('reimportPreview').textContent = '';
+        document.getElementById('reimportReport').textContent = '';
+        pendingReimportRows = null;
+        const reader = new FileReader();
+        reader.onload = e => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const wb = XLSX.read(data, { type: 'array' });
+                const sheet = wb.Sheets[wb.SheetNames[0]];
+                const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+                pendingReimportRows = rows;
+                const valid = rows.filter(r => rowNom(r) && rowPrenom(r));
+                const withId = valid.filter(r => rowId(r) && shootersData.some(s => s.id === rowId(r))).length;
+                status.textContent = `✓ Fichier lu — ${rows.length} ligne(s).`;
+                document.getElementById('reimportPreview').textContent =
+                    `${valid.length} ligne(s) valide(s) détectée(s) : ${withId} mise(s) à jour de tireur(s) existant(s), ${valid.length - withId} nouvelle(s) fiche(s) à créer. Vérifie que ça correspond avant de cliquer "Appliquer".`;
+            } catch (err) {
+                status.textContent = "Impossible de lire ce fichier (" + (err.message || err) + "). Vérifie qu'il s'agit bien du fichier exporté (ou d'un .xlsx/.csv avec les mêmes colonnes).";
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    // Lit une colonne quel que soit l'accent/la casse exacte conservée par le tableur à la réouverture.
+    function rowGet(r, names) { for (const n of names) { if (r[n] !== undefined && r[n] !== '') return r[n]; } return ''; }
+    function rowId(r) { return String(rowGet(r, ['ID', 'Id', 'id'])).trim(); }
+    function rowNom(r) { return String(rowGet(r, ['Nom', 'NOM', 'nom'])).trim(); }
+    function rowPrenom(r) { return String(rowGet(r, ['Prénom', 'Prenom', 'prénom', 'prenom'])).trim(); }
+
+    function applyReimport() {
+        if (!pendingReimportRows || !pendingReimportRows.length) return alert("Importe d'abord un fichier corrigé ci-dessus.");
+        const existingIds = new Set(shootersData.map(s => s.id));
+        let updated = 0, created = 0, skipped = 0;
+        pendingReimportRows.forEach(r => {
+            const nom = rowNom(r).toUpperCase();
+            const prenom = rowPrenom(r);
+            if (!nom || !prenom) { skipped++; return; }
+            const id = rowId(r);
+            const data = {
+                lastName: nom,
+                firstName: prenom,
+                club: String(rowGet(r, ['Club', 'club'])).trim() || '-',
+                discipline: String(rowGet(r, ['Discipline', 'discipline'])).trim(),
+                category: String(rowGet(r, ['Catégorie', 'Categorie', 'catégorie', 'categorie'])).trim() || 'Général',
+                score: parseFloat(rowGet(r, ['Score', 'score'])) || 0
+            };
+            const licence = String(rowGet(r, ['Licence', 'licence'])).trim();
+            if (licence) data.licence = licence;
+
+            if (id && existingIds.has(id)) {
+                writeShooter(db.ref(CLUB_PATH + '/' + compId + '/shooters/' + id), data, true)
+                    .catch(e => console.warn('Échec mise à jour ' + id, e.message || e));
+                updated++;
+            } else {
+                const newRef = db.ref(CLUB_PATH + '/' + compId + '/shooters').push();
+                writeShooter(newRef, data, false)
+                    .catch(e => console.warn('Échec création', e.message || e));
+                created++;
+            }
+        });
+        document.getElementById('reimportReport').textContent =
+            `✅ ${updated} fiche(s) mise(s) à jour, ${created} créée(s)` +
+            (skipped ? `, ${skipped} ligne(s) ignorée(s) (nom ou prénom manquant).` : '.');
+        pendingReimportRows = null;
+        document.getElementById('reimportFileInput').value = '';
+        document.getElementById('reimportPreview').textContent = '';
     }
 
     // ─── Séries : (dés)association d'un tireur à une série, indépendamment du schéma "shooters"
