@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v3.15 — 11/09/2026 -->
+<!-- LIGUE LR — version v3.16 — 11/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -629,7 +629,7 @@
             </div>
         </div>
         <div class="header-actions">
-            <span class="version-tag">v3.15</span>
+            <span class="version-tag">v3.16</span>
             <button type="button" id="btnToggleImport" class="btn-toggle-import">
                 <span>🪄</span> Import Tireurs
             </button>
@@ -1019,8 +1019,8 @@
         // — sans ça, aucune reconnaissance de synonyme/distance ne fonctionnait pour TAR/ISSF/MLAIC/EDT,
         // seulement pour les noms libres du concours amical.
         let raw = String(name || '').replace(/^\s*\d+\s*[-–]\s*/, '');
-        let k = raw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-            .replace(/[^a-z0-9]/g, '');
+        let norm = raw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        let k = norm.replace(/[^a-z0-9]/g, '');
         // Distance déduite du nom (10 / 25 / 50 m), indépendamment de la variante (Standard/Vitesse/…) :
         // « Standard » et « Vitesse » existent aussi bien en 10 m (ex. codes 102/103) qu'en 25 m (ex. codes
         // 250/253) — ce n'est donc plus la variante qui décide la distance, contrairement à avant.
@@ -1028,7 +1028,14 @@
         const dm = k.match(/(10|25|50)m/);
         if (dm) dist = dm[1] + 'm';
         else if (/pistoletlibre|60bc|3x20|3x40|couche/.test(k)) dist = '50m';
-        const base = k.startsWith('pistolet') ? 'pistolet' : (k.startsWith('carabine') ? 'carabine' : null);
+        // Détection de l'arme : "pistolet"/"pist" ou "carabine"/"car" repérés comme un MOT à part entière
+        // n'importe où dans le nom (pas seulement en tête) — indispensable pour les disciplines handisport
+        // dont le libellé commence par « HP » (ex. « HP P1/P2 Pist. 10m », « HP R6 Car. 50m 60 BC »), sans
+        // quoi elles n'étaient jamais reconnues comme du pistolet/carabine et restaient hors de toute série.
+        const words = norm.split(/[^a-z]+/).filter(Boolean);
+        const base = words.some(w => w === 'pistolet' || w === 'pist') ? 'pistolet'
+                   : words.some(w => w === 'carabine' || w === 'car') ? 'carabine'
+                   : null;
         if (!base) return k; // discipline hors pistolet/carabine (fusil, arbalète, cible mobile…) : comparaison stricte uniquement
         let variant = '';
         if (/60bc|carabinecouche/.test(k)) variant = '60bc';
