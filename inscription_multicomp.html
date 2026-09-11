@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — Inscription publique par QR code — v2.12 — 10/09/2026 -->
+<!-- LIGUE LR — Inscription publique par QR code — v2.13 — 11/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -199,7 +199,7 @@
         <h1>Inscription en direct</h1>
         <div class="comp-name" id="compName">Chargement…</div>
         <div class="comp-type" id="compType"></div>
-        <div class="comp-type" style="margin-top:6px; opacity:0.9;">Version 2.12 — 10/09/2026</div>
+        <div class="comp-type" style="margin-top:6px; opacity:0.9;">Version 2.13 — 11/09/2026</div>
     </header>
 
     <div id="screenLoading">Connexion à la compétition…</div>
@@ -257,7 +257,7 @@
             </button>
         </div>
         <div class="footer-note">Ton inscription apparaît immédiatement dans le classement en direct.</div>
-        <div class="footer-note" style="margin-top:2px; opacity:0.6;">v2.12</div>
+        <div class="footer-note" style="margin-top:2px; opacity:0.6;">v2.13</div>
     </div>
 
     <div id="screenConfirm" style="display:none;">
@@ -337,7 +337,13 @@
     // et Pistolet Vitesse 10 m sont trois disciplines à part entière, chacune sa propre série, jamais
     // interchangeables entre elles ni avec le "Pistolet 10 m" générique.
     const GENERIC = /^(pistolet|carabine)(10|25|50)m$/;
-    const SUBSUMABLE_GENERIC = /^(pistolet|carabine)(25|50)m$/;
+    // La fusion "générique couvre ses variantes" ne s'applique désormais qu'au 50 m carabine
+    // (Carabine 50 m couvre 60 BC/3x20) — PAS au pistolet, ni au 10 m ni au 25 m : au 25 m,
+    // Pistolet Standard 25 m et Pistolet Vitesse 25 m sont des disciplines à part entière, chacune
+    // sa propre série, jamais interchangeables avec le "Pistolet 25 m" générique (seule Percussion
+    // Centrale peut se mélanger avec Pistolet 25 m dans une même série, mais seulement si l'admin
+    // liste explicitement les deux dans les disciplines de la série).
+    const SUBSUMABLE_GENERIC = /^carabine50m$/;
     function sameDisc(a, b) {
         const ka = discKey(a), kb = discKey(b);
         if (ka === kb) return true;

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v3.12 — 11/09/2026 -->
+<!-- LIGUE LR — version v3.13 — 11/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -629,7 +629,7 @@
             </div>
         </div>
         <div class="header-actions">
-            <span class="version-tag">v3.12</span>
+            <span class="version-tag">v3.13</span>
             <button type="button" id="btnToggleImport" class="btn-toggle-import">
                 <span>🪄</span> Import Tireurs
             </button>
@@ -1047,7 +1047,13 @@
     // au 10 m, Pistolet 10 m (Précision, mixte avec Carabine 10 m), Pistolet Standard 10 m et
     // Pistolet Vitesse 10 m sont trois disciplines à part entière, chacune sa propre série, jamais
     // interchangeables entre elles ni avec le "Pistolet 10 m" générique.
-    const SUBSUMABLE_GENERIC = /^(pistolet|carabine)(25|50)m$/;
+    // La fusion "générique couvre ses variantes" ne s'applique désormais qu'au 50 m carabine
+    // (Carabine 50 m couvre 60 BC/3x20) — PAS au pistolet, ni au 10 m ni au 25 m : au 25 m,
+    // Pistolet Standard 25 m et Pistolet Vitesse 25 m sont des disciplines à part entière, chacune
+    // sa propre série, jamais interchangeables avec le "Pistolet 25 m" générique (seule Percussion
+    // Centrale peut se mélanger avec Pistolet 25 m dans une même série, mais seulement si l'admin
+    // liste explicitement les deux dans les disciplines de la série).
+    const SUBSUMABLE_GENERIC = /^carabine50m$/;
     function sameDisc(a, b) {
         const ka = discKey(a), kb = discKey(b);
         if (ka === kb) return true;
