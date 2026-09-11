@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v3.16 — 11/09/2026 -->
+<!-- LIGUE LR — version v3.17 — 11/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -629,7 +629,7 @@
             </div>
         </div>
         <div class="header-actions">
-            <span class="version-tag">v3.16</span>
+            <span class="version-tag">v3.17</span>
             <button type="button" id="btnToggleImport" class="btn-toggle-import">
                 <span>🪄</span> Import Tireurs
             </button>
@@ -1111,17 +1111,25 @@
     // "officielle" (TAR, 10 m, 25/50 m, MLAIC, École de Tir — y compris les disciplines para-tir HP du
     // catalogue ISSF10/ISSF2550). Le catalogue complet est donc toujours proposé en plus de la liste
     // personnalisée du concours (tableau de bord → Modifier) et des disciplines définies sur les séries.
-    const FULL_CATALOG_DISC = uniqDisc([].concat(
+    // NB : pas de uniqDisc() ici (dédoublonnage par "discKey") — depuis que le para-tir partage le même
+    // discKey qu'une discipline classique (pour pouvoir entrer dans la même série), uniqDisc() les aurait
+    // fait disparaître de la liste en les prenant pour des doublons. Chaque entrée officielle du catalogue
+    // doit rester visible et sélectionnable séparément (classement handisport distinct), même si elle
+    // est éligible aux mêmes séries qu'une autre.
+    const FULL_CATALOG_DISC = [].concat(
         dataRef.TAR.disc, dataRef.ISSF10.disc, dataRef.ISSF2550.disc, dataRef.MLAIC.disc, dataRef.EDT.disc
-    ));
+    );
 
     function amicalDiscList() {
-        const base = (Array.isArray(amicalDisciplines) && amicalDisciplines.length) ? amicalDisciplines.slice() : AMICAL_DEFAULT_DISC.slice();
+        let base = (Array.isArray(amicalDisciplines) && amicalDisciplines.length) ? amicalDisciplines.slice() : AMICAL_DEFAULT_DISC.slice();
         Object.values(slotsData || {}).forEach(sl => {
             (Array.isArray(sl.disciplines) ? sl.disciplines : []).forEach(d => { if (!base.some(b => sameDisc(b, d))) base.push(d); });
         });
-        FULL_CATALOG_DISC.forEach(d => { if (!base.some(b => sameDisc(b, d))) base.push(d); });
-        return uniqDisc(base);
+        base = uniqDisc(base); // fusionne les synonymes tapés à la main (liste du concours / des séries)
+        // Catalogue officiel ajouté ensuite, en dédoublonnage strict (texte exact) : chaque discipline
+        // officielle reste distincte et visible, y compris les variantes para-tir.
+        FULL_CATALOG_DISC.forEach(d => { if (!base.includes(d)) base.push(d); });
+        return base;
     }
     function escAttr(v) { return String(v || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
     function optsHtml(list, selected) {
