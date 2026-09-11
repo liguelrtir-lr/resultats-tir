@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v3.17 — 11/09/2026 -->
+<!-- LIGUE LR — version v3.18 — 11/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -629,7 +629,7 @@
             </div>
         </div>
         <div class="header-actions">
-            <span class="version-tag">v3.17</span>
+            <span class="version-tag">v3.18</span>
             <button type="button" id="btnToggleImport" class="btn-toggle-import">
                 <span>🪄</span> Import Tireurs
             </button>
@@ -1103,7 +1103,11 @@
         list.forEach(d => { const k = discKey(d); if (!seen.has(k)) { seen.add(k); out.push(d); } });
         return out;
     }
-    const AMICAL_DEFAULT_DISC = ["Pistolet 10 m", "Carabine 10 m", "Pistolet 25 m", "Pistolet libre 50 m", "Carabine 60 BC 50 m", "Carabine 3x20 50 m"];
+    // Libellés EXACTEMENT ceux du catalogue officiel (avec leur code) — pas des noms génériques
+    // simplifiés — pour qu'il n'existe jamais deux écritures différentes de la même discipline
+    // (ex. "Pistolet 10 m" vs "100 - Pistolet 10m") qui se retrouveraient sur deux lignes
+    // séparées dans les classements alors qu'il s'agit du même événement.
+    const AMICAL_DEFAULT_DISC = ["100 - Pistolet 10m", "104 - Carabine 10m", "252 - Pistolet 25m", "500 - Pistolet 50m", "501 - Carabine 60BC", "502 - Carabine 3x20"];
     const AMICAL_CATS = ["Poussin", "Benjamin", "Minime", "Cadet", "Junior", "Dame 1", "Dame 2", "Dame 3", "Senior 1", "Senior 2", "Senior 3", "Loisir"];
     let amicalDisciplines = null; // liste propre à la compétition (tableau de bord → Modifier)
 

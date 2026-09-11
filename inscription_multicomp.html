@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — Inscription publique par QR code — v2.17 — 11/09/2026 -->
+<!-- LIGUE LR — Inscription publique par QR code — v2.19 — 11/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -199,7 +199,7 @@
         <h1>Inscription en direct</h1>
         <div class="comp-name" id="compName">Chargement…</div>
         <div class="comp-type" id="compType"></div>
-        <div class="comp-type" style="margin-top:6px; opacity:0.9;">Version 2.17 — 11/09/2026</div>
+        <div class="comp-type" style="margin-top:6px; opacity:0.9;">Version 2.19 — 11/09/2026</div>
     </header>
 
     <div id="screenLoading">Connexion à la compétition…</div>
@@ -257,7 +257,7 @@
             </button>
         </div>
         <div class="footer-note">Ton inscription apparaît immédiatement dans le classement en direct.</div>
-        <div class="footer-note" style="margin-top:2px; opacity:0.6;">v2.17</div>
+        <div class="footer-note" style="margin-top:2px; opacity:0.6;">v2.19</div>
     </div>
 
     <div id="screenConfirm" style="display:none;">
@@ -393,7 +393,11 @@
         list.forEach(d => { const k = discKey(d); if (!seen.has(k)) { seen.add(k); out.push(d); } });
         return out;
     }
-    const AMICAL_DEFAULT_DISC = ["Pistolet 10 m", "Carabine 10 m", "Pistolet 25 m", "Pistolet libre 50 m", "Carabine 60 BC 50 m", "Carabine 3x20 50 m"];
+    // Libellés EXACTEMENT ceux du catalogue officiel (avec leur code) — pas des noms génériques
+    // simplifiés — pour qu'il n'existe jamais deux écritures différentes de la même discipline
+    // (ex. "Pistolet 10 m" vs "100 - Pistolet 10m") qui se retrouveraient sur deux lignes
+    // séparées dans les classements alors qu'il s'agit du même événement.
+    const AMICAL_DEFAULT_DISC = ["100 - Pistolet 10m", "104 - Carabine 10m", "252 - Pistolet 25m", "500 - Pistolet 50m", "501 - Carabine 60BC", "502 - Carabine 3x20"];
     const AMICAL_CATS = ["Poussin", "Benjamin", "Minime", "Cadet", "Junior", "Dame 1", "Dame 2", "Dame 3", "Senior 1", "Senior 2", "Senior 3", "Loisir"];
     let amicalDisciplines = null; // liste définie pour cette compétition (ou null)
 
@@ -475,9 +479,12 @@
                 <div class="fixed-disc">${escapeAttr(official)}<small>imposée par la série</small></div>
                 <input type="hidden" id="sDisc_${slotId}" value="${escapeAttr(official)}"></div>`;
         }
-        // Choix limité aux disciplines de la série (ex : Pistolet 10 m ou Carabine 10 m, ou 60 BC / 3x20).
+        // Choix limité aux disciplines de la série (ex : Pistolet 10 m ou Carabine 10 m, ou 60 BC / 3x20) —
+        // dédoublonnage par texte EXACT (pas par discKey) : depuis que le para-tir partage le même discKey
+        // qu'une discipline classique, un dédoublonnage par discKey aurait fait disparaître les variantes
+        // para-tir de ce menu, empêchant un tireur SH de déclarer sa discipline précise.
         if (allowed.length >= 1) {
-            const names = uniqDisc(allowed.flatMap(expand));
+            const names = [...new Set(allowed.flatMap(expand))];
             const d = names.includes(curDisc) ? curDisc : names[0];
             return `<div class="field"><label>Discipline — au choix</label>
                 <select id="sDisc_${slotId}" onchange="rememberChoice('${slotId}')">` +
