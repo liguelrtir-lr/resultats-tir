@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — Inscription publique par QR code — v2.19 — 11/09/2026 -->
+<!-- LIGUE LR — Inscription publique par QR code — v2.21 — 11/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -199,7 +199,7 @@
         <h1>Inscription en direct</h1>
         <div class="comp-name" id="compName">Chargement…</div>
         <div class="comp-type" id="compType"></div>
-        <div class="comp-type" style="margin-top:6px; opacity:0.9;">Version 2.19 — 11/09/2026</div>
+        <div class="comp-type" style="margin-top:6px; opacity:0.9;">Version 2.21 — 11/09/2026</div>
     </header>
 
     <div id="screenLoading">Connexion à la compétition…</div>
@@ -257,7 +257,7 @@
             </button>
         </div>
         <div class="footer-note">Ton inscription apparaît immédiatement dans le classement en direct.</div>
-        <div class="footer-note" style="margin-top:2px; opacity:0.6;">v2.19</div>
+        <div class="footer-note" style="margin-top:2px; opacity:0.6;">v2.21</div>
     </div>
 
     <div id="screenConfirm" style="display:none;">
@@ -423,7 +423,12 @@
         // Catalogue officiel ajouté ensuite, en dédoublonnage strict (texte exact) : chaque discipline
         // officielle reste distincte et visible, y compris les variantes para-tir.
         FULL_CATALOG_DISC.forEach(d => { if (!base.includes(d)) base.push(d); });
-        return base;
+        // Seules les disciplines portant un code de catalogue officiel en préfixe (« 100 - Pistolet 10m »)
+        // restent proposées ici — un libellé simplifié sans code (« Pistolet 10m Standard », tapé par
+        // exemple dans les disciplines d'une série) est retiré de CE menu général, pour n'avoir toujours
+        // qu'une seule écriture possible par discipline. Cela ne touche pas l'affichage propre à une
+        // série précise (imposée/au choix), qui montre toujours le texte exact tapé pour cette série.
+        return base.filter(d => /^\s*\d+\s*[-–]/.test(d));
     }
     function optionsHtml(list, selected) {
         return list.map(x => `<option value="${escapeAttr(x)}" ${x === selected ? 'selected' : ''}>${x}</option>`).join('');
@@ -471,7 +476,18 @@
         const menu = isFreeText() ? amicalDiscList() : dataRef[activeTypeKey].disc;
         // Disciplines du menu correspondant à celles de la série (synonymes + noms génériques :
         // « Carabine 50 m » sur la série → Carabine 60 BC 50 m et Carabine 3x20 50 m au choix).
-        const expand = a => { const m = menu.filter(x => sameDisc(a, x)); return m.length ? m : [a]; };
+        // EN CONCOURS AMICAL : pas de substitution — le libellé tapé par l'admin est utilisé tel quel.
+        // Depuis que le menu amical contient tout le catalogue (y compris le para-tir, qui partage
+        // volontairement la même éligibilité que son équivalent classique pour pouvoir entrer dans la
+        // même série), substituer aurait remplacé un simple mot tapé à la main (ex. « Pistolet 10m »)
+        // par une dizaine de variantes catalogue/para-tir/École de Tir — source de confusion, pas
+        // d'aide. En dehors du concours amical (catalogue officiel figé, menu restreint à ce seul
+        // catalogue), la substitution reste utile et est conservée.
+        const expand = a => {
+            if (isFreeText()) return [a];
+            const m = menu.filter(x => sameDisc(a, x));
+            return m.length ? m : [a];
+        };
         // Discipline imposée par la série (ex : « Pistolet libre ») : pas de choix.
         if (allowed.length === 1 && expand(allowed[0]).length === 1) {
             const official = expand(allowed[0])[0];

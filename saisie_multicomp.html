@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v3.18 — 11/09/2026 -->
+<!-- LIGUE LR — version v3.19 — 11/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -629,7 +629,7 @@
             </div>
         </div>
         <div class="header-actions">
-            <span class="version-tag">v3.18</span>
+            <span class="version-tag">v3.19</span>
             <button type="button" id="btnToggleImport" class="btn-toggle-import">
                 <span>🪄</span> Import Tireurs
             </button>
@@ -1133,7 +1133,12 @@
         // Catalogue officiel ajouté ensuite, en dédoublonnage strict (texte exact) : chaque discipline
         // officielle reste distincte et visible, y compris les variantes para-tir.
         FULL_CATALOG_DISC.forEach(d => { if (!base.includes(d)) base.push(d); });
-        return base;
+        // Seules les disciplines portant un code de catalogue officiel en préfixe (« 100 - Pistolet 10m »)
+        // restent proposées ici — un libellé simplifié sans code (« Pistolet 10m Standard », tapé par
+        // exemple dans les disciplines d'une série) est retiré de CE menu général, pour n'avoir toujours
+        // qu'une seule écriture possible par discipline. Cela ne touche pas l'affichage propre à une
+        // série précise (imposée/au choix), qui montre toujours le texte exact tapé pour cette série.
+        return base.filter(d => /^\s*\d+\s*[-–]/.test(d));
     }
     function escAttr(v) { return String(v || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
     function optsHtml(list, selected) {
