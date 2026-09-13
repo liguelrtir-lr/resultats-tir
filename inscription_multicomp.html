@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — Inscription publique par QR code — v2.28 — 13/09/2026 -->
+<!-- LIGUE LR — Inscription publique par QR code — v2.29 — 13/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -200,7 +200,7 @@
         <h1>Inscription en direct</h1>
         <div class="comp-name" id="compName">Chargement…</div>
         <div class="comp-type" id="compType"></div>
-        <div class="comp-type" style="margin-top:6px; opacity:0.9;">Version 2.28 — 13/09/2026</div>
+        <div class="comp-type" style="margin-top:6px; opacity:0.9;">Version 2.29 — 13/09/2026</div>
     </header>
 
     <div id="screenLoading">Connexion à la compétition…</div>
@@ -216,20 +216,20 @@
             <div class="msg msg-error" id="formError"></div>
 
             <div class="field">
-                <label>Nom</label>
-                <input type="text" id="fNom" placeholder="DUPONT">
+                <label>Nom *</label>
+                <input type="text" id="fNom" placeholder="Ton nom" required>
             </div>
             <div class="field">
-                <label>Prénom</label>
-                <input type="text" id="fPrenom" placeholder="Jean">
+                <label>Prénom *</label>
+                <input type="text" id="fPrenom" placeholder="Ton prénom" required>
             </div>
             <div class="field">
                 <label>N° de licence</label>
                 <input type="text" id="fLicence" placeholder="Ex : 01234567" inputmode="numeric" autocomplete="off">
             </div>
             <div class="field">
-                <label>Club</label>
-                <input type="text" id="fClub" placeholder="ST BÉZIERS">
+                <label>Club *</label>
+                <input type="text" id="fClub" placeholder="Ton club" required>
             </div>
             <div class="field" id="catWrap">
                 <label>Catégorie</label>
@@ -258,7 +258,7 @@
             </button>
         </div>
         <div class="footer-note">Ton inscription apparaît immédiatement dans le classement en direct.</div>
-        <div class="footer-note" style="margin-top:2px; opacity:0.6;">v2.28</div>
+        <div class="footer-note" style="margin-top:2px; opacity:0.6;">v2.29</div>
     </div>
 
     <div id="screenConfirm" style="display:none;">
@@ -694,13 +694,14 @@
 
         const nom = fieldValue('fNom').toUpperCase();
         const prenom = fieldValue('fPrenom');
-        const club = fieldValue('fClub') || '-';
+        const club = fieldValue('fClub');
         const hasSlots = Object.keys(slotsData).length > 0;
         const disc = hasSlots ? '' : fieldValue('fDiscSelect');
         const cat = fieldValue('fCatSelect');
         const licence = fieldValue('fLicence').replace(/\s+/g, '');
 
         if (!nom || !prenom) { return showFormError("Merci de renseigner ton nom et ton prénom."); }
+        if (!club) { return showFormError("Merci d'indiquer ton club."); }
         if (!licence && !isFreeText()) { return showFormError("Merci d'indiquer ton numéro de licence."); }
         if (!cat) { return showFormError("Merci d'indiquer ta catégorie."); }
         if (!hasSlots && !disc) { return showFormError("Merci d'indiquer la discipline."); }
