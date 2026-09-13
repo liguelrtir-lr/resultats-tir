@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v2.10 — 09/09/2026 -->
+<!-- LIGUE LR — version v2.11 — 13/09/2026 -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
@@ -387,7 +387,6 @@
     /* QR modal */
     .qr-url {
       font-size: 0.72rem;
-      color: var(--text-muted);
       word-break: break-all;
       margin: 14px 0;
       background: var(--surface2);
@@ -395,6 +394,8 @@
       border-radius: var(--radius);
       padding: 10px 12px;
     }
+    .qr-url a { color: var(--text-muted); text-decoration: underline; }
+    .qr-url a:hover { color: inherit; }
 
     /* SÉRIES MODAL */
     .modal-content.slots-content { max-width: 480px; text-align: left; }
@@ -532,7 +533,7 @@
     </div>
     <button class="btn-create" onclick="openCreateModal()">+ Nouvelle Compétition</button>
     <button class="btn-logout" onclick="doLogout()" style="margin-top:auto;">⎋ Déconnexion</button>
-    <div class="sidebar-footer"><span id="footerClub"></span> · v2.10 — 09/09/2026</div>
+    <div class="sidebar-footer"><span id="footerClub"></span> · v2.11 — 13/09/2026</div>
   </aside>
 
   <main class="main-content">
@@ -754,7 +755,8 @@
       const label = kind === 'inscription' ? '📱 Inscription — ' : '🏆 Résultats — ';
       const url = `${GITHUB_BASE}/${page}?comp=${code}`;
       document.getElementById('qrTitle').textContent = label + code;
-      document.getElementById('qrUrl').textContent = url;
+      document.getElementById('qrUrl').innerHTML =
+          `<a href="${url}" target="_blank" rel="noopener">${url}</a>`;
       const qrContainer = document.getElementById('qrcode');
       qrContainer.innerHTML = '';
       new QRCode(qrContainer, { text: url, width: 200, height: 200 });
