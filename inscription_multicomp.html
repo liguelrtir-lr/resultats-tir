@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — Inscription publique par QR code — v2.26 — 12/09/2026 -->
+<!-- LIGUE LR — Inscription publique par QR code — v2.28 — 13/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -13,6 +13,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="config.js"></script>
     <style>
         :root {
@@ -199,7 +200,7 @@
         <h1>Inscription en direct</h1>
         <div class="comp-name" id="compName">Chargement…</div>
         <div class="comp-type" id="compType"></div>
-        <div class="comp-type" style="margin-top:6px; opacity:0.9;">Version 2.26 — 12/09/2026</div>
+        <div class="comp-type" style="margin-top:6px; opacity:0.9;">Version 2.28 — 13/09/2026</div>
     </header>
 
     <div id="screenLoading">Connexion à la compétition…</div>
@@ -257,7 +258,7 @@
             </button>
         </div>
         <div class="footer-note">Ton inscription apparaît immédiatement dans le classement en direct.</div>
-        <div class="footer-note" style="margin-top:2px; opacity:0.6;">v2.26</div>
+        <div class="footer-note" style="margin-top:2px; opacity:0.6;">v2.28</div>
     </div>
 
     <div id="screenConfirm" style="display:none;">
@@ -266,6 +267,7 @@
             <h2>Inscription enregistrée</h2>
             <p>Tu es bien inscrit à cette compétition.</p>
             <div class="recap" id="recapBox"></div>
+            <button type="button" class="btn btn-primary" id="btnPdf" onclick="downloadConfirmPDF()">📄 Télécharger ma confirmation (PDF)</button>
             <button type="button" class="btn btn-primary" onclick="registerAnother()">+ Autre inscription (autre série, discipline ou tireur)</button>
             <button type="button" class="btn btn-secondary" id="btnResults" onclick="location.href=resultsUrl">🏆 Voir le classement en direct</button>
         </div>
@@ -297,6 +299,7 @@
     const CLUB_PATH = 'clubs/' + CONFIG.clubKey;
     const compId = new URLSearchParams(window.location.search).get('comp');
     const resultsUrl = 'affichage_multicomp.html?comp=' + encodeURIComponent(compId || '');
+    let lastRegistration = null; // rempli après une inscription réussie, pour le PDF de confirmation
 
     let activeTypeKey = 'AMICAL';
     // ─── Concours amical : appellations figées (plus de texte libre) ───
@@ -789,6 +792,13 @@
                   ${slotLines}`;
               document.querySelector('#screenConfirm h2').textContent =
                   done.length > 1 ? `${done.length} inscriptions enregistrées` : 'Inscription enregistrée';
+              // Conservé pour le bouton "Télécharger ma confirmation (PDF)" de l'écran suivant.
+              lastRegistration = {
+                  nom, prenom, licence, club, cat,
+                  lignes: hasSlots
+                      ? done.map(r => slotDisplayLabel(slotsData[r.slotId]) + ' — ' + choices[r.slotId].disc)
+                      : [disc]
+              };
               selectedSlotIds.clear();
               showScreen('screenConfirm');
           })
@@ -877,6 +887,72 @@
     }
 
     initPage();
+
+    // ─── PDF de confirmation (bouton sur l'écran de fin d'inscription) ───
+    // Le logo affiché sur le PDF est celui du club organisateur (fichier "logo.png" à la racine
+    // de son propre dépôt GitHub, comme sur les autres pages du site) — pas un logo Ligue fixe.
+    function loadClubLogoDataUrl() {
+        return new Promise(resolve => {
+            const img = new Image();
+            img.onload = () => {
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+                    canvas.getContext('2d').drawImage(img, 0, 0);
+                    resolve(canvas.toDataURL('image/png'));
+                } catch (e) { resolve(null); }
+            };
+            img.onerror = () => resolve(null);
+            img.src = 'logo.png?_=' + Date.now(); // évite un logo mis en cache par le navigateur
+        });
+    }
+
+    function downloadConfirmPDF() {
+        if (!lastRegistration || !window.jspdf) return;
+        loadClubLogoDataUrl().then(logoDataUrl => buildConfirmPDF(logoDataUrl));
+    }
+
+    function buildConfirmPDF(logoDataUrl) {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+        const W = doc.internal.pageSize.getWidth();
+        const M = 18;
+        let y = 20;
+
+        if (logoDataUrl) { try { doc.addImage(logoDataUrl, 'PNG', M, y - 6, 22, 22); } catch (e) {} }
+
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.setTextColor(13, 27, 62);
+        doc.text('Confirmation d\'inscription', M + 28, y + 4);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5); doc.setTextColor(60, 60, 60);
+        doc.text(document.getElementById('compName').textContent || '', M + 28, y + 11);
+        const typeTxt = document.getElementById('compType').textContent;
+        if (typeTxt) doc.text(typeTxt, M + 28, y + 16);
+
+        y += 30;
+        doc.setDrawColor(200, 200, 200); doc.line(M, y, W - M, y); y += 10;
+
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(13, 27, 62);
+        doc.text(lastRegistration.nom + ' ' + lastRegistration.prenom, M, y); y += 7;
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5); doc.setTextColor(60, 60, 60);
+        if (lastRegistration.licence) { doc.text('N° de licence : ' + lastRegistration.licence, M, y); y += 6; }
+        doc.text('Club : ' + lastRegistration.club, M, y); y += 6;
+        doc.text('Catégorie : ' + (lastRegistration.cat || 'Général'), M, y); y += 10;
+
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(13, 27, 62);
+        doc.text(lastRegistration.lignes.length > 1 ? 'Séries et disciplines' : 'Discipline', M, y); y += 7;
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5); doc.setTextColor(30, 30, 30);
+        lastRegistration.lignes.forEach(l => { doc.text('•  ' + l, M + 3, y); y += 6.5; });
+
+        y += 10;
+        doc.setFontSize(8.5); doc.setTextColor(120, 120, 120);
+        const now = new Date();
+        doc.text('Document généré automatiquement le ' + now.toLocaleDateString('fr-FR') + ' à ' +
+            now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) + '.', M, y);
+        y += 5;
+        doc.text('Présente-le sur place si on te le demande. Bonne compétition !', M, y);
+
+        doc.save('Inscription_' + lastRegistration.nom + '_' + lastRegistration.prenom + '.pdf');
+    }
 </script>
 </body>
 </html>
