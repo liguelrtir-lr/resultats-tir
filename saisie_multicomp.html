@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v3.21 — 12/09/2026 -->
+<!-- LIGUE LR — version v3.22 — 16/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -629,7 +629,7 @@
             </div>
         </div>
         <div class="header-actions">
-            <span class="version-tag">v3.21</span>
+            <span class="version-tag">v3.22</span>
             <button type="button" id="btnToggleImport" class="btn-toggle-import">
                 <span>🪄</span> Import Tireurs
             </button>
@@ -1720,7 +1720,13 @@
     }
 
     function deleteShooter(id) {
-        if(confirm("Supprimer ce tireur ?")) {
+        const s = shootersData.find(x => x.id === id);
+        const nom = s ? `${s.lastName || ''} ${s.firstName || ''}`.trim() : 'ce tireur';
+        let msg = `Supprimer ${nom} ?`;
+        if (s && Number(s.score) > 0) {
+            msg += `\n\n⚠️ Un score est déjà enregistré (${s.score}) — il sera définitivement perdu.`;
+        }
+        if(confirm(msg)) {
             // Libère aussi sa place de série le cas échéant, pour ne pas garder une place bloquée.
             const currentSlot = slotByShooter[id];
             if (currentSlot) unassignSlot(id, currentSlot.slotId);
