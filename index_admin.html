@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v2.11 — 13/09/2026 -->
+<!-- LIGUE LR — version v2.12 — 19/09/2026 -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
@@ -511,6 +511,30 @@
       transition: background .2s;
     }
     .btn-logout:hover { background: rgba(0,0,0,0.25); }
+  
+    /* ═══ v2.12 — fenêtres défilantes + Séries en onglet séparé ═══ */
+    .modal-content { max-height: 92vh; overflow-y: auto; position: relative; }
+    .slots-x {
+      position: absolute; top: 12px; right: 14px;
+      width: 36px; height: 36px; border-radius: 50%;
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text-muted); font-size: 1.05rem; line-height: 1; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .slots-x:hover { background: var(--border); color: var(--text); }
+    .modal-content.slots-content .modal-title { padding-right: 44px; }
+    /* Mode « page Séries » (onglet ouvert depuis le tableau de bord) */
+    body.series-mode { display: block; }
+    body.series-mode .sidebar, body.series-mode .main-content { display: none !important; }
+    body.series-mode #slotsModal {
+      position: static; display: block; min-height: 100vh;
+      background: transparent; backdrop-filter: none; padding: 24px 12px 48px;
+    }
+    body.series-mode .modal-content.slots-content {
+      max-width: 760px; width: 100%; margin: 0 auto; max-height: none; overflow: visible;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.10);
+    }
+    body.series-mode .slots-list { max-height: none; overflow: visible; }
   </style>
 
   <div id="loginOverlay">
@@ -533,7 +557,7 @@
     </div>
     <button class="btn-create" onclick="openCreateModal()">+ Nouvelle Compétition</button>
     <button class="btn-logout" onclick="doLogout()" style="margin-top:auto;">⎋ Déconnexion</button>
-    <div class="sidebar-footer"><span id="footerClub"></span> · v2.11 — 13/09/2026</div>
+    <div class="sidebar-footer"><span id="footerClub"></span> · v2.12 — 19/09/2026</div>
   </aside>
 
   <main class="main-content">
@@ -604,6 +628,7 @@
   <!-- MODAL SÉRIES -->
   <div class="modal" id="slotsModal">
     <div class="modal-content slots-content">
+      <button type="button" class="slots-x" onclick="closeSlotsModal()" aria-label="Fermer" title="Fermer">✕</button>
       <div class="modal-title" id="slotsTitle">🎟️ Séries</div>
       <div class="slots-intro">Définis les séries (date, heure, nombre de postes, disciplines). Elles s'affichent triées par date/heure. Une fois complète, une série se bloque automatiquement à l'inscription. Quand les inscriptions sont closes, tire les postes au sort (🎲).</div>
       <div class="slots-list" id="slotsList"></div>
@@ -796,6 +821,13 @@
       document.getElementById('btnSlotSave').textContent = '+ Ajouter';
       currentSlotsComp = null;
       document.getElementById('slotsModal').classList.remove('active');
+      if (document.body.classList.contains('series-mode')) leaveSeriesTab();
+    }
+
+    // Onglet « Séries » : ferme l'onglet ; si le navigateur refuse, revient au tableau de bord
+    function leaveSeriesTab() {
+      window.close();
+      setTimeout(() => { location.href = location.pathname; }, 300);
     }
 
     // Trie les séries par date/heure croissante (utile sur une compétition à plusieurs jours).
@@ -1096,7 +1128,7 @@
               <a href="saisie_multicomp.html?comp=${code}" target="_blank" class="btn-act btn-saisie">⌨️ Saisie</a>
               <button onclick="openQr('${code}','inscription')" class="btn-act btn-qr">📱 QR Inscription</button>
               <button onclick="openQr('${code}','resultats')" class="btn-act btn-qr" style="grid-column: span 2;">🏆 QR Résultats</button>
-              <button onclick="openSlotsModal('${code}', '${config.name.replace(/'/g,"\\'")}')" class="btn-act btn-slots">🎟️ Séries</button>
+              <a href="?series=${encodeURIComponent(code)}" target="_blank" class="btn-act btn-slots">🎟️ Séries</a>
               <a href="impression_series.html?comp=${code}" target="_blank" class="btn-act btn-print-series">🖨️ Imprimer séries</a>
               <button onclick="openEditModal('${code}', '${config.name.replace(/'/g,"\\'")}', '${config.type || ''}')" class="btn-act btn-edit-comp">✏️ Modifier</button>
               <a href="affichage_multicomp.html?comp=${code}" target="_blank" class="btn-act btn-tv">📺 Affichage Live (écran)</a>
@@ -1115,6 +1147,27 @@
     setInterval(() => {
       document.getElementById('clock').textContent = new Date().toLocaleTimeString('fr-FR');
     }, 1000);
+
+    // ─── v2.12 : ouverture de la fenêtre Séries dans un onglet séparé (?series=CODE) ───
+    (function () {
+      const code = new URLSearchParams(location.search).get('series');
+      if (!code) return;
+      document.body.classList.add('series-mode');
+      database.ref(CLUB_PATH + '/' + code + '/config/name').once('value').then(snap => {
+        const name = snap.val();
+        if (!name) { alert("Compétition introuvable (#" + code + ")."); location.href = location.pathname; return; }
+        document.title = "🎟️ Séries — " + name;
+        openSlotsModal(code, name);
+      }).catch(err => {
+        alert("Impossible de charger la compétition : " + (err.message || err));
+        location.href = location.pathname;
+      });
+    })();
+
+    // Échap ferme la fenêtre Séries
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && document.getElementById('slotsModal').classList.contains('active')) closeSlotsModal();
+    });
   </script>
 </body>
 </html>
