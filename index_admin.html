@@ -497,6 +497,16 @@
       border: 1.5px solid #ead9cf; border-radius: 10px; font-size: 1rem; background: #fdf9f4; color: #3a0e14;
     }
     .login-card input:focus { outline: none; border-color: #c1271d; box-shadow: 0 0 0 3px rgba(193,39,29,0.15); }
+    .login-pwd-wrap { position: relative; }
+    .login-pwd-wrap input { padding-right: 42px; }
+    .login-pwd-toggle {
+      position: absolute; top: 50%; right: 12px; transform: translateY(-50%);
+      background: none; border: none; padding: 4px; margin: 0; width: auto;
+      cursor: pointer; color: #9a7264; display: flex; align-items: center; justify-content: center;
+      line-height: 0;
+    }
+    .login-pwd-toggle:hover { color: #c1271d; }
+    .login-pwd-toggle svg { width: 20px; height: 20px; }
     #loginBtn {
       width: 100%; padding: 13px; border: none; border-radius: 10px; cursor: pointer;
       background: #c1271d; color: #fff; font-weight: 700; font-size: 1rem; text-transform: uppercase; letter-spacing: .05em;
@@ -543,7 +553,15 @@
       <h2 class="login-title" id="loginClub">Administration</h2>
       <p class="login-sub">Accès réservé</p>
       <input type="email" id="loginEmail" placeholder="Email" autocomplete="username">
-      <input type="password" id="loginPwd" placeholder="Mot de passe" autocomplete="current-password">
+      <div class="login-pwd-wrap">
+        <input type="password" id="loginPwd" placeholder="Mot de passe" autocomplete="current-password">
+        <button type="button" class="login-pwd-toggle" onclick="togglePwd()" aria-label="Afficher le mot de passe">
+          <svg id="pwdEyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+        </button>
+      </div>
       <button id="loginBtn" onclick="doLogin()">Se connecter</button>
       <div id="loginError" class="login-error"></div>
     </div>
@@ -693,6 +711,16 @@
     auth.onAuthStateChanged(user => {
       document.getElementById('loginOverlay').style.display = user ? 'none' : 'flex';
     });
+
+    function togglePwd() {
+      const pwd = document.getElementById('loginPwd');
+      const icon = document.getElementById('pwdEyeIcon');
+      const show = pwd.type === 'password';
+      pwd.type = show ? 'text' : 'password';
+      icon.innerHTML = show
+        ? '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a18.7 18.7 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 7 11 7a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>'
+        : '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"></path><circle cx="12" cy="12" r="3"></circle>';
+    }
 
     function doLogin() {
       const email = document.getElementById('loginEmail').value.trim();
