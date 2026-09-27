@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — Inscription publique par QR code — v2.29 — 13/09/2026 -->
+<!-- LIGUE LR — Inscription publique par QR code — v2.30 — 27/09/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -200,7 +200,7 @@
         <h1>Inscription en direct</h1>
         <div class="comp-name" id="compName">Chargement…</div>
         <div class="comp-type" id="compType"></div>
-        <div class="comp-type" style="margin-top:6px; opacity:0.9;">Version 2.29 — 13/09/2026</div>
+        <div class="comp-type" style="margin-top:6px; opacity:0.9;">Version 2.30 — 27/09/2026</div>
     </header>
 
     <div id="screenLoading">Connexion à la compétition…</div>
@@ -258,7 +258,7 @@
             </button>
         </div>
         <div class="footer-note">Ton inscription apparaît immédiatement dans le classement en direct.</div>
-        <div class="footer-note" style="margin-top:2px; opacity:0.6;">v2.29</div>
+        <div class="footer-note" style="margin-top:2px; opacity:0.6;">v2.30</div>
     </div>
 
     <div id="screenConfirm" style="display:none;">
@@ -513,7 +513,14 @@
             const dist = distanceOf(slot.label);
             let list;
             if (dist && DISTANCE_WEAPON_DISC[dist]) {
-                list = DISTANCE_WEAPON_DISC[dist];
+                // v2.30 : on enregistre le nom EXACT du menu de la saisie admin (« 100 - Pistolet 10m »,
+                // « 104 - Carabine 10m »…) et non « Pistolet 10 m » — sinon un inscrit par QR et un inscrit
+                // par la saisie se retrouvaient dans deux classements différents pour la même discipline.
+                const menu = amicalDiscList();
+                list = [...new Set(DISTANCE_WEAPON_DISC[dist].flatMap(g => {
+                    const hit = menu.filter(m => sameDisc(m, g));
+                    return hit.length ? hit : [g];
+                }))];
             } else {
                 list = amicalDiscList().filter(d => discAllowedInSlot(d, slot));
                 if (!list.length) list = amicalDiscList();
