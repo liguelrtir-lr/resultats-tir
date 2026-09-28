@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<!--
+  © 2026 Gérard GARCIA — Tous droits réservés.
+  Logiciel de gestion de compétitions de tir sportif (inscriptions, saisie, résultats).
+  Toute reproduction, copie, modification, diffusion ou réutilisation, totale ou partielle,
+  est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
+  intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
+-->
+<!-- 12 H PAR ÉQUIPES — Classements en direct / impression / feuille des postes — v1.1 — 27/09/2026 -->
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>Classements 12 h par équipes</title>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="config.js"></script>
+  <script src="e12_commun.js"></script>
+  <style>
+    :root { --bord:#4a2c40; --gold:#d99a1c; --bg:#f8fafc; --line:#edf2f7; --muted:#64748b; --red:#c0442a;
+            --a:#b45309; --a-bg:#fff7e6; --b:#1d4ed8; --b-bg:#eef4ff; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:'Barlow',system-ui,sans-serif; background:var(--bg); color:#0f172a; padding:16px; }
+    header { display:flex; align-items:center; gap:18px; background:var(--bord); color:#fff; padding:14px 24px; border-radius:18px; margin-bottom:16px; }
+    header img { height:64px; width:auto; object-fit:contain; }
+    header .c { flex:1; text-align:center; }
+    header h1 { margin:0; font-family:'Rajdhani',sans-serif; font-size:2rem; }
+    header .comp { color:#ffb8d9; text-transform:uppercase; font-weight:600; }
+    header .meta { font-size:.8rem; opacity:.75; }
+    .bar { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-bottom:16px; }
+    .bar button { border:1px solid #d8dee8; background:#fff; border-radius:10px; padding:8px 14px; font-family:'Rajdhani',sans-serif; font-weight:700; font-size:.95rem; cursor:pointer; }
+    .bar button.on { background:var(--bord); color:#fff; border-color:var(--bord); }
+    .cols { display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start; }
+    .cols.one { grid-template-columns:1fr; }
+    .block { background:#fff; border:1px solid var(--line); border-radius:18px; padding:16px; margin-bottom:18px; box-shadow:0 6px 14px -8px rgba(0,0,0,.08); }
+    .block h2 { margin:0 0 12px; font-family:'Rajdhani',sans-serif; font-size:1.45rem; padding:8px 14px; border-radius:9px; }
+    .block.P h2 { background:#fff1dc; color:#92400e; border-left:6px solid var(--a); }
+    .block.C h2 { background:#e6eeff; color:#1e3a8a; border-left:6px solid var(--b); }
+    .block h2 small { font-family:'Barlow',sans-serif; font-weight:500; font-size:.85rem; opacity:.8; margin-left:8px; }
+    table { width:100%; border-collapse:collapse; font-size:.95rem; }
+    th { text-align:left; font-family:'Barlow Condensed',sans-serif; text-transform:uppercase; letter-spacing:.05em; font-size:.75rem; color:var(--muted); border-bottom:2px solid var(--line); padding:6px 6px; }
+    td { padding:7px 6px; border-bottom:1px solid var(--line); vertical-align:middle; }
+    td.rk { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:1.3rem; width:44px; text-align:center; }
+    tr.p1 td.rk { color:#b8860b; } tr.p2 td.rk { color:#6b7280; } tr.p3 td.rk { color:#a0522d; }
+    tr.p1 { background:#fffbeb; }
+    .nm { font-weight:600; }
+    .sub { font-size:.8rem; color:var(--muted); }
+    .tot { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:1.3rem; color:var(--red); text-align:right; white-space:nowrap; }
+    .xx { text-align:right; color:var(--muted); white-space:nowrap; }
+    .num { text-align:center; white-space:nowrap; font-variant-numeric:tabular-nums; }
+    .ms { font-size:.82rem; text-align:center; font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .ms .a { color:var(--a); } .ms .b { color:var(--b); }
+    .chip { display:inline-block; padding:1px 6px; border-radius:6px; font-size:.78rem; font-weight:600; margin-right:4px; }
+    .chip.a { background:var(--a-bg); color:var(--a); } .chip.b { background:var(--b-bg); color:var(--b); }
+    .eq { font-size:.7rem; background:#fee2e2; color:#991b1b; border-radius:5px; padding:0 4px; margin-left:3px; }
+    .none { color:var(--muted); font-style:italic; padding:10px; }
+    .legend { text-align:center; color:var(--muted); font-size:.82rem; margin-top:-6px; margin-bottom:14px; }
+    .postes td, .postes th { border:1px solid #cbd5e1; }
+    .postes td.box { width:70px; height:34px; }
+    .postes td.po { font-family:'Rajdhani',sans-serif; font-size:1.4rem; font-weight:700; text-align:center; width:56px; }
+    .postes tr.free td { color:#94a3b8; background:#f8fafc; }
+    footer { text-align:center; color:var(--muted); font-size:.75rem; margin-top:10px; }
+    @media (max-width: 1599px) { .cols { grid-template-columns:1fr; } }
+    @media (max-width: 800px) { .hide-sm { display:none; } }
+    .tw { white-space:nowrap; }
+    @media print {
+      body { background:#fff; padding:0; font-size:11px; }
+      .bar { display:none; }
+      header { border-radius:0; padding:8px 14px; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      header img { height:44px; }
+      header h1 { font-size:1.4rem; }
+      .cols { grid-template-columns:1fr; }
+      .block { box-shadow:none; border:none; padding:0; page-break-inside:auto; }
+      .block + .block, .col + .col .block:first-child { page-break-before:always; }
+      .block h2 { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      tr { page-break-inside:avoid; }
+      .hide-sm { display:table-cell !important; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="logo.png" class="e12-logo" alt="" onerror="this.style.display='none'">
+    <div class="c">
+      <h1 id="title">Classements</h1>
+      <div class="comp" id="compName">Chargement…</div>
+      <div class="meta" id="meta"></div>
+    </div>
+    <img src="logo.png" class="e12-logo hide-sm" alt="" onerror="this.style.display='none'">
+  </header>
+
+  <div class="bar" id="bar">
+    <button data-v="all" onclick="setView('all')">Tous les classements</button>
+    <button data-v="P" onclick="setView('P')">Pistolet</button>
+    <button data-v="C" onclick="setView('C')">Carabine</button>
+    <button data-v="postes" onclick="setView('postes')">Feuille des postes</button>
+    <button onclick="window.print()">🖨️ Imprimer</button>
+  </div>
+  <div class="legend" id="legend"></div>
+  <div id="out"></div>
+  <footer><span id="foot"></span> · <span id="ver"></span></footer>
+
+<script>
+  firebase.initializeApp(CONFIG.firebase);
+  const db = firebase.database();
+  const CLUB_PATH = 'clubs/' + CONFIG.clubKey;
+  const params = new URLSearchParams(location.search);
+  const compId = params.get('comp');
+  let VIEW = params.get('vue') || params.get('disc') || 'all';
+  let ST = E12.settings(), TEAMS = {}, NAME = '';
+  const E = E12.esc;
+
+  document.getElementById('ver').textContent = E12.VERSION;
+  document.getElementById('foot').textContent = CONFIG.clubName;
+  E12.applyLogo(compId);
+
+  if (!compId) document.getElementById('out').innerHTML = '<div class="block none">Lien invalide : aucune compétition indiquée.</div>';
+  else {
+    db.ref(CLUB_PATH + '/' + compId + '/config/name').on('value', s => {
+      NAME = s.val() || ''; document.getElementById('compName').textContent = NAME || ('#' + compId);
+      document.title = '🏆 ' + (NAME || compId) + ' — 12 h par équipes';
+    });
+    db.ref(CLUB_PATH + '/' + compId + '/e12').on('value', snap => {
+      const d = snap.val() || {};
+      ST = E12.settings(d.settings); TEAMS = d.teams || {};
+      render();
+    }, e => { document.getElementById('out').innerHTML = '<div class="block none">Erreur de lecture : ' + E(e.message) + '</div>'; });
+  }
+
+  function setView(v) {
+    VIEW = v;
+    const u = new URL(location.href);
+    if (v === 'postes') { u.searchParams.set('vue', 'postes'); u.searchParams.delete('disc'); }
+    else { u.searchParams.delete('vue'); if (v === 'all') u.searchParams.delete('disc'); else u.searchParams.set('disc', v); }
+    history.replaceState(null, '', u);
+    render();
+  }
+
+  function render() {
+    document.querySelectorAll('#bar button[data-v]').forEach(b => b.classList.toggle('on', b.dataset.v === VIEW));
+    let meta = `${ST.matchs} matches de ${ST.coups} coups par équipe · ${ST.parTireur} matches par tireur` + (ST.alterne ? ' à tour de rôle' : '') + ` · carabine au dixième`;
+    if (ST.date) { const [y, m, d] = ST.date.split('-'); meta = d + '/' + m + '/' + y + ' · ' + meta; }
+    document.getElementById('meta').textContent = meta;
+    document.getElementById('title').textContent = VIEW === 'postes' ? 'Feuille des postes' : '12 h par équipes';
+    document.getElementById('legend').textContent = VIEW === 'postes' ? '' :
+      'Classement au total des points ; en cas d\'égalité, départage au nombre de mouches (X). Classements en direct.';
+    const dec = null;
+    const out = document.getElementById('out');
+    if (VIEW === 'postes') { out.innerHTML = postesHtml(dec); return; }
+    const discs = VIEW === 'P' ? ['P'] : VIEW === 'C' ? ['C'] : ['P', 'C'];
+    out.innerHTML = `<div class="cols ${discs.length === 1 ? 'one' : ''}">` + discs.map(d =>
+      `<div class="col">${teamBlock(d, dec)}${indivBlock(d, dec)}</div>`).join('') + '</div>';
+  }
+
+  const rk = r => r.rank == null ? '—' : r.rank + (r.exaequo ? '<span class="eq">ex</span>' : '');
+  const pcls = r => r.rank && r.rank <= 3 ? 'p' + r.rank : '';
+
+  function teamBlock(disc) {
+    const dec = E12.isDec(disc);
+    const rows = E12.teamRows(TEAMS, ST, disc);
+    const label = E12.discLabel(disc, ST);
+    let mh = ''; for (let k = 1; k <= ST.matchs; k++) mh += `<th class="num hide-sm">M${k}</th>`;
+    const body = rows.map(r => {
+      const t = r.team, m = t.m || {};
+      let mc = '';
+      for (let k = 1; k <= ST.matchs; k++) {
+        const x = m[k];
+        mc += `<td class="ms hide-sm">${x && x.s != null ? `<span class="${x.t}">${E12.fmt(Number(x.s), dec)}</span>` : ''}</td>`;
+      }
+      const sh = w => { const p = t[w], s = r[w]; return `<span class="tw"><span class="chip ${w}">${w === 'a' ? 1 : 2}</span>${E(E12.person(p))}</span> <span class="sub tw">(${E12.fmt(s.total, dec) || 0} · ${s.n}/${ST.parTireur})</span>`; };
+      return `<tr class="${pcls(r)}"><td class="rk">${rk(r)}</td>
+        <td class="num sub">${t.poste ? 'P' + t.poste : ''}</td>
+        <td><div class="nm">${E(r.label)}</div><div class="sub">${t.club ? E(t.club) : ''}</div>
+            <div class="sub">${sh('a')}<br>${sh('b')}</div></td>
+        ${mc}<td class="tot">${r.n ? E12.fmt(r.total, dec) : ''}</td><td class="xx">${r.n ? r.mouches + ' X' : ''}</td>
+        <td class="num sub">${r.n}/${ST.matchs}</td></tr>`;
+    }).join('');
+    return `<div class="block ${disc}"><h2>🏆 Équipes — ${E(label)}<small>${rows.length} équipe(s)</small></h2>
+      ${rows.length ? `<table><thead><tr><th>Rg</th><th>Poste</th><th>Équipe</th>${mh}<th style="text-align:right">Total</th><th style="text-align:right">Mouches</th><th class="num">Matches</th></tr></thead><tbody>${body}</tbody></table>` : '<div class="none">Aucune équipe.</div>'}</div>`;
+  }
+
+  function indivBlock(disc) {
+    const dec = E12.isDec(disc);
+    const rows = E12.indivRows(TEAMS, ST, disc);
+    const label = E12.discLabel(disc, ST);
+    let mh = ''; for (let i = 1; i <= ST.parTireur; i++) mh += `<th class="num hide-sm">${i}</th>`;
+    const body = rows.map(r => {
+      const p = r.person;
+      let mc = '';
+      for (let i = 0; i < ST.parTireur; i++) {
+        const x = r.list[i];
+        mc += `<td class="ms hide-sm">${x ? E12.fmt(x.s, dec) + `<div class="sub">M${x.k} · ${x.x} X</div>` : ''}</td>`;
+      }
+      return `<tr class="${pcls(r)}"><td class="rk">${rk(r)}</td>
+        <td><div class="nm">${E(E12.person(p))}</div><div class="sub">${E(p.club || r.team.club || '')}</div></td>
+        <td class="sub">${E(p.cat || '')}</td>
+        <td class="sub hide-sm">${E(E12.teamName(r.team))}</td>
+        ${mc}<td class="tot">${r.n ? E12.fmt(r.total, dec) : ''}</td><td class="xx">${r.n ? r.mouches + ' X' : ''}</td>
+        <td class="num sub">${r.n}/${ST.parTireur}</td></tr>`;
+    }).join('');
+    return `<div class="block ${disc}"><h2>🎯 Individuel — ${E(label)}<small>${rows.length} tireur(s)</small></h2>
+      ${rows.length ? `<table><thead><tr><th>Rg</th><th>Tireur</th><th>Cat.</th><th class="hide-sm">Équipe</th>${mh}<th style="text-align:right">Total</th><th style="text-align:right">Mouches</th><th class="num">Matches</th></tr></thead><tbody>${body}</tbody></table>` : '<div class="none">Aucun tireur.</div>'}</div>`;
+  }
+
+  // Feuille des postes : un poste par ligne (postes libres compris), cases pour noter les matches
+  function postesHtml(dec) {
+    const byPoste = {}, sans = [];
+    Object.values(TEAMS).forEach(t => { if (t.poste) (byPoste[t.poste] = byPoste[t.poste] || []).push(t); else sans.push(t); });
+    const maxP = Math.max(ST.postes, ...Object.keys(byPoste).map(Number), 0);
+    let mh = ''; for (let k = 1; k <= ST.matchs; k++) mh += `<th class="num">M${k}<div class="sub" style="text-transform:none">tireur · pts · X</div></th>`;
+    const line = (po, t) => {
+      if (!t) return `<tr class="free"><td class="po">${po}</td><td colspan="${3 + ST.matchs}">— libre —</td></tr>`;
+      let mc = '';
+      const m = t.m || {};
+      for (let k = 1; k <= ST.matchs; k++) {
+        const x = m[k];
+        mc += `<td class="box ms">${x && x.s != null ? `<span class="chip ${x.t}">${x.t === 'a' ? 1 : 2}</span>${E12.fmt(Number(x.s), E12.isDec(t.disc))} · ${x.x || 0} X` : ''}</td>`;
+      }
+      return `<tr><td class="po">${po || '?'}</td>
+        <td><div class="nm">${E(E12.teamName(t))}</div><div class="sub">${E(E12.discLabel(t.disc, ST))}${t.club ? ' · ' + E(t.club) : ''}</div></td>
+        <td><span class="chip a">1</span>${E(E12.person(t.a))}<div class="sub">${E([t.a && t.a.licence, t.a && t.a.cat].filter(Boolean).join(' · '))}</div></td>
+        <td><span class="chip b">2</span>${E(E12.person(t.b))}<div class="sub">${E([t.b && t.b.licence, t.b && t.b.cat].filter(Boolean).join(' · '))}</div></td>
+        ${mc}</tr>`;
+    };
+    let rows = '';
+    for (let p = 1; p <= maxP; p++) {
+      const ts = byPoste[p];
+      if (!ts) rows += line(p, null); else ts.forEach(t => rows += line(p, t));
+    }
+    sans.sort((a, b) => E12.teamName(a).localeCompare(E12.teamName(b))).forEach(t => rows += line('', t));
+    const n = Object.keys(TEAMS).length;
+    return `<div class="block"><h2 style="background:#f1f5f9;color:#334155;border-left:6px solid #334155">🖨️ Postes — ${n} équipe(s) / ${ST.postes} postes
+      ${sans.length ? `<small style="color:#b91c1c">${sans.length} équipe(s) sans poste — lancer le tirage au sort dans la saisie</small>` : ''}</h2>
+      <table class="postes"><thead><tr><th>Poste</th><th>Équipe</th><th>Tireur 1</th><th>Tireur 2</th>${mh}</tr></thead><tbody>${rows}</tbody></table></div>`;
+  }
+</script>
+<div class="gg-copyright" style="text-align:center;font:11px/1.4 system-ui,sans-serif;color:#94a3b8;padding:14px 8px 10px;">© 2026 Gérard GARCIA — Tous droits réservés · Reproduction et réutilisation interdites sans autorisation</div>
+</body>
+</html>

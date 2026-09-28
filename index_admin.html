@@ -1,5 +1,12 @@
 <!DOCTYPE html>
-<!-- LIGUE LR — version v2.12 — 19/09/2026 -->
+<!--
+  © 2026 Gérard GARCIA — Tous droits réservés.
+  Logiciel de gestion de compétitions de tir sportif (inscriptions, saisie, résultats).
+  Toute reproduction, copie, modification, diffusion ou réutilisation, totale ou partielle,
+  est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
+  intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
+-->
+<!-- LIGUE LR — version v2.13 — 27/09/2026 -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
@@ -12,6 +19,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
     <script src="config.js"></script>
+    <script src="e12_commun.js"></script>
 
   <style>
     :root {
@@ -574,8 +582,9 @@
       <div class="logo-name">🎯 <span id="clubNameDisplay"></span></div>
     </div>
     <button class="btn-create" onclick="openCreateModal()">+ Nouvelle Compétition</button>
+    <button class="btn-create" style="margin-top:12px; background:#fff; color:#3a0e14; box-shadow:none;" onclick="openCreate12Modal()">👥 + 12 h par équipes</button>
     <button class="btn-logout" onclick="doLogout()" style="margin-top:auto;">⎋ Déconnexion</button>
-    <div class="sidebar-footer"><span id="footerClub"></span> · v2.12 — 19/09/2026</div>
+    <div class="sidebar-footer"><span id="footerClub"></span> · v2.13 — 27/09/2026<br>© 2026 Gérard GARCIA — Tous droits réservés</div>
   </aside>
 
   <main class="main-content">
@@ -603,6 +612,24 @@
       <div class="modal-actions">
         <button class="btn-modal-cancel" onclick="closeCreateModal()">Annuler</button>
         <button class="btn-modal-confirm" onclick="createComp()">Créer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL CRÉATION 12 H PAR ÉQUIPES (v2.13) -->
+  <div class="modal" id="create12Modal">
+    <div class="modal-content">
+      <div class="modal-title">👥 Nouvelle compétition « 12 h par équipes »</div>
+      <input type="text" id="new12Name" placeholder="Nom (ex : 12 h de Narbonne 2026)">
+      <input type="text" id="new12Code" placeholder="Code (ex : 12H_2026)">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <input type="date" id="new12Date" title="Date de la compétition">
+        <input type="number" id="new12Postes" value="17" min="1" title="Nombre de postes (= équipes maximum)">
+      </div>
+      <div style="font-size:0.8rem; color:var(--text-muted); text-align:left; margin-top:4px;">Équipes de 2 tireurs (2 pistolets ou 2 carabines), 1 équipe par poste (17 par défaut), 6 matches de 40 coups tirés à tour de rôle (le tireur 1 commence) : pistolet sur 400 en points entiers, carabine sur 436,0 au dixième. Classements : individuel pistolet, individuel carabine, équipes pistolet, équipes carabine — départage aux mouches. Tout reste modifiable ensuite dans la saisie (⚙️ Réglages).</div>
+      <div class="modal-actions">
+        <button class="btn-modal-cancel" onclick="document.getElementById('create12Modal').classList.remove('active')">Annuler</button>
+        <button class="btn-modal-confirm" onclick="createComp12()">Créer</button>
       </div>
     </div>
   </div>
@@ -797,6 +824,37 @@
         document.getElementById('newCompName').value = '';
         document.getElementById('newCompCode').value = '';
       });
+    }
+
+    // ─── v2.13 : compétition « 12 h par équipes » (pages e12_*.html, données dans <code>/e12) ───
+    function openCreate12Modal() { document.getElementById('create12Modal').classList.add('active'); }
+    function createComp12() {
+      const name = document.getElementById('new12Name').value.trim();
+      const code = document.getElementById('new12Code').value.trim().toUpperCase().replace(/\s/g, '_');
+      if (!name || !code) return alert("Remplis le nom et le code !");
+      if (/[.#$\[\]\/]/.test(code)) return alert("Le code ne doit pas contenir : . # $ [ ] /");
+      const settings = Object.assign({}, E12.DEFAULTS, {
+        postes: parseInt(document.getElementById('new12Postes').value) || 17,
+        date: document.getElementById('new12Date').value || ''
+      });
+      database.ref(CLUB_PATH + '/' + code + '/config').once('value').then(snap => {
+        if (snap.exists() && !confirm("Une compétition avec ce code existe déjà. La transformer en « 12 h par équipes » ?")) return;
+        return database.ref(CLUB_PATH + '/' + code + '/config').set({ name, type: 'AMICAL' })
+          .then(() => database.ref(CLUB_PATH + '/' + code + '/e12/settings').set(settings))
+          .then(() => {
+            document.getElementById('create12Modal').classList.remove('active');
+            ['new12Name', 'new12Code', 'new12Date'].forEach(id => document.getElementById(id).value = '');
+          });
+      }).catch(e => alert("Erreur : " + (e.message || e)));
+    }
+    function openQrPage(code, page, label) {
+      const url = `${GITHUB_BASE}/${page}?comp=${code}`;
+      document.getElementById('qrTitle').textContent = label + code;
+      document.getElementById('qrUrl').innerHTML = `<a href="${url}" target="_blank" rel="noopener">${url}</a>`;
+      const qrContainer = document.getElementById('qrcode');
+      qrContainer.innerHTML = '';
+      new QRCode(qrContainer, { text: url, width: 200, height: 200 });
+      document.getElementById('qrModal').classList.add('active');
     }
 
     function deleteComp(code, name) {
@@ -1139,7 +1197,34 @@
       let hasCards = false;
       Object.keys(data).sort().forEach(code => {
         const config = data[code].config;
-        if (config && config.name) {
+        if (config && config.name && data[code].e12) {
+          // Carte spécifique « 12 h par équipes »
+          hasCards = true;
+          const e12 = data[code].e12;
+          const nTeams = e12.teams ? Object.keys(e12.teams).length : 0;
+          const postes = (e12.settings && e12.settings.postes) || 17;
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.innerHTML = `
+            <div class="type-tag">12 H ÉQUIPES</div>
+            <div class="card-title">${config.name}</div>
+            <div class="card-code">#${code}</div>
+            <a href="e12_classement.html?vue=postes&comp=${code}" target="_blank" class="stat-pill" title="Ouvrir la feuille des postes">
+              <span class="stat-label">Équipes inscrites</span>
+              <span class="stat-val">${nTeams} / ${postes}</span>
+            </a>
+            <div class="actions-grid">
+              <a href="e12_saisie.html?comp=${code}" target="_blank" class="btn-act btn-saisie">⌨️ Saisie 12 h</a>
+              <button onclick="openQrPage('${code}','e12_inscription.html','📱 Inscription équipes — ')" class="btn-act btn-qr">📱 QR Inscription</button>
+              <button onclick="openQrPage('${code}','e12_classement.html','🏆 Classements — ')" class="btn-act btn-qr" style="grid-column: span 2;">🏆 QR Résultats</button>
+              <a href="e12_classement.html?vue=postes&comp=${code}" target="_blank" class="btn-act btn-print-series" style="grid-column: span 2;">🖨️ Feuille des postes</a>
+              <button onclick="openEditModal('${code}', '${config.name.replace(/'/g,"\\'")}', '${config.type || ''}')" class="btn-act btn-edit-comp">✏️ Modifier le nom</button>
+              <a href="e12_classement.html?comp=${code}" target="_blank" class="btn-act btn-tv">📺 Classements (écran)</a>
+              <button onclick="deleteComp('${code}', '${config.name.replace(/'/g,"\\'")}')" class="btn-act btn-del">🗑️ Supprimer</button>
+            </div>
+          `;
+          grid.appendChild(card);
+        } else if (config && config.name) {
           hasCards = true;
           const shooterCount = data[code].shooters ? Object.keys(data[code].shooters).length : 0;
           const card = document.createElement('div');

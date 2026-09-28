@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<!--
+  © 2026 Gérard GARCIA — Tous droits réservés.
+  Logiciel de gestion de compétitions de tir sportif (inscriptions, saisie, résultats).
+  Toute reproduction, copie, modification, diffusion ou réutilisation, totale ou partielle,
+  est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
+  intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
+-->
+<!-- 12 H PAR ÉQUIPES — Saisie (équipes, postes, matches) — v1.1 — 27/09/2026 -->
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>Saisie 12 h par équipes</title>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="config.js"></script>
+  <script src="e12_commun.js"></script>
+  <style>
+    :root { --bord:#3a0e14; --gold:#d99a1c; --bg:#faf5ed; --line:#efe7da; --muted:#64748b; --red:#c1271d;
+            --a:#b45309; --a-bg:#fff7e6; --b:#1d4ed8; --b-bg:#eef4ff; --ok:#0f7a52; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:'Barlow',sans-serif; background:var(--bg); color:#0f1923; }
+    header { background:var(--bord); color:#fff; padding:14px 20px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; position:sticky; top:0; z-index:50; }
+    header img { height:52px; width:52px; object-fit:contain; }
+    header h1 { margin:0; font-family:'Rajdhani',sans-serif; font-size:1.4rem; }
+    header .sub { color:#f5c96a; font-size:.85rem; text-transform:uppercase; font-weight:600; letter-spacing:.05em; }
+    header .links { margin-left:auto; display:flex; gap:8px; flex-wrap:wrap; }
+    .hbtn { background:rgba(255,255,255,.1); color:#fff; border:1px solid rgba(255,255,255,.25); padding:8px 12px; border-radius:10px; text-decoration:none; font-family:'Rajdhani',sans-serif; font-weight:700; font-size:.9rem; cursor:pointer; letter-spacing:.03em; }
+    .hbtn:hover { background:var(--gold); color:var(--bord); }
+    main { max-width:1250px; margin:0 auto; padding:16px 20px 80px; }
+    .toolbar { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+    .btn { border:none; border-radius:12px; padding:11px 16px; font-family:'Rajdhani',sans-serif; font-weight:700; font-size:.98rem; letter-spacing:.04em; cursor:pointer; text-transform:uppercase; }
+    .btn-gold { background:var(--gold); color:var(--bord); }
+    .btn-light { background:#fff; border:1px solid #d9cfbf; color:#334155; }
+    .btn-red { background:#fef2f2; border:1px solid #fecaca; color:#991b1b; }
+    .toolbar input, .toolbar select { padding:10px 12px; border:1px solid #d9cfbf; border-radius:10px; font-size:.95rem; font-family:inherit; }
+    .stats { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+    .stat { background:#fff; border:1px solid var(--line); border-radius:12px; padding:8px 14px; font-size:.85rem; color:var(--muted); }
+    .stat b { font-family:'Rajdhani',sans-serif; font-size:1.3rem; color:var(--red); margin-left:4px; }
+    details.settings { background:#fff; border:1px solid var(--line); border-radius:14px; padding:12px 16px; margin-bottom:14px; }
+    details.settings summary { cursor:pointer; font-weight:600; }
+    .sgrid { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:12px; margin-top:12px; align-items:end; }
+    .sgrid label, .mform label { display:block; font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:600; margin-bottom:4px; }
+    .sgrid input, .sgrid select { width:100%; padding:9px 10px; border:1px solid #d9cfbf; border-radius:9px; font-size:.95rem; font-family:inherit; }
+
+    .team { background:#fff; border:1px solid var(--line); border-radius:16px; padding:12px 14px; margin-bottom:12px; }
+    .team.P { border-left:6px solid var(--a); }
+    .team.C { border-left:6px solid var(--b); }
+    .thead { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .poste { display:flex; align-items:center; gap:4px; font-family:'Barlow Condensed',sans-serif; font-weight:700; color:var(--muted); text-transform:uppercase; font-size:.8rem; }
+    .poste input { width:54px; padding:6px; font-family:'Rajdhani',sans-serif; font-size:1.25rem; font-weight:700; text-align:center; border:2px solid #d9cfbf; border-radius:9px; }
+    .poste input.dup { border-color:var(--red); background:#fef2f2; }
+    .tname { font-family:'Rajdhani',sans-serif; font-size:1.25rem; font-weight:700; }
+    .badge { font-size:.72rem; font-weight:700; padding:3px 9px; border-radius:20px; text-transform:uppercase; letter-spacing:.05em; }
+    .badge.P { background:#fff1dc; color:var(--a); }
+    .badge.C { background:#e6eeff; color:var(--b); }
+    .tclub { color:var(--muted); font-size:.9rem; }
+    .ttotal { margin-left:auto; text-align:right; font-family:'Rajdhani',sans-serif; }
+    .ttotal .v { font-size:1.6rem; font-weight:700; color:var(--red); }
+    .ttotal .x { font-size:.9rem; color:var(--muted); }
+    .icon { background:none; border:1px solid var(--line); border-radius:8px; padding:5px 8px; cursor:pointer; font-size:.95rem; }
+    .icon:hover { background:#f8f3ea; }
+    .shooters { display:flex; gap:18px; flex-wrap:wrap; margin:8px 0 10px; font-size:.92rem; }
+    .sh { padding:4px 10px; border-radius:8px; }
+    .sh.a { background:var(--a-bg); }
+    .sh.b { background:var(--b-bg); }
+    .sh .n { font-weight:600; }
+    .sh .q { font-family:'Rajdhani',sans-serif; font-weight:700; margin-left:6px; }
+    .sh .q.full { color:var(--ok); }
+    .sh .q.over { color:var(--red); }
+    .mgrid { display:grid; grid-template-columns:repeat(6, 1fr); gap:8px; }
+    .m { border:1px solid var(--line); border-radius:10px; padding:6px; background:#fcfaf6; }
+    .m.a { background:var(--a-bg); border-color:#f6d9a8; }
+    .m.b { background:var(--b-bg); border-color:#c9d8fb; }
+    .m .mt { display:flex; justify-content:space-between; align-items:center; font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:.8rem; color:var(--muted); margin-bottom:4px; }
+    .m select { width:100%; padding:4px; border:1px solid #d9cfbf; border-radius:6px; font-size:.82rem; margin-bottom:4px; background:#fff; }
+    .m .in { display:grid; grid-template-columns:1.6fr 1fr; gap:4px; }
+    .m input { width:100%; padding:6px 4px; border:1px solid #d9cfbf; border-radius:6px; text-align:center; font-family:'Rajdhani',sans-serif; font-size:1.1rem; font-weight:700; }
+    .m input.x { font-size:.95rem; font-weight:600; }
+    .m input.bad { border-color:var(--red); background:#fef2f2; }
+    .m .lab { display:grid; grid-template-columns:1.6fr 1fr; gap:4px; font-size:.64rem; color:var(--muted); text-align:center; text-transform:uppercase; letter-spacing:.04em; }
+    .saved { position:fixed; bottom:16px; right:16px; background:var(--ok); color:#fff; padding:8px 14px; border-radius:10px; font-weight:600; opacity:0; transition:opacity .3s; pointer-events:none; }
+    .saved.on { opacity:1; }
+    .empty { text-align:center; color:var(--muted); padding:40px; background:#fff; border-radius:16px; border:1px dashed #d9cfbf; }
+
+    .overlay { position:fixed; inset:0; background:rgba(42,22,40,.5); display:none; align-items:center; justify-content:center; z-index:100; padding:12px; }
+    .overlay.on { display:flex; }
+    .modal { background:#fff; border-radius:18px; padding:20px; width:100%; max-width:620px; max-height:92vh; overflow:auto; }
+    .modal h2 { margin:0 0 12px; font-family:'Rajdhani',sans-serif; color:var(--bord); }
+    .mform input, .mform select { width:100%; padding:9px 10px; border:1px solid #d9cfbf; border-radius:9px; font-size:.95rem; font-family:inherit; margin-bottom:8px; }
+    .mform .r2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .mform .r3 { display:grid; grid-template-columns:2fr 1fr 1fr; gap:10px; }
+    .mform fieldset { border:1px solid var(--line); border-radius:12px; padding:10px 12px 4px; margin:8px 0; }
+    .mform legend { font-family:'Rajdhani',sans-serif; font-weight:700; padding:0 6px; }
+    .mact { display:flex; gap:10px; justify-content:flex-end; margin-top:10px; }
+    .merr { color:#991b1b; font-weight:600; min-height:1.2em; }
+    #login .modal { max-width:380px; text-align:center; }
+    #qrBox { display:inline-block; margin:10px 0; }
+    .qrurl { font-size:.8rem; word-break:break-all; }
+    @media (max-width: 800px) { .mgrid { grid-template-columns:repeat(3, 1fr); } .ttotal { margin-left:0; } }
+  </style>
+</head>
+<body>
+  <!-- CONNEXION -->
+  <div class="overlay on" id="login">
+    <div class="modal">
+      <h2>🔒 Saisie 12 h — Admin</h2>
+      <div class="mform">
+        <input type="email" id="lEmail" placeholder="Email" autocomplete="username">
+        <input type="password" id="lPwd" placeholder="Mot de passe" autocomplete="current-password">
+      </div>
+      <button class="btn btn-gold" style="width:100%" onclick="doLogin()">Se connecter</button>
+      <div class="merr" id="lErr" style="margin-top:10px;"></div>
+    </div>
+  </div>
+
+  <header>
+    <img src="logo.png" class="e12-logo" alt="" onerror="this.style.display='none'">
+    <div>
+      <h1 id="compName">Chargement…</h1>
+      <div class="sub">12 h par équipes — saisie · <span id="ver"></span></div>
+    </div>
+    <div class="links">
+      <a class="hbtn" id="lnkClass" target="_blank">📺 Classements</a>
+      <a class="hbtn" id="lnkPostes" target="_blank">🖨️ Feuille des postes</a>
+      <button class="hbtn" onclick="openQr()">📱 QR inscription</button>
+      <button class="hbtn" onclick="auth.signOut()">⎋</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="stats" id="stats"></div>
+
+    <details class="settings" id="settingsBox">
+      <summary>⚙️ Réglages de la compétition</summary>
+      <div class="sgrid">
+        <div><label>Nombre de postes (= équipes max)</label><input type="number" id="sPostes" min="1" max="200"></div>
+        <div><label>Distance</label><input id="sDistance" placeholder="10 m"></div>
+        <div><label>Date</label><input type="date" id="sDate"></div>
+        <div><label>Coups par match</label><input type="number" id="sCoups" min="1"></div>
+        <div><label>Matches par équipe</label><input type="number" id="sMatchs" min="2" max="12"></div>
+        <div><label>Matches par tireur</label><input type="number" id="sPar" min="1" max="6"></div>
+        <div><label>Ordre des tireurs</label><select id="sAlterne"><option value="1">Tour de rôle imposé (1-2-1-2…)</option><option value="0">Libre</option></select></div>
+        <div><label>Inscriptions QR</label><select id="sOuvert"><option value="1">Ouvertes</option><option value="0">Closes</option></select></div>
+        <div><button class="btn btn-gold" style="width:100%" onclick="saveSettings()">Enregistrer</button></div>
+      </div>
+    </details>
+
+    <div class="toolbar">
+      <button class="btn btn-gold" onclick="openTeamModal()">➕ Ajouter une équipe</button>
+      <button class="btn btn-light" onclick="drawPostes()">🎲 Tirer au sort les postes</button>
+      <input id="search" placeholder="🔍 Rechercher (équipe, nom, club)" oninput="render()" style="flex:1; min-width:200px;">
+      <select id="fDisc" onchange="render()">
+        <option value="">Toutes disciplines</option><option value="P">Pistolet</option><option value="C">Carabine</option>
+      </select>
+      <select id="fSort" onchange="render()">
+        <option value="poste">Tri par poste</option><option value="nom">Tri par nom d'équipe</option><option value="total">Tri par total</option>
+      </select>
+    </div>
+
+    <div id="list"></div>
+  </main>
+  <div class="saved" id="saved">✔ Enregistré</div>
+
+  <!-- ÉQUIPE -->
+  <div class="overlay" id="teamModal">
+    <div class="modal mform">
+      <h2 id="tmTitle">Équipe</h2>
+      <div class="r3">
+        <div><label>Nom de l'équipe (vide = NOM1 / NOM2)</label><input id="tNom" maxlength="40"></div>
+        <div><label>Discipline</label><select id="tDisc"><option value="P">Pistolet</option><option value="C">Carabine</option></select></div>
+        <div><label>Poste</label><input type="number" id="tPoste" min="1"></div>
+      </div>
+      <label>Club</label><input id="tClub" maxlength="60">
+      <fieldset><legend>Tireur 1 (commence)</legend>
+        <div class="r2"><div><label>Nom</label><input id="aNom" maxlength="40"></div><div><label>Prénom</label><input id="aPrenom" maxlength="40"></div></div>
+        <div class="r3"><div><label>Club (si différent)</label><input id="aClub" maxlength="60"></div><div><label>Licence</label><input id="aLic" maxlength="20"></div><div><label>Catégorie</label><select id="aCat"></select></div></div>
+      </fieldset>
+      <fieldset><legend>Tireur 2</legend>
+        <div class="r2"><div><label>Nom</label><input id="bNom" maxlength="40"></div><div><label>Prénom</label><input id="bPrenom" maxlength="40"></div></div>
+        <div class="r3"><div><label>Club (si différent)</label><input id="bClub" maxlength="60"></div><div><label>Licence</label><input id="bLic" maxlength="20"></div><div><label>Catégorie</label><select id="bCat"></select></div></div>
+      </fieldset>
+      <div class="merr" id="tErr"></div>
+      <div class="mact">
+        <button class="btn btn-light" onclick="closeTeamModal()">Annuler</button>
+        <button class="btn btn-gold" onclick="saveTeam()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- QR -->
+  <div class="overlay" id="qrModal" onclick="if(event.target===this)this.classList.remove('on')">
+    <div class="modal" style="max-width:340px; text-align:center;">
+      <h2>📱 Inscription des équipes</h2>
+      <div id="qrBox"></div>
+      <div class="qrurl" id="qrUrl"></div>
+      <button class="btn btn-light" style="width:100%; margin-top:12px;" onclick="document.getElementById('qrModal').classList.remove('on')">Fermer</button>
+    </div>
+  </div>
+
+<script>
+  firebase.initializeApp(CONFIG.firebase);
+  const db = firebase.database();
+  const auth = firebase.auth();
+  const CLUB_PATH = 'clubs/' + CONFIG.clubKey;
+  const GITHUB_BASE = CONFIG.githubBase.replace(/\/+$/, '');
+  const compId = new URLSearchParams(location.search).get('comp');
+  const BASE = CLUB_PATH + '/' + compId + '/e12';
+  let ST = E12.settings(), TEAMS = {}, COUNT = 0, editingId = null, started = false;
+
+  document.getElementById('ver').textContent = E12.VERSION;
+  document.getElementById('lnkClass').href = 'e12_classement.html?comp=' + encodeURIComponent(compId || '');
+  document.getElementById('lnkPostes').href = 'e12_classement.html?vue=postes&comp=' + encodeURIComponent(compId || '');
+  E12.applyLogo(compId);
+  ['aCat', 'bCat'].forEach(id => {
+    document.getElementById(id).innerHTML = '<option value="">—</option>' + E12.CATS.map(c => `<option>${E12.esc(c)}</option>`).join('');
+  });
+
+  // ─── Connexion (compte admin email/mot de passe — pas le compte anonyme du QR) ───
+  function doLogin() {
+    const err = document.getElementById('lErr');
+    err.textContent = 'Connexion…';
+    auth.signInWithEmailAndPassword(document.getElementById('lEmail').value.trim(), document.getElementById('lPwd').value)
+      .catch(e => err.textContent = "Échec de connexion [" + e.code + "]");
+  }
+  document.getElementById('lPwd').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  auth.onAuthStateChanged(user => {
+    const ok = user && !user.isAnonymous;
+    document.getElementById('login').classList.toggle('on', !ok);
+    if (ok) start();
+  });
+
+  function start() {
+    if (started) return;
+    if (!compId) { document.getElementById('list').innerHTML = '<div class="empty">Lien invalide : aucune compétition indiquée.</div>'; return; }
+    started = true;
+    db.ref(CLUB_PATH + '/' + compId + '/config/name').on('value', s => {
+      document.getElementById('compName').textContent = s.val() || ('#' + compId);
+      document.title = '⌨️ 12 h — ' + (s.val() || compId);
+    });
+    let first = true;
+    db.ref(BASE).on('value', snap => {
+      const d = snap.val() || {};
+      if (!d.settings) {
+        // Compétition existante sans réglages 12 h : on les crée avec les valeurs par défaut
+        db.ref(BASE + '/settings').set(E12.DEFAULTS);
+        return;
+      }
+      ST = E12.settings(d.settings); TEAMS = d.teams || {}; COUNT = d.count || 0;
+      const n = Object.keys(TEAMS).length;
+      if (first) {
+        first = false;
+        if (COUNT !== n) db.ref(BASE + '/count').set(n);   // recale le compteur de places
+        fillSettings();
+      }
+      render();
+    });
+  }
+
+  function flash() { const s = document.getElementById('saved'); s.classList.add('on'); clearTimeout(flash.t); flash.t = setTimeout(() => s.classList.remove('on'), 1200); }
+  const errAlert = e => alert("Erreur d'enregistrement : " + (e.message || e));
+
+  // ─── Réglages ───
+  function fillSettings() {
+    document.getElementById('sPostes').value = ST.postes;
+    document.getElementById('sDistance').value = ST.distance;
+    document.getElementById('sDate').value = ST.date || '';
+    document.getElementById('sCoups').value = ST.coups;
+    document.getElementById('sMatchs').value = ST.matchs;
+    document.getElementById('sPar').value = ST.parTireur;
+    document.getElementById('sOuvert').value = ST.ouvert ? '1' : '0';
+    document.getElementById('sAlterne').value = ST.alterne ? '1' : '0';
+  }
+  function saveSettings() {
+    const s = {
+      postes: parseInt(document.getElementById('sPostes').value) || 17,
+      distance: document.getElementById('sDistance').value.trim(),
+      date: document.getElementById('sDate').value,
+      coups: parseInt(document.getElementById('sCoups').value) || 40,
+      matchs: parseInt(document.getElementById('sMatchs').value) || 6,
+      parTireur: parseInt(document.getElementById('sPar').value) || 3,
+      ouvert: document.getElementById('sOuvert').value === '1',
+      alterne: document.getElementById('sAlterne').value === '1'
+    };
+    if (s.parTireur * 2 < s.matchs) return alert(`Impossible : ${s.matchs} matches pour 2 tireurs à ${s.parTireur} matches chacun maximum.`);
+    const n = Object.keys(TEAMS).length;
+    if (s.postes < n) return alert(`Il y a déjà ${n} équipes inscrites : le nombre de postes ne peut pas être inférieur.`);
+    db.ref(BASE + '/settings').set(s).then(() => { flash(); document.getElementById('settingsBox').open = false; }).catch(errAlert);
+  }
+
+  // ─── Affichage de la liste ───
+  function render() {
+    const dec = null; // format décidé par discipline (pistolet entier, carabine au dixième)
+    const ids = Object.keys(TEAMS);
+    const nP = ids.filter(id => TEAMS[id].disc !== 'C').length;
+    const done = ids.reduce((a, id) => a + E12.teamStats(TEAMS[id], ST).n, 0);
+    document.getElementById('stats').innerHTML =
+      `<div class="stat">Équipes<b>${ids.length} / ${ST.postes}</b></div>
+       <div class="stat">Pistolet<b>${nP}</b></div>
+       <div class="stat">Carabine<b>${ids.length - nP}</b></div>
+       <div class="stat">Matches saisis<b>${done} / ${ids.length * ST.matchs}</b></div>
+       <div class="stat">Inscriptions QR<b style="color:${ST.ouvert ? 'var(--ok)' : 'var(--red)'}">${ST.ouvert ? 'ouvertes' : 'closes'}</b></div>
+       <div class="stat">Format<b style="font-size:1rem;color:#334155">${ST.matchs} × ${ST.coups} coups · ${ST.alterne ? 'tour de rôle' : 'ordre libre'}</b></div>`;
+
+    const q = document.getElementById('search').value.trim().toLowerCase();
+    const fd = document.getElementById('fDisc').value;
+    const sort = document.getElementById('fSort').value;
+    const postes = {};
+    ids.forEach(id => { const p = TEAMS[id].poste; if (p) postes[p] = (postes[p] || 0) + 1; });
+
+    let list = ids.filter(id => {
+      const t = TEAMS[id];
+      if (fd && t.disc !== fd) return false;
+      if (!q) return true;
+      return [E12.teamName(t), t.club, t.a && t.a.nom, t.a && t.a.prenom, t.b && t.b.nom, t.b && t.b.prenom, t.a && t.a.club, t.b && t.b.club, String(t.poste || '')]
+        .some(v => v && String(v).toLowerCase().includes(q));
+    });
+    list.sort((x, y) => {
+      const a = TEAMS[x], b = TEAMS[y];
+      if (sort === 'nom') return E12.teamName(a).localeCompare(E12.teamName(b));
+      if (sort === 'total') { const sa = E12.teamStats(a, ST), sb = E12.teamStats(b, ST); return sb.total - sa.total || sb.mouches - sa.mouches; }
+      return (a.poste || 999) - (b.poste || 999) || E12.teamName(a).localeCompare(E12.teamName(b));
+    });
+
+    // Conserve la case en cours de frappe pendant la mise à jour en direct
+    const ae = document.activeElement;
+    const keep = ae && ae.id && ae.closest && ae.closest('#list') ? { id: ae.id, v: ae.value, s: ae.selectionStart } : null;
+
+    const listEl = document.getElementById('list');
+    if (!ids.length) listEl.innerHTML = '<div class="empty">Aucune équipe inscrite pour l\'instant.<br>Ajoutez-en avec « ➕ Ajouter une équipe » ou faites scanner le QR d\'inscription.</div>';
+    else if (!list.length) listEl.innerHTML = '<div class="empty">Aucune équipe ne correspond à la recherche.</div>';
+    else listEl.innerHTML = list.map(id => teamHtml(id, TEAMS[id], dec, postes)).join('');
+
+    if (keep) {
+      const el = document.getElementById(keep.id);
+      if (el) { el.value = keep.v; el.focus(); try { if (keep.s != null) el.setSelectionRange(keep.s, keep.s); } catch (e) {} }
+    }
+  }
+
+  // Tireur proposé par défaut pour un match pas encore attribué (alternance, en respectant le quota)
+  function suggestions(t) {
+    const m = t.m || {};
+    const cnt = { a: 0, b: 0 };
+    for (let k = 1; k <= ST.matchs; k++) if (m[k] && m[k].t) cnt[m[k].t]++;
+    const sug = {};
+    for (let k = 1; k <= ST.matchs; k++) {
+      if (m[k] && m[k].t) continue;
+      let w = (k % 2 === 1) ? 'a' : 'b';
+      if (cnt[w] >= ST.parTireur) w = w === 'a' ? 'b' : 'a';
+      sug[k] = w; cnt[w]++;
+    }
+    return sug;
+  }
+
+  function teamHtml(id, t, _d, postes) {
+    const dec = E12.isDec(t.disc);
+    const E = E12.esc;
+    const ts = E12.teamStats(t, ST);
+    const sa = E12.shooterStats(t, 'a', ST), sb = E12.shooterStats(t, 'b', ST);
+    const na = E12.assigned(t, 'a', ST), nb = E12.assigned(t, 'b', ST);
+    const short = p => p ? E((p.nom || '').toUpperCase() + ' ' + (p.prenom ? p.prenom[0] + '.' : '')) : '?';
+    const sug = suggestions(t);
+    const q = (n, s) => `<span class="q ${n > ST.parTireur ? 'over' : n === ST.parTireur ? 'full' : ''}">${s.n}/${ST.parTireur} · ${E12.fmt(s.total, dec) || 0} pts · ${s.mouches} X</span>`;
+    const shLine = (w, p, s, n) => `<div class="sh ${w}"><span class="n">${w === 'a' ? '1' : '2'} · ${E(E12.person(p))}</span>`
+      + `${p && p.cat ? ' <span class="tclub">(' + E(p.cat) + ')</span>' : ''}${p && p.club && p.club !== t.club ? ' <span class="tclub">— ' + E(p.club) + '</span>' : ''}${q(n, s)}</div>`;
+    let cells = '';
+    const m = t.m || {};
+    for (let k = 1; k <= ST.matchs; k++) {
+      const r = m[k] || {};
+      const who = ST.alterne ? E12.fixedShooter(k) : (r.t || sug[k]);
+      const s = (r.s === undefined || r.s === null) ? '' : E12.fmt(Number(r.s), dec);
+      const x = (r.x === undefined || r.x === null) ? '' : r.x;
+      cells += `<div class="m ${ST.alterne ? who : (r.t ? r.t : '')}">
+        <div class="mt"><span>MATCH ${k}</span>${r.s !== undefined && r.s !== null ? '✔' : ''}</div>
+        <select id="t_${id}_${k}" onchange="setShooter('${id}',${k},this)" ${ST.alterne ? 'disabled title="Tour de rôle imposé"' : 'title="Tireur de ce match"'}>
+          <option value="a" ${who === 'a' ? 'selected' : ''}>1 · ${short(t.a)}</option>
+          <option value="b" ${who === 'b' ? 'selected' : ''}>2 · ${short(t.b)}</option>
+        </select>
+        <div class="in">
+          <input id="s_${id}_${k}" inputmode="${dec ? 'decimal' : 'numeric'}" value="${s}" placeholder="${dec ? '0,0' : '—'}" onchange="setScore('${id}',${k},'s')" onkeydown="nextOnEnter(event)">
+          <input id="x_${id}_${k}" class="x" inputmode="numeric" value="${x}" placeholder="X" onchange="setScore('${id}',${k},'x')" onkeydown="nextOnEnter(event)">
+        </div>
+        <div class="lab"><span>points</span><span>mouches</span></div>
+      </div>`;
+    }
+    const dup = t.poste && postes[t.poste] > 1;
+    return `<div class="team ${t.disc === 'C' ? 'C' : 'P'}">
+      <div class="thead">
+        <div class="poste">Poste <input id="p_${id}" type="number" min="1" value="${t.poste || ''}" class="${dup ? 'dup' : ''}" title="${dup ? 'Poste en double !' : 'Numéro de poste'}" onchange="setPoste('${id}',this.value)"></div>
+        <span class="tname">${E(E12.teamName(t))}</span>
+        <span class="badge ${t.disc === 'C' ? 'C' : 'P'}">${E(E12.discLabel(t.disc, ST))}</span>
+        ${t.club ? `<span class="tclub">${E(t.club)}</span>` : ''}
+        <button class="icon" title="Modifier l'équipe" onclick="openTeamModal('${id}')">✏️</button>
+        <button class="icon" title="Supprimer l'équipe" onclick="deleteTeam('${id}')">🗑️</button>
+        <div class="ttotal"><div class="v">${E12.fmt(ts.total, dec) || 0}</div><div class="x">${ts.mouches} mouches · ${ts.n}/${ST.matchs} matches</div></div>
+      </div>
+      <div class="shooters">${shLine('a', t.a, sa, na)}${shLine('b', t.b, sb, nb)}</div>
+      <div class="mgrid">${cells}</div>
+    </div>`;
+  }
+
+  function nextOnEnter(e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const all = Array.from(document.querySelectorAll('#list .m input'));
+    const i = all.indexOf(e.target);
+    e.target.blur();
+    if (all[i + 1]) setTimeout(() => { const n = document.getElementById(all[i + 1].id); if (n) { n.focus(); n.select(); } }, 30);
+  }
+
+  // ─── Saisie des matches ───
+  function setShooter(id, k, sel) {
+    const t = TEAMS[id]; if (!t) return;
+    const w = sel.value;
+    const r = (t.m || {})[k] || {};
+    if (E12.assigned(t, w, ST, k) >= ST.parTireur) {
+      alert(`${E12.person(t[w])} a déjà ${ST.parTireur} matches attribués.\nChangez d'abord le tireur d'un autre match.`);
+      sel.value = r.t || (w === 'a' ? 'b' : 'a');
+      return;
+    }
+    db.ref(BASE + '/teams/' + id + '/m/' + k + '/t').set(w).then(flash).catch(errAlert);
+  }
+
+  function setScore(id, k, src) {
+    const t = TEAMS[id]; if (!t) return;
+    const sEl = document.getElementById('s_' + id + '_' + k), xEl = document.getElementById('x_' + id + '_' + k);
+    const w = ST.alterne ? E12.fixedShooter(k) : document.getElementById('t_' + id + '_' + k).value;
+    const s = E12.num(sEl.value), x = E12.num(xEl.value);
+    const dec = E12.isDec(t.disc), maxS = E12.maxScore(t.disc, ST);
+    // Pistolet : entier ; Carabine : au dixième (1 chiffre après la virgule au plus)
+    const okFmt = s === null || (dec ? Math.abs(s * 10 - Math.round(s * 10)) < 1e-6 : Number.isInteger(s));
+    sEl.classList.toggle('bad', sEl.value.trim() !== '' && (s === null || s < 0 || s > maxS || !okFmt));
+    xEl.classList.toggle('bad', xEl.value.trim() !== '' && (x === null || x < 0 || x > ST.coups || !Number.isInteger(x)));
+    if (sEl.classList.contains('bad')) return src === 'x' ? null : alert(dec ? `Score carabine invalide : de 0 à ${E12.fmt(maxS, true)}, au dixième (ex : 412,7).` : `Score pistolet invalide : nombre entier de 0 à ${maxS}.`);
+    if (xEl.classList.contains('bad')) return src === 's' ? null : alert(`Nombre de mouches invalide (entier de 0 à ${ST.coups}).`);
+    const r = (t.m || {})[k] || {};
+    if (!ST.alterne && !r.t && E12.assigned(t, w, ST, k) >= ST.parTireur) return alert(`${E12.person(t[w])} a déjà ${ST.parTireur} matches : choisissez l'autre tireur.`);
+    const ref = db.ref(BASE + '/teams/' + id + '/m/' + k);
+    if (s === null && x === null) return ref.set(r.t && !ST.alterne ? { t: r.t } : null).then(flash).catch(errAlert);
+    const val = { t: w, s: s === null ? null : Math.round(s * 10) / 10, x: x === null ? 0 : x };
+    if (s === null) delete val.s;
+    ref.set(val).then(flash).catch(errAlert);
+  }
+
+  function setPoste(id, v) {
+    const p = parseInt(v);
+    const clash = Object.entries(TEAMS).find(([oid, t]) => oid !== id && p && t.poste === p);
+    if (clash && !confirm(`Le poste ${p} est déjà attribué à « ${E12.teamName(clash[1])} ». Continuer quand même ?`)) return render();
+    db.ref(BASE + '/teams/' + id + '/poste').set(p || null).then(flash).catch(errAlert);
+  }
+
+  function drawPostes() {
+    const ids = Object.keys(TEAMS);
+    if (!ids.length) return alert("Aucune équipe inscrite.");
+    const already = ids.some(id => TEAMS[id].poste);
+    if (!confirm((already ? "⚠️ Des postes sont déjà attribués : ils seront REMPLACÉS.\n\n" : "")
+      + "Tirage au sort : pistolets à gauche à partir du poste 1, carabines à droite, un poste vide entre les deux s'il reste de la place.\n\nLancer le tirage ?")) return;
+    const res = E12.drawPostes(TEAMS, ST);
+    const up = {};
+    Object.entries(res).forEach(([id, p]) => { up[id + '/poste'] = p; });
+    db.ref(BASE + '/teams').update(up).then(() => { flash(); document.getElementById('fSort').value = 'poste'; render(); }).catch(errAlert);
+  }
+
+  // ─── Ajout / modification / suppression d'équipe ───
+  const F = ['tNom', 'tDisc', 'tPoste', 'tClub', 'aNom', 'aPrenom', 'aClub', 'aLic', 'aCat', 'bNom', 'bPrenom', 'bClub', 'bLic', 'bCat'];
+  const v = id => document.getElementById(id).value.trim();
+  function openTeamModal(id) {
+    editingId = id || null;
+    const t = id ? TEAMS[id] : { disc: 'P', a: {}, b: {} };
+    document.getElementById('tmTitle').textContent = id ? '✏️ Modifier l\'équipe' : '➕ Nouvelle équipe';
+    const set = (fid, val) => { document.getElementById(fid).value = val == null ? '' : val; };
+    set('tNom', t.nom); set('tDisc', t.disc || 'P'); set('tPoste', t.poste); set('tClub', t.club);
+    ['a', 'b'].forEach(w => { const p = t[w] || {}; set(w + 'Nom', p.nom); set(w + 'Prenom', p.prenom); set(w + 'Club', p.club && p.club !== t.club ? p.club : ''); set(w + 'Lic', p.licence); set(w + 'Cat', p.cat); });
+    document.getElementById('tErr').textContent = '';
+    document.getElementById('teamModal').classList.add('on');
+    setTimeout(() => document.getElementById('tNom').focus(), 50);
+  }
+  function closeTeamModal() { document.getElementById('teamModal').classList.remove('on'); editingId = null; }
+
+  function saveTeam() {
+    const err = document.getElementById('tErr');
+    const club = v('tClub');
+    const mk = w => ({ nom: v(w + 'Nom').toUpperCase(), prenom: v(w + 'Prenom'), club: v(w + 'Club') || club, licence: v(w + 'Lic'), cat: v(w + 'Cat') });
+    const a = mk('a'), b = mk('b');
+    if (!a.nom || !a.prenom || !b.nom || !b.prenom) return err.textContent = "Nom et prénom obligatoires pour les 2 tireurs.";
+    const disc = v('tDisc');
+    const key = p => (p.nom + '|' + p.prenom).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    if (key(a) === key(b)) return err.textContent = "Les deux tireurs doivent être différents.";
+    for (const [oid, t] of Object.entries(TEAMS)) {
+      if (oid === editingId || t.disc !== disc) continue;
+      for (const p of [t.a, t.b]) if (p && [key(a), key(b)].includes(key(p)))
+        return err.textContent = `${E12.person(p)} est déjà dans l'équipe « ${E12.teamName(t)} » (${E12.discName(disc)}).`;
+    }
+    const poste = parseInt(v('tPoste')) || null;
+    const data = { nom: v('tNom'), disc, club, poste, a, b };
+    if (editingId) {
+      const old = TEAMS[editingId];
+      if (old.disc !== disc && E12.teamStats(old, ST).n && !confirm("Cette équipe a déjà des scores : changer sa discipline la déplace dans l'autre classement. Continuer ?")) return;
+      db.ref(BASE + '/teams/' + editingId).update(data).then(() => { flash(); closeTeamModal(); }).catch(e => err.textContent = e.message);
+    } else {
+      const max = ST.postes, n = Object.keys(TEAMS).length;
+      db.ref(BASE + '/count').transaction(cur => {
+        cur = Math.max(cur || 0, n);
+        if (cur >= max) return;
+        return cur + 1;
+      }).then(res => {
+        if (!res.committed) throw new Error(`Complet (${max} postes). Augmentez le nombre de postes dans les réglages si besoin.`);
+        data.ts = firebase.database.ServerValue.TIMESTAMP;
+        return db.ref(BASE + '/teams').push(data);
+      }).then(() => { flash(); closeTeamModal(); }).catch(e => err.textContent = e.message);
+    }
+  }
+
+  function deleteTeam(id) {
+    const t = TEAMS[id];
+    const n = E12.teamStats(t, ST).n;
+    if (!confirm(`Supprimer l'équipe « ${E12.teamName(t)} »${n ? ' et ses ' + n + ' match(s) saisi(s)' : ''} ?`)) return;
+    db.ref(BASE + '/teams/' + id).remove()
+      .then(() => db.ref(BASE + '/teams').once('value'))
+      .then(s => db.ref(BASE + '/count').set(s.numChildren()))
+      .then(flash).catch(errAlert);
+  }
+
+  function openQr() {
+    const url = `${GITHUB_BASE}/e12_inscription.html?comp=${encodeURIComponent(compId)}`;
+    const box = document.getElementById('qrBox'); box.innerHTML = '';
+    new QRCode(box, { text: url, width: 220, height: 220 });
+    document.getElementById('qrUrl').innerHTML = `<a href="${url}" target="_blank">${url}</a>`;
+    document.getElementById('qrModal').classList.add('on');
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeTeamModal(); document.getElementById('qrModal').classList.remove('on'); } });
+</script>
+<div class="gg-copyright" style="text-align:center;font:11px/1.4 system-ui,sans-serif;color:#94a3b8;padding:14px 8px 10px;">© 2026 Gérard GARCIA — Tous droits réservés · Reproduction et réutilisation interdites sans autorisation</div>
+</body>
+</html>

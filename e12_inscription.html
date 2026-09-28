@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<!--
+  © 2026 Gérard GARCIA — Tous droits réservés.
+  Logiciel de gestion de compétitions de tir sportif (inscriptions, saisie, résultats).
+  Toute reproduction, copie, modification, diffusion ou réutilisation, totale ou partielle,
+  est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
+  intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
+-->
+<!-- 12 H PAR ÉQUIPES — Inscription publique par QR code — v1.1 — 27/09/2026 -->
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>Inscription 12 h par équipes</title>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="config.js"></script>
+  <script src="e12_commun.js"></script>
+  <style>
+    :root { --bord:#3a0e14; --gold:#d99a1c; --bg:#faf5ed; --line:#efe7da; --muted:#64748b; --red:#c1271d; --green:#0f7a52; --pist:#b45309; --carab:#1d4ed8; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:'Barlow',sans-serif; background:var(--bg); color:#0f1923; }
+    header { background:var(--bord); color:#fff; padding:16px; display:flex; align-items:center; gap:14px; }
+    header img { height:56px; width:56px; object-fit:contain; }
+    header h1 { font-family:'Rajdhani',sans-serif; margin:0; font-size:1.35rem; letter-spacing:.03em; }
+    header .sub { color:#f5c96a; font-weight:600; font-size:.95rem; text-transform:uppercase; }
+    header .ver { font-size:.7rem; opacity:.6; }
+    main { max-width:640px; margin:0 auto; padding:16px; }
+    .card { background:#fff; border:1px solid var(--line); border-radius:16px; padding:18px; margin-bottom:16px; }
+    .places { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .places .big { font-family:'Rajdhani',sans-serif; font-size:2rem; font-weight:700; color:var(--red); }
+    .bar { height:10px; background:#f1e9dc; border-radius:6px; overflow:hidden; margin-top:8px; }
+    .bar > div { height:100%; background:var(--gold); transition:width .3s; }
+    h2 { font-family:'Rajdhani',sans-serif; font-size:1.15rem; margin:0 0 12px; color:var(--bord); text-transform:uppercase; letter-spacing:.04em; }
+    label { display:block; font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:10px 0 4px; font-weight:600; }
+    input, select { width:100%; padding:11px 12px; border:1px solid #d9cfbf; border-radius:10px; font-size:1rem; font-family:inherit; background:#fff; }
+    input:focus, select:focus { outline:2px solid var(--gold); border-color:var(--gold); }
+    .row2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .disc { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .disc label.opt { margin:0; border:2px solid #e5dccd; border-radius:12px; padding:14px; text-align:center; font-size:1.05rem; text-transform:none; letter-spacing:0; color:#0f1923; cursor:pointer; font-weight:600; }
+    .disc input { display:none; }
+    .disc input:checked + span { color:#fff; }
+    .disc label.opt:has(input:checked) { background:var(--bord); border-color:var(--bord); color:#fff; }
+    .shooter { border-left:4px solid var(--gold); padding-left:12px; margin-top:14px; }
+    .shooter h3 { margin:0; font-family:'Rajdhani',sans-serif; font-size:1.05rem; }
+    .hint { font-size:.85rem; color:var(--muted); margin-top:6px; }
+    button.main { width:100%; padding:15px; border:none; border-radius:14px; background:var(--gold); color:var(--bord); font-family:'Rajdhani',sans-serif; font-weight:700; font-size:1.15rem; letter-spacing:.05em; text-transform:uppercase; cursor:pointer; margin-top:16px; }
+    button.main:disabled { opacity:.5; cursor:wait; }
+    button.sec { width:100%; padding:12px; border:1px solid #d9cfbf; border-radius:12px; background:#fff; font-family:inherit; font-size:1rem; cursor:pointer; margin-top:10px; }
+    .msg { padding:12px 14px; border-radius:12px; margin-top:12px; font-weight:500; }
+    .msg.err { background:#fef2f2; color:#991b1b; border:1px solid #fecaca; }
+    .msg.ok { background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; }
+    .full { text-align:center; padding:30px 16px; }
+    .full .ico { font-size:3rem; }
+    .recap td { padding:4px 8px 4px 0; vertical-align:top; }
+    .hidden { display:none; }
+    footer { text-align:center; font-size:.75rem; color:var(--muted); padding:20px; }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="logo.png" class="e12-logo" alt="" onerror="this.style.display='none'">
+    <div>
+      <h1 id="compName">Chargement…</h1>
+      <div class="sub">12 h par équipes de 2 — inscription</div>
+      <div class="ver">Version <span id="ver"></span></div>
+    </div>
+  </header>
+
+  <main>
+    <div id="screenLoading" class="card">Chargement…</div>
+    <div id="screenError" class="card hidden"><div class="msg err" id="errorText"></div></div>
+
+    <div id="screenForm" class="hidden">
+      <div class="card">
+        <div class="places">
+          <div>
+            <div style="font-weight:600;">Postes disponibles</div>
+            <div class="hint" id="infoLine"></div>
+          </div>
+          <div class="big"><span id="placesLeft">–</span><span style="font-size:1rem;color:var(--muted)"> / <span id="placesMax">–</span></span></div>
+        </div>
+        <div class="bar"><div id="placesBar" style="width:0%"></div></div>
+      </div>
+
+      <div id="closedCard" class="card full hidden"><div class="ico">⛔</div><div id="closedText" style="font-weight:600;"></div></div>
+
+      <form id="form" class="card" onsubmit="submitTeam(event)">
+        <h2>L'équipe</h2>
+        <label>Discipline de l'équipe (les 2 tireurs tirent la même)</label>
+        <div class="disc">
+          <label class="opt"><input type="radio" name="disc" value="P"><span id="lblP">Pistolet</span></label>
+          <label class="opt"><input type="radio" name="disc" value="C"><span id="lblC">Carabine</span></label>
+        </div>
+        <label for="teamName">Nom de l'équipe</label>
+        <input id="teamName" maxlength="40" placeholder="ex : Les Mouches Narbonnaises">
+        <div class="hint">Laissez vide pour « NOM1 / NOM2 ».</div>
+        <label for="teamClub">Club</label>
+        <input id="teamClub" maxlength="60" placeholder="Club des deux tireurs">
+
+        <div class="shooter">
+          <h3>Tireur 1 <span style="font-weight:500;font-size:.85rem;color:#64748b">— commence (matches 1, 3, 5)</span></h3>
+          <div class="row2">
+            <div><label>Nom</label><input id="aNom" maxlength="40" required autocomplete="off"></div>
+            <div><label>Prénom</label><input id="aPrenom" maxlength="40" required autocomplete="off"></div>
+          </div>
+          <div class="row2">
+            <div><label>N° de licence</label><input id="aLic" maxlength="20" inputmode="numeric" autocomplete="off"></div>
+            <div><label>Catégorie</label><select id="aCat"></select></div>
+          </div>
+          <label>Club (si différent)</label><input id="aClub" maxlength="60" autocomplete="off">
+        </div>
+
+        <div class="shooter">
+          <h3>Tireur 2 <span style="font-weight:500;font-size:.85rem;color:#64748b">— matches 2, 4, 6</span></h3>
+          <div class="row2">
+            <div><label>Nom</label><input id="bNom" maxlength="40" required autocomplete="off"></div>
+            <div><label>Prénom</label><input id="bPrenom" maxlength="40" required autocomplete="off"></div>
+          </div>
+          <div class="row2">
+            <div><label>N° de licence</label><input id="bLic" maxlength="20" inputmode="numeric" autocomplete="off"></div>
+            <div><label>Catégorie</label><select id="bCat"></select></div>
+          </div>
+          <label>Club (si différent)</label><input id="bClub" maxlength="60" autocomplete="off">
+        </div>
+
+        <div class="hint" id="formatHint" style="margin-top:14px;"></div>
+        <div id="formMsg"></div>
+        <button class="main" id="btnSubmit" type="submit">Inscrire l'équipe</button>
+      </form>
+    </div>
+
+    <div id="screenDone" class="card hidden">
+      <div class="msg ok">✅ Équipe inscrite !</div>
+      <table class="recap" id="recap" style="margin-top:12px;"></table>
+      <button class="sec" onclick="newTeam()">Inscrire une autre équipe</button>
+    </div>
+  </main>
+  <footer><span id="footClub"></span> · 12 h par équipes · <span id="ver2"></span></footer>
+
+<script>
+  firebase.initializeApp(CONFIG.firebase);
+  const db = firebase.database();
+  const auth = firebase.auth();
+  const CLUB_PATH = 'clubs/' + CONFIG.clubKey;
+  const compId = new URLSearchParams(location.search).get('comp');
+  const BASE = CLUB_PATH + '/' + compId + '/e12';
+  let ST = E12.settings(), TEAMS = {}, COUNT = 0;
+
+  document.getElementById('ver').textContent = E12.VERSION;
+  document.getElementById('ver2').textContent = E12.VERSION;
+  document.getElementById('footClub').textContent = CONFIG.clubName;
+  E12.applyLogo(compId);
+  ['aCat', 'bCat'].forEach(id => {
+    const sel = document.getElementById(id);
+    sel.innerHTML = '<option value="">— choisir —</option>' + E12.CATS.map(c => `<option>${E12.esc(c)}</option>`).join('');
+  });
+  const show = id => ['screenLoading', 'screenError', 'screenForm', 'screenDone'].forEach(s => document.getElementById(s).classList.toggle('hidden', s !== id));
+  const fail = t => { document.getElementById('errorText').textContent = t; show('screenError'); };
+
+  if (!compId) fail("Lien invalide : aucune compétition indiquée.");
+  else {
+    let started = false;
+    auth.signInAnonymously().catch(e => fail("Connexion impossible (connexion anonyme désactivée ?) — [" + (e.code || e.message) + "]"));
+    auth.onAuthStateChanged(user => {
+      if (!user || started) return;
+      started = true;
+      db.ref(CLUB_PATH + '/' + compId + '/config/name').once('value').then(s => {
+        if (!s.val()) return fail("Compétition introuvable (#" + compId + ").");
+        document.getElementById('compName').textContent = s.val();
+        document.title = "Inscription — " + s.val();
+        db.ref(BASE).on('value', snap => {
+          const d = snap.val() || {};
+          if (!d.settings) return fail("Cette compétition n'est pas une compétition « 12 h par équipes ».");
+          ST = E12.settings(d.settings); TEAMS = d.teams || {}; COUNT = Math.max(d.count || 0, Object.keys(TEAMS).length);
+          render();
+          if (document.getElementById('screenDone').classList.contains('hidden')) show('screenForm');
+        });
+      }).catch(e => fail("Erreur de chargement : " + (e.message || e)));
+    });
+  }
+
+  function render() {
+    const left = Math.max(0, ST.postes - COUNT);
+    document.getElementById('placesLeft').textContent = left;
+    document.getElementById('placesMax').textContent = ST.postes;
+    document.getElementById('placesBar').style.width = Math.min(100, COUNT / ST.postes * 100) + '%';
+    document.getElementById('lblP').textContent = E12.discLabel('P', ST);
+    document.getElementById('lblC').textContent = E12.discLabel('C', ST);
+    let info = COUNT + ' équipe(s) inscrite(s) — 1 équipe = 1 poste';
+    if (ST.date) { const [y, m, d] = ST.date.split('-'); info += ' — ' + d + '/' + m + '/' + y; }
+    document.getElementById('infoLine').textContent = info;
+    document.getElementById('formatHint').textContent =
+      `Format : ${ST.matchs} matches de ${ST.coups} coups par équipe, ${ST.parTireur} matches par tireur, en relais sur le même poste` + (ST.alterne ? ', à tour de rôle (le tireur 1 commence).' : ' (ordre libre).') + ` Maximum par match : ${E12.maxScore('P', ST)} au pistolet, ${E12.fmt(E12.maxScore('C', ST), true)} à la carabine (au dixième).`;
+    const closed = !ST.ouvert || left <= 0;
+    document.getElementById('closedCard').classList.toggle('hidden', !closed);
+    document.getElementById('form').classList.toggle('hidden', closed);
+    document.getElementById('closedText').textContent = !ST.ouvert ? "Les inscriptions sont closes." : "Complet : les " + ST.postes + " postes sont pris.";
+  }
+
+  const val = id => document.getElementById(id).value.trim();
+  const key = p => (p.nom + '|' + p.prenom).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ');
+  function formMsg(t, ok) { document.getElementById('formMsg').innerHTML = t ? `<div class="msg ${ok ? 'ok' : 'err'}">${E12.esc(t)}</div>` : ''; }
+
+  function submitTeam(ev) {
+    ev.preventDefault();
+    formMsg('');
+    const discEl = document.querySelector('input[name="disc"]:checked');
+    if (!discEl) return formMsg("Choisissez la discipline de l'équipe (Pistolet ou Carabine).");
+    const club = val('teamClub');
+    const mk = w => ({ nom: val(w + 'Nom').toUpperCase(), prenom: val(w + 'Prenom'), licence: val(w + 'Lic'), cat: val(w + 'Cat'), club: val(w + 'Club') || club });
+    const a = mk('a'), b = mk('b');
+    if (!a.nom || !a.prenom || !b.nom || !b.prenom) return formMsg("Nom et prénom obligatoires pour les 2 tireurs.");
+    if (key(a) === key(b)) return formMsg("Les deux tireurs doivent être différents.");
+    const disc = discEl.value;
+    // Un tireur ne peut être que dans une seule équipe par discipline
+    for (const t of Object.values(TEAMS)) {
+      if (t.disc !== disc) continue;
+      for (const p of [t.a, t.b]) if (p && [key(a), key(b)].includes(key(p)))
+        return formMsg(`${E12.person(p)} est déjà inscrit(e) en ${E12.discName(disc)} dans l'équipe « ${E12.teamName(t)} ».`);
+    }
+    const team = { nom: val('teamName'), disc, club, a, b, ts: firebase.database.ServerValue.TIMESTAMP };
+    const btn = document.getElementById('btnSubmit');
+    btn.disabled = true;
+    const max = ST.postes;
+    db.ref(BASE + '/count').transaction(cur => {
+      cur = Math.max(cur || 0, Object.keys(TEAMS).length);
+      if (cur >= max) return; // abandon : complet
+      return cur + 1;
+    }).then(res => {
+      if (!res.committed) throw new Error("FULL");
+      return db.ref(BASE + '/teams').push(team).catch(e => {
+        db.ref(BASE + '/count').transaction(c => Math.max(0, (c || 1) - 1));
+        throw e;
+      });
+    }).then(() => {
+      const st = E12.discLabel(disc, ST);
+      document.getElementById('recap').innerHTML =
+        `<tr><td><b>Équipe</b></td><td>${E12.esc(E12.teamName(team))}</td></tr>
+         <tr><td><b>Discipline</b></td><td>${E12.esc(st)}</td></tr>
+         <tr><td><b>Tireur 1</b></td><td>${E12.esc(E12.person(a))}${a.cat ? ' — ' + E12.esc(a.cat) : ''}</td></tr>
+         <tr><td><b>Tireur 2</b></td><td>${E12.esc(E12.person(b))}${b.cat ? ' — ' + E12.esc(b.cat) : ''}</td></tr>
+         <tr><td><b>Poste</b></td><td>attribué par l'organisateur</td></tr>`;
+      show('screenDone');
+    }).catch(e => {
+      formMsg(e.message === 'FULL' ? "Désolé, la compétition vient d'être complète." : "Erreur d'enregistrement : " + (e.message || e));
+    }).finally(() => { btn.disabled = false; });
+  }
+
+  function newTeam() {
+    ['teamName', 'aNom', 'aPrenom', 'aLic', 'aClub', 'bNom', 'bPrenom', 'bLic', 'bClub', 'aCat', 'bCat'].forEach(id => document.getElementById(id).value = '');
+    document.querySelectorAll('input[name="disc"]').forEach(r => r.checked = false);
+    formMsg('');
+    show('screenForm'); render();
+    window.scrollTo(0, 0);
+  }
+</script>
+<div class="gg-copyright" style="text-align:center;font:11px/1.4 system-ui,sans-serif;color:#94a3b8;padding:14px 8px 10px;">© 2026 Gérard GARCIA — Tous droits réservés · Reproduction et réutilisation interdites sans autorisation</div>
+</body>
+</html>
