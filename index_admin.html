@@ -6,7 +6,7 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- LIGUE LR — version v2.13 — 27/09/2026 -->
+<!-- LIGUE LR — version v2.14 — 02/10/2026 -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
@@ -584,7 +584,7 @@
     <button class="btn-create" onclick="openCreateModal()">+ Nouvelle Compétition</button>
     <button class="btn-create" style="margin-top:12px; background:#fff; color:#3a0e14; box-shadow:none;" onclick="openCreate12Modal()">👥 + 12 h par équipes</button>
     <button class="btn-logout" onclick="doLogout()" style="margin-top:auto;">⎋ Déconnexion</button>
-    <div class="sidebar-footer"><span id="footerClub"></span> · v2.13 — 27/09/2026<br>© 2026 Gérard GARCIA — Tous droits réservés</div>
+    <div class="sidebar-footer"><span id="footerClub"></span> · v2.14 — 02/10/2026<br>© 2026 Gérard GARCIA — Tous droits réservés</div>
   </aside>
 
   <main class="main-content">
@@ -678,6 +678,7 @@
       <div class="slots-intro">Définis les séries (date, heure, nombre de postes, disciplines). Elles s'affichent triées par date/heure. Une fois complète, une série se bloque automatiquement à l'inscription. Quand les inscriptions sont closes, tire les postes au sort (🎲).</div>
       <div class="slots-list" id="slotsList"></div>
       <button class="btn-draw-all" id="btnDrawAll" onclick="drawAllSlots()">🎲 Tirer au sort les postes de toutes les séries</button>
+      <button class="btn-draw-all" style="background:#fff7e6; color:#9a5b00; border-color:#f3d39b;" onclick="invertAllSlots()" title="Inverse l'ordre des groupes de disciplines (ex : carabines au début, pistolets à la fin) sur toutes les séries, sans refaire le tirage">⇄ Inverser les postes de toutes les séries (pistolets ↔ carabines)</button>
       <button class="btn-draw-all" style="background:#eef6ff; color:#1d4ed8; border-color:#bfd6ff;" onclick="cleanSlots()" title="Retire des séries les tireurs dont la fiche a été supprimée et recalcule les places occupées">🧹 Vérifier / nettoyer les séries</button>
       <div class="slot-add-grid" id="slotAddGrid">
         <div class="slot-edit-banner" id="slotEditBanner">✏️ Modification d'une série existante — les tireurs déjà inscrits sont conservés.</div>
@@ -961,10 +962,11 @@
         const row = document.createElement('div');
         row.className = 'slot-row' + (isFull ? ' full' : '') + (editingSlotId === slotId ? ' editing' : '');
         row.innerHTML = `
-          <span class="slot-label">${displayLabel}<span class="slot-disc ${discs.length ? '' : 'none'}">${discTxt}${drawn ? ' · 🎲 postes tirés' : ''}</span></span>
+          <span class="slot-label">${displayLabel}<span class="slot-disc ${discs.length ? '' : 'none'}">${discTxt}${drawn ? ' · 🎲 postes tirés' : ''}${slot.reversed ? ' · ⇄ ordre inversé' : ''}</span></span>
           <span style="display:flex; align-items:center;">
             <span class="slot-count">${count} / ${capacity} ${isFull ? '· COMPLET' : ''}</span>
             <button class="slot-draw ${drawn ? 'done' : ''}" title="${drawn ? 'Refaire le tirage des postes' : 'Tirer au sort les postes de tir'}" onclick="drawSlot('${slotId}')">🎲 Postes</button>
+            <button class="slot-draw ${slot.reversed ? 'done' : ''}" title="Inverser les postes de cette série (pistolets ↔ carabines)" onclick="invertSlot('${slotId}')">⇄</button>
             <button class="slot-edit" title="Modifier cette série (date, heure, libellé, postes, disciplines)" onclick="editSlot('${slotId}')">✏️</button>
             <button class="slot-dup" title="Dupliquer" onclick="duplicateSlot('${slotId}')">📋</button>
             <button class="slot-del" title="Supprimer" onclick="deleteSlot('${slotId}')">🗑️</button>
@@ -1136,6 +1138,7 @@
         if (ib !== -1) return 1;
         return a.localeCompare(b);
       });
+      if (slot.reversed) keys.reverse(); // ⇄ ordre inversé (ex : carabines au début)
 
       const gaps = keys.length - 1;
       const withGap = ids.length + gaps <= capacity;
@@ -1176,6 +1179,61 @@
       entries.reduce((chain, [id]) => chain.then(() => drawSlot(id, true)), Promise.resolve())
         .then(() => alert("Tirage terminé. Les numéros de poste apparaissent sur les feuilles « 🖨️ Imprimer séries »."))
         .catch(e => alert("Erreur pendant le tirage : " + (e.message || e)));
+    }
+
+    // ─── ⇄ Inversion des postes (v2.14) ───
+    // Inverse l'ordre des groupes de disciplines sans refaire le tirage : l'ordre tiré au sort
+    // à l'intérieur de chaque groupe est conservé, le poste vide entre groupes aussi.
+    // Le sens est mémorisé (slot.reversed) : un nouveau tirage le respecte.
+    function invertPostes(slot, shootersById) {
+      const registered = slot.registered || {};
+      const ids = Object.keys(registered).filter(id => registered[id].poste);
+      if (ids.length === 0) return null;
+      const capacity = Number(slot.capacity) || Object.keys(registered).length;
+      const discOf = id => (shootersById[id] && shootersById[id].discipline) || registered[id].discipline || '';
+      ids.sort((a, b) => registered[a].poste - registered[b].poste);
+      const runs = [];
+      ids.forEach(id => {
+        const d = discOf(id), last = runs[runs.length - 1];
+        if (last && last.d === d) last.ids.push(id); else runs.push({ d, ids: [id] });
+      });
+      runs.reverse();
+      const withGap = ids.length + runs.length - 1 <= capacity;
+      const result = {};
+      let poste = 1;
+      runs.forEach((r, i) => {
+        r.ids.forEach(id => { result[id] = poste++; });
+        if (withGap && i < runs.length - 1) poste++;
+      });
+      return result;
+    }
+
+    function invertSlot(slotId, silent) {
+      const slot = lastSlotsData[slotId];
+      if (!slot) return Promise.resolve();
+      const ref = database.ref(CLUB_PATH + '/' + currentSlotsComp + '/slots/' + slotId);
+      const newRev = !slot.reversed;
+      if (!slot.drawn) {
+        // Pas encore tiré : on mémorise seulement le sens pour le futur tirage
+        return ref.update({ reversed: newRev }).then(() => {
+          if (!silent) alert(newRev ? "Ordre inversé : au tirage, la dernière discipline sera placée au poste 1." : "Ordre normal rétabli.");
+        });
+      }
+      return database.ref(CLUB_PATH + '/' + currentSlotsComp + '/shooters').once('value').then(snap => {
+        const postes = invertPostes(slot, snap.val() || {});
+        const updates = { reversed: newRev };
+        if (postes) Object.keys(postes).forEach(id => { updates['registered/' + id + '/poste'] = postes[id]; });
+        return ref.update(updates);
+      });
+    }
+
+    function invertAllSlots() {
+      const entries = sortedSlotEntries(lastSlotsData);
+      if (entries.length === 0) return alert("Aucune série.");
+      if (!confirm(`Inverser les postes de ${entries.length} série(s) ?\nLes groupes de disciplines changent de côté (ex : carabines au début, pistolets à la fin). L'ordre tiré au sort dans chaque groupe est conservé.\nRecliquer remet dans l'autre sens.`)) return;
+      entries.reduce((chain, [id]) => chain.then(() => invertSlot(id, true)), Promise.resolve())
+        .then(() => alert("Postes inversés. Les feuilles « 🖨️ Imprimer séries » sont à jour."))
+        .catch(e => alert("Erreur pendant l'inversion : " + (e.message || e)));
     }
 
     function deleteSlot(slotId) {
