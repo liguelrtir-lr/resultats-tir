@@ -6,7 +6,7 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- LIGUE LR — version v3.22 — 16/09/2026 -->
+<!-- LIGUE LR — version v3.23 — 02/10/2026 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -636,12 +636,15 @@
             </div>
         </div>
         <div class="header-actions">
-            <span class="version-tag">v3.22</span>
+            <span class="version-tag">v3.23</span>
             <button type="button" id="btnToggleImport" class="btn-toggle-import">
                 <span>🪄</span> Import Tireurs
             </button>
             <button type="button" id="btnToggleScoreImport" class="btn-toggle-import">
                 <span>📊</span> Import Résultats
+            </button>
+            <button type="button" id="btnToggleFftir" class="btn-toggle-import" title="Importer l'export CSV complet du logiciel fédéral (tireurs + scores + séries)">
+                <span>🏛️</span> Import FFTir
             </button>
             <button type="button" class="btn-toggle-import" onclick="exportExcelList()" title="Télécharge la liste des inscrits de cette compétition au format Excel">
                 <span>📥</span> Export Excel
@@ -698,6 +701,34 @@
             </button>
         </div>
         <div id="scoreImportReport" style="margin-top:10px; font-size:0.85rem; color:var(--text-muted); white-space:pre-line;"></div>
+    </div>
+
+    <!-- IMPORT FFTIR (v3.23) : export CSV complet du logiciel fédéral -->
+    <div class="panel panel-import" id="fftirBlock">
+        <div class="panel-title"><span>🏛️</span> Import FFTir — export complet de la compétition (CSV)</div>
+        <div class="import-hint">
+            Sélectionne le fichier <strong>export_complet_tir_competition_….csv</strong> téléchargé depuis le logiciel fédéral.
+            Les tireurs sont <strong>créés automatiquement</strong> (nom, prénom, licence, club, épreuve, catégorie) avec leur
+            <strong>score total</strong> et le <strong>détail des séries</strong>. Si un tireur existe déjà dans cette compétition
+            (même nom, prénom et discipline), sa fiche est mise à jour au lieu d'être recréée : on peut réimporter
+            le fichier sans créer de doublons.
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:6px 18px; font-size:0.82rem; color:var(--text-muted); margin-bottom:12px;">
+            <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="fftirSkipAbs" checked style="width:auto;"> Ignorer les absents (DNS / DNF)</label>
+            <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="fftirSkipDsq" checked style="width:auto;"> Ignorer les disqualifiés</label>
+            <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="fftirKeepHM" checked style="width:auto;"> Garder les hors match (« HM » ajouté après le club)</label>
+        </div>
+        <div class="field" style="margin-bottom:12px;">
+            <label>Fichier CSV FFTir</label>
+            <input type="file" id="fftirFileInput" accept=".csv,.txt" onchange="handleFftirFile(event)">
+            <div id="fftirStatus" style="font-size:0.82rem; color:var(--text-dim); margin-top:6px; white-space:pre-line;"></div>
+        </div>
+        <div class="btn-row" style="margin-top:12px;">
+            <button type="button" class="btn btn-import-run" id="fftirRunBtn" onclick="applyFftirImport()" disabled>
+                🚀 Importer dans cette compétition
+            </button>
+        </div>
+        <div id="fftirReport" style="margin-top:10px; font-size:0.85rem; color:var(--text-muted); white-space:pre-line;"></div>
     </div>
 
     <!-- RÉIMPORT D'UNE LISTE CORRIGÉE (après export Excel + corrections manuelles dans le tableur) -->
@@ -860,6 +891,9 @@
     });
     document.getElementById('btnToggleScoreImport').addEventListener('click', function() {
         toggleImportPanel('scoreImportBlock', this, '<span>📊</span> Import Résultats');
+    });
+    document.getElementById('btnToggleFftir').addEventListener('click', function() {
+        toggleImportPanel('fftirBlock', this, '<span>🏛️</span> Import FFTir');
     });
     document.getElementById('btnToggleReimport').addEventListener('click', function() {
         toggleImportPanel('reimportBlock', this, '<span>🔁</span> Réimporter');
@@ -1358,6 +1392,204 @@
             document.getElementById('scoreImportArea').value = '';
             document.getElementById('scoreFileStatus').textContent = '';
         }
+    }
+
+    // ─── Import FFTir (v3.23) : export CSV complet du logiciel fédéral ───
+    // Colonnes utilisées (repérées par leur titre, peu importe l'ordre) : Nom, Prenom, Licence,
+    // Epreuve, Catégorie E, Association Nom, Hors Match, Absent / DNF, Disqualifié, Abandon,
+    // Série 1…Série 10, Total Séries.
+    let fftirRows = null;
+    const FFTIR_CATS = { S1: 'Senior 1', S2: 'Senior 2', S3: 'Senior 3', D1: 'Dame 1', D2: 'Dame 2', D3: 'Dame 3',
+        JG: 'Junior Garçon', JF: 'Junior Fille', CG: 'Cadet G', CF: 'Cadet F', MG: 'Minime G', MF: 'Minime F',
+        BG: 'Benjamin Garçon', BF: 'Benjamin Fille', PG: 'Poussin Garçon', PF: 'Poussin Fille' };
+
+    function normHead(h) { return String(h || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim(); }
+
+    // Découpage CSV « point-virgule » qui respecte les guillemets éventuels
+    function parseCsvSemi(text) {
+        const rows = []; let row = [], cur = '', q = false;
+        for (let i = 0; i < text.length; i++) {
+            const c = text[i];
+            if (q) {
+                if (c === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else q = false; }
+                else cur += c;
+            } else if (c === '"') q = true;
+            else if (c === ';') { row.push(cur); cur = ''; }
+            else if (c === '\n' || c === '\r') {
+                if (c === '\r' && text[i + 1] === '\n') i++;
+                row.push(cur); cur = ''; if (row.some(x => x.trim() !== '')) rows.push(row); row = [];
+            } else cur += c;
+        }
+        row.push(cur); if (row.some(x => x.trim() !== '')) rows.push(row);
+        return rows;
+    }
+
+    // Retrouve le nom de discipline du logiciel à partir du code FFTir (« 100 - Pistolet 10 mètres » → « 100 - Pistolet 10m »)
+    function fftirDiscipline(epreuve) {
+        const code = (String(epreuve).match(/^\s*(\d{3})/) || [])[1];
+        if (code) {
+            for (const t in dataRef) {
+                const f = (dataRef[t].disc || []).find(d => d.startsWith(code + ' '));
+                if (f) return f;
+            }
+        }
+        return String(epreuve).replace(/\s*mètres\b/i, 'm').trim();
+    }
+
+    function handleFftirFile(event) {
+        const file = event.target.files[0];
+        const status = document.getElementById('fftirStatus');
+        document.getElementById('fftirReport').textContent = '';
+        document.getElementById('fftirRunBtn').disabled = true;
+        fftirRows = null;
+        if (!file) return;
+        status.textContent = 'Lecture du fichier…';
+        file.arrayBuffer().then(buf => {
+            // UTF-8 en priorité ; si les accents sont cassés, on relit en Windows-1252 (export Excel)
+            let text = new TextDecoder('utf-8').decode(buf);
+            if (text.indexOf('�') !== -1) text = new TextDecoder('windows-1252').decode(buf);
+            text = text.replace(/^﻿/, '');
+            const rows = parseCsvSemi(text);
+            if (rows.length < 2) throw new Error("fichier vide");
+            const head = rows[0].map(normHead);
+            const col = name => head.indexOf(normHead(name));
+            const need = ['Nom', 'Prenom', 'Epreuve', 'Total Séries'];
+            const missing = need.filter(n => col(n) === -1);
+            if (missing.length) throw new Error("colonnes introuvables : " + missing.join(', ') + " — est-ce bien l'export complet FFTir ?");
+            const get = (r, n) => { const i = col(n); return i === -1 ? '' : String(r[i] || '').trim(); };
+            const yes = v => /^(oui|o|1|true)$/i.test(v);
+            const skipAbs = document.getElementById('fftirSkipAbs').checked;
+            const skipDsq = document.getElementById('fftirSkipDsq').checked;
+            const keepHM = document.getElementById('fftirKeepHM').checked;
+
+            const out = []; let abs = 0, dsq = 0, hm = 0;
+            rows.slice(1).forEach(r => {
+                const nom = get(r, 'Nom').toUpperCase(), prenom = get(r, 'Prenom');
+                if (!nom || !prenom) return;
+                if (yes(get(r, 'Absent / DNF')) || yes(get(r, 'Abandon'))) { abs++; if (skipAbs) return; }
+                if (yes(get(r, 'Disqualifié'))) { dsq++; if (skipDsq) return; }
+                const isHM = yes(get(r, 'Hors Match'));
+                if (isHM) { hm++; if (!keepHM) return; }
+                const series = [];
+                for (let k = 1; k <= 10; k++) series.push(get(r, 'Série ' + k).replace(',', '.'));
+                while (series.length && (series[series.length - 1] === '' || parseFloat(series[series.length - 1]) === 0)) series.pop();
+                const total = parseFloat(get(r, 'Total Séries').replace(',', '.')) || 0;
+                const catCode = get(r, 'Catégorie E').toUpperCase();
+                out.push({
+                    lastName: nom,
+                    firstName: prenom,
+                    club: (get(r, 'Association Nom') || '-') + (isHM ? ' · HM' : ''),
+                    discipline: fftirDiscipline(get(r, 'Epreuve')),
+                    category: FFTIR_CATS[catCode] || catCode || 'Général',
+                    score: Math.round(total * 10) / 10,
+                    series: series.join(','),
+                    licence: get(r, 'Licence'),
+                    _serie: parseInt(get(r, 'Série'), 10) || 0,
+                    _poste: parseInt(get(r, 'Poste'), 10) || 0
+                });
+            });
+            fftirRows = out;
+            const byDisc = {};
+            out.forEach(x => { byDisc[x.discipline] = (byDisc[x.discipline] || 0) + 1; });
+            const already = out.filter(x => findExistingFftir(x)).length;
+            const nbSeries = new Set(out.filter(x => x._serie).map(x => x._serie)).size;
+            const withScore = out.filter(x => x.score > 0).length;
+            status.textContent = `✓ ${out.length} engagement(s) prêts à importer`
+                + (already ? ` (dont ${already} déjà présent(s) → mis à jour)` : '')
+                + (nbSeries ? `, répartis en ${nbSeries} série(s) avec leur n° de poste` : '')
+                + (withScore ? ` — ${withScore} avec un score` : ' — sans score (à saisir pendant la compétition)') + ' :\n'
+                + Object.entries(byDisc).sort((a, b) => b[1] - a[1]).map(([d, n]) => `   • ${d} : ${n}`).join('\n')
+                + `\nAbsents : ${abs}${skipAbs ? ' (ignorés)' : ''} · Disqualifiés : ${dsq}${skipDsq ? ' (ignorés)' : ''} · Hors match : ${hm}${keepHM ? ' (gardés)' : ' (ignorés)'}`;
+            document.getElementById('fftirRunBtn').disabled = out.length === 0;
+        }).catch(e => { status.textContent = "⚠️ Impossible de lire ce fichier : " + (e.message || e); });
+    }
+
+    function findExistingFftir(x) {
+        return shootersData.find(s => (s.lastName || '').toUpperCase() === x.lastName
+            && (s.firstName || '').toUpperCase() === x.firstName.toUpperCase()
+            && (s.discipline || '') === x.discipline);
+    }
+
+    // Retrouve (ou crée) la série « Série N » de la compétition pour un n° de série FFTir
+    function fftirSlotFor(n, cache) {
+        if (cache[n]) return cache[n];
+        const found = Object.keys(slotsData).find(id => slotsData[id].fftirSerie === n || (slotsData[id].label || '').trim() === 'Série ' + n);
+        if (found) return (cache[n] = Promise.resolve(found));
+        const ref = db.ref(CLUB_PATH + '/' + compId + '/slots').push();
+        return (cache[n] = ref.set({ label: 'Série ' + n, fftirSerie: n, capacity: 1, count: 0, drawn: true }).then(() => ref.key));
+    }
+
+    function applyFftirImport() {
+        if (!fftirRows || !fftirRows.length) return alert("Choisis d'abord le fichier CSV FFTir.");
+        if (!confirm(`Importer ${fftirRows.length} engagement(s) dans cette compétition ?\n(Les scores déjà saisis ne sont jamais remplacés par un score vide du fichier.)`)) return;
+        const btn = document.getElementById('fftirRunBtn');
+        btn.disabled = true;
+        document.getElementById('fftirReport').textContent = 'Import en cours…';
+        let created = 0, updated = 0, errors = 0, kept = 0;
+        const slotCache = {}, touchedSlots = new Set(), slotDisc = {};
+        // Séries créées dans l'ordre numérique (pour qu'elles s'affichent dans l'ordre)
+        const nums = [...new Set(fftirRows.filter(x => x._serie).map(x => x._serie))].sort((a, b) => a - b);
+        const slotsReady = nums.reduce((p, n) => p.then(() => fftirSlotFor(n, slotCache)), Promise.resolve());
+
+        slotsReady.then(() => Promise.all(fftirRows.map(x => {
+            const ex = findExistingFftir(x);
+            const data = { lastName: x.lastName, firstName: x.firstName, club: x.club, discipline: x.discipline, category: x.category };
+            if (x.licence) data.licence = x.licence;
+            // Score : jamais écrasé par un 0 du fichier (scores saisis à la main pendant la compétition)
+            if (!ex || x.score > 0) { data.score = x.score; if (x.series) data.series = x.series; }
+            else if (ex && Number(ex.score) > 0) kept++;
+            if (!ex) data.score = data.score || 0;
+            const ref = ex ? db.ref(CLUB_PATH + '/' + compId + '/shooters/' + ex.id) : db.ref(CLUB_PATH + '/' + compId + '/shooters').push();
+            if (ex) updated++; else created++;
+            const key = x.lastName.replace(/[^a-zA-Z]/g, "") + "_" + x.firstName.replace(/[^a-zA-Z]/g, "");
+            const arch = { lastName: x.lastName, firstName: x.firstName, club: x.club.replace(/ · HM$/, '') };
+            if (x.licence) arch.licence = x.licence;
+            db.ref('Ligue_Tireurs_Archive/' + key).update(arch).catch(() => {});
+
+            return writeShooter(ref, data, !!ex).then(() => {
+                if (!x._serie) return;
+                return slotCache[x._serie].then(slotId => {
+                    const prev = ex && slotByShooter[ex.id] && slotByShooter[ex.id].slotId;
+                    const jobs = [];
+                    if (prev && prev !== slotId) { jobs.push(db.ref(CLUB_PATH + '/' + compId + '/slots/' + prev + '/registered/' + ref.key).remove()); touchedSlots.add(prev); }
+                    const info = { lastName: x.lastName, firstName: x.firstName, club: x.club, discipline: x.discipline, category: x.category };
+                    if (x.licence) info.licence = x.licence;
+                    if (x._poste) info.poste = x._poste;
+                    jobs.push(db.ref(CLUB_PATH + '/' + compId + '/slots/' + slotId + '/registered/' + ref.key).set(info));
+                    touchedSlots.add(slotId);
+                    (slotDisc[slotId] = slotDisc[slotId] || new Set()).add(x.discipline);
+                    return Promise.all(jobs);
+                });
+            }).catch(e => { errors++; console.warn('Import FFTir', e.message || e); });
+        })))
+        // Recalcule le nombre d'inscrits, la capacité et les disciplines de chaque série touchée
+        .then(() => Promise.all([...touchedSlots].map(slotId => {
+            const ref = db.ref(CLUB_PATH + '/' + compId + '/slots/' + slotId);
+            return ref.once('value').then(snap => {
+                const sl = snap.val() || {};
+                const reg = sl.registered || {};
+                const ids = Object.keys(reg);
+                const maxPoste = ids.reduce((m, id) => Math.max(m, Number(reg[id].poste) || 0), 0);
+                const upd = { count: ids.length, capacity: Math.max(Number(sl.capacity) || 0, maxPoste, ids.length) };
+                if (sl.fftirSerie) {
+                    const ds = new Set(Array.isArray(sl.disciplines) ? sl.disciplines : []);
+                    (slotDisc[slotId] || []).forEach(d => ds.add(d));
+                    if (ds.size) upd.disciplines = [...ds];
+                }
+                return ref.update(upd);
+            });
+        })))
+        .then(() => {
+            document.getElementById('fftirReport').textContent =
+                `✅ Import terminé : ${created} engagement(s) créé(s), ${updated} mis à jour`
+                + (nums.length ? `, ${nums.length} série(s) avec postes` : '')
+                + (kept ? `, ${kept} score(s) déjà saisi(s) conservé(s)` : '')
+                + (errors ? `, ⚠️ ${errors} erreur(s) (voir la console)` : '') + '.';
+            fftirRows = null;
+            document.getElementById('fftirFileInput').value = '';
+            document.getElementById('fftirStatus').textContent = '';
+        })
+        .catch(e => { document.getElementById('fftirReport').textContent = "⚠️ Erreur pendant l'import : " + (e.message || e); btn.disabled = false; });
     }
 
     // ─── Export / Réimport Excel de la liste complète ───
