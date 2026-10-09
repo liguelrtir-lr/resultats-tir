@@ -6,7 +6,7 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- MATCH POSTAL — Administration (validation des scores, saisie directe, réglages, export, finales) — v1.6 — 09/10/2026 -->
+<!-- MATCH POSTAL — Administration (validation des scores, saisie directe, réglages, export, finales) — v1.7 — 09/10/2026 -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
@@ -106,7 +106,8 @@
         <summary>🏆 Phase 2 — Finales : qualifiés, tirage au sort, invitations</summary>
         <div id="finInfo" class="hint" style="margin-top:10px;"></div>
         <div id="finales"></div>
-        <div class="hint">Le bouton ✉️ ouvre votre messagerie avec les invités en <b>copie cachée</b> et le texte prêt : relisez, puis envoyez.
+        <div class="hint">Les boutons restent grisés tant qu'aucun tireur n'a ses 3 matches validés.
+          Le bouton ✉️ ouvre votre messagerie avec les invités en <b>copie cachée</b> et le texte prêt : relisez, puis envoyez.
           Si votre messagerie ne s'ouvre pas, utilisez 📋 pour copier les adresses et le texte.</div>
       </details>
 
@@ -172,7 +173,7 @@
   let ouvert = null;    // { id, m }
   let ecoutes = [];
 
-  const VERSION_PAGE = 'v1.6 — 09/10/2026';   // ← à incrémenter à chaque modification de cette page
+  const VERSION_PAGE = 'v1.7 — 09/10/2026';   // ← à incrémenter à chaque modification de cette page
   document.querySelectorAll('.verTxt').forEach(e => e.textContent = VERSION_PAGE);
   $('saisonTxt').textContent = MP.saison();
   $('footClub').textContent = CONFIG.clubName || '';
@@ -317,6 +318,13 @@
     const eligibles = classes.filter(l => !l.finale);
     return { classes, grande, petite, eligibles, tir };
   }
+  // Boutons ✉️ / 📋 : toujours affichés, grisés tant que la liste est vide
+  function boutonsMail(d, type, n) {
+    if (!n) return '<button class="ok" disabled style="opacity:.4;cursor:not-allowed" title="Disponible dès qu\'il y aura des invités">✉️ Inviter</button> ' +
+      '<button class="sec" disabled style="opacity:.4;cursor:not-allowed">📋 Copier</button>';
+    return '<button class="ok" onclick="inviter(\'' + d + '\',\'' + type + '\')">✉️ Inviter (' + n + ')</button> ' +
+      '<button class="sec" onclick="copier(\'' + d + '\',\'' + type + '\')">📋 Copier</button>';
+  }
   function dessinerFinales() {
     if (!$('cardFinales').open) return;
     $('finInfo').innerHTML = '📅 ' + esc(dateFinaleTxt()) + ' — petite finale ' + esc(heureTxt(settings.heurePetite || '08:30')) +
@@ -329,18 +337,19 @@
       // Grande finale
       h += '<div style="margin:6px 0;"><b>Grande finale</b> — ' + F.grande.length + ' qualifié(s) sur ' + quota +
         (F.grande.length > quota ? ' <span class="badge b-attente">ex æquo au ' + quota + 'e rang</span>' : '') + ' ' +
-        (F.grande.length ? '<button class="ok" onclick="inviter(\'' + d + '\',\'grande\')">✉️ Inviter</button> <button class="sec" onclick="copier(\'' + d + '\',\'grande\')">📋 Copier</button>' : '') + '</div>';
+        boutonsMail(d, 'grande', F.grande.length) + '</div>';
       h += F.grande.length ? '<div class="hint" style="margin-top:0;">' + F.grande.map(l => l.rang + '. ' + esc(l.i.nom + ' ' + l.i.prenom) + ' (' + l.total + ')').join(' · ') + '</div>' : '';
       // Petite finale
       if (qP) {
         h += '<div style="margin:10px 0 6px;"><b>Petite finale</b> — tirage de ' + qP + ' parmi les ' + F.eligibles.length + ' non-qualifié(s) ayant leurs 3 matches ';
         if (F.tir) {
           h += '<span class="badge b-valide">tiré le ' + esc(MP.dateFr(F.tir.ts)) + '</span> ' +
-            '<button class="ok" onclick="inviter(\'' + d + '\',\'petite\')">✉️ Inviter</button> <button class="sec" onclick="copier(\'' + d + '\',\'petite\')">📋 Copier</button> ' +
+            boutonsMail(d, 'petite', F.petite.length) + ' ' +
             '<button class="del" title="Annuler ce tirage" onclick="annulerTirage(\'' + d + '\')">↩️</button></div>' +
             '<div class="hint" style="margin-top:0;">' + F.petite.map(l => esc(l.i.nom + ' ' + l.i.prenom)).join(' · ') + '</div>';
         } else {
-          h += F.eligibles.length ? '<button class="ok" onclick="tirer(\'' + d + '\')">🎲 Tirer au sort</button></div>' : '</div>';
+          h += '<button class="ok" ' + (F.eligibles.length ? 'onclick="tirer(\'' + d + '\')"' : 'disabled style="opacity:.4;cursor:not-allowed" title="Disponible quand des non-qualifiés auront leurs 3 matches validés"') + '>🎲 Tirer au sort</button> ' +
+            boutonsMail(d, 'petite', 0) + '</div>';
         }
       }
     });
