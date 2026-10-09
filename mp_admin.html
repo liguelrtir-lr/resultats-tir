@@ -6,7 +6,7 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- MATCH POSTAL — Administration (validation des scores, saisie directe, réglages, export) — v1.2 — 09/10/2026 -->
+<!-- MATCH POSTAL — Administration (validation des scores, saisie directe, réglages, export) — v1.3 — 09/10/2026 -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
@@ -90,6 +90,21 @@
           <button class="sec" type="button" onclick="exporterCSV()">⬇️ Exporter inscrits + contacts + scores (CSV)</button></div>
       </details>
 
+      <details class="card" id="cardClubs">
+        <summary>🏛️ Récapitulatif par club (pour la Ligue)</summary>
+        <div class="tools" style="margin-top:12px;">
+          <label class="chk">Engagement :
+            <select id="tarifMode" style="width:auto;padding:6px 8px;" onchange="dessinerClubs()">
+              <option value="disc">20 € par discipline engagée</option>
+              <option value="tireur">20 € par tireur</option>
+            </select></label>
+          <button class="sec" type="button" onclick="imprimerClubs()">🖨️ Imprimer</button>
+          <button class="sec" type="button" onclick="exporterClubs()">⬇️ CSV</button>
+        </div>
+        <div class="scroll" id="recapClubs"></div>
+        <div class="hint">Les clubs écrits de façon légèrement différente (majuscules, accents, points, espaces) sont regroupés. « Tireurs » = personnes distinctes (par n° de licence).</div>
+      </details>
+
       <div class="card">
         <div class="tabs" id="tabs"></div>
         <div class="tools">
@@ -124,6 +139,7 @@
 
 <script>
   const BASE = MP.base();
+  const TARIF = 20;   // € — droit d'engagement (même montant que sur la page d'inscription)
   firebase.initializeApp(CONFIG.firebase);
   const db = firebase.database();
   const auth = firebase.auth();
@@ -136,7 +152,7 @@
   let ouvert = null;    // { id, m }
   let ecoutes = [];
 
-  const VERSION_PAGE = 'v1.2 — 09/10/2026';   // ← à incrémenter à chaque modification de cette page
+  const VERSION_PAGE = 'v1.3 — 09/10/2026';   // ← à incrémenter à chaque modification de cette page
   document.querySelectorAll('.verTxt').forEach(e => e.textContent = VERSION_PAGE);
   $('saisonTxt').textContent = MP.saison();
   $('footClub').textContent = CONFIG.clubName || '';
@@ -240,6 +256,52 @@
         '<td><button class="del" title="Supprimer cette inscription" onclick="supprimer(\'' + id + '\')">🗑️</button></td></tr>';
     });
     $('table').innerHTML = h;
+    dessinerClubs();
+  }
+
+  // ---------- Récapitulatif par club ----------
+
+  function cleClub(c) { return MP.norm(c).replace(/[^a-z0-9]/g, ''); }
+  function calculClubs() {
+    const clubs = {};
+    Object.values(inscrits).forEach(i => {
+      const k = cleClub(i.club) || '?';
+      const c = clubs[k] || (clubs[k] = { noms: {}, licences: new Set(), P: 0, C: 0, PC: 0 });
+      c.noms[i.club] = (c.noms[i.club] || 0) + 1;
+      c.licences.add(MP.licNorm(i.licence) || MP.norm(i.nom + i.prenom));
+      if (c[i.disc] !== undefined) c[i.disc]++;
+    });
+    const parTireur = $('tarifMode').value === 'tireur';
+    return Object.values(clubs).map(c => {
+      const nom = Object.entries(c.noms).sort((a, b) => b[1] - a[1])[0][0];
+      const eng = c.P + c.C + c.PC, tir = c.licences.size;
+      return { nom, tir, P: c.P, C: c.C, PC: c.PC, eng, montant: (parTireur ? tir : eng) * TARIF };
+    }).sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
+  }
+  function dessinerClubs() {
+    const L = calculClubs();
+    const tot = L.reduce((t, c) => { ['tir', 'P', 'C', 'PC', 'eng', 'montant'].forEach(k => t[k] += c[k]); return t; }, { tir: 0, P: 0, C: 0, PC: 0, eng: 0, montant: 0 });
+    const ligne = (c, b) => '<tr' + (b ? ' style="font-weight:700;background:#f7f1e6"' : '') + '><td>' + (b ? 'TOTAL — ' + L.length + ' club(s)' : esc(c.nom)) + '</td>' +
+      ['tir', 'P', 'C', 'PC', 'eng'].map(k => '<td class="num">' + c[k] + '</td>').join('') + '<td class="num">' + c.montant + ' €</td></tr>';
+    $('recapClubs').innerHTML = '<table class="t" id="tableClubs"><tr><th>Club</th><th class="num">Tireurs</th><th class="num">Pistolet</th><th class="num">Carabine</th><th class="num">Para-tir</th><th class="num">Engagements</th><th class="num">Montant dû</th></tr>' +
+      (L.length ? L.map(c => ligne(c)).join('') + ligne(tot, true) : '<tr><td colspan="7" class="hint">Aucun inscrit.</td></tr>') + '</table>';
+  }
+  function imprimerClubs() {
+    const w = window.open('');
+    w.document.write('<html><head><meta charset="utf-8"><title>Récapitulatif par club</title><style>body{font-family:Arial,sans-serif;padding:20px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:6px 8px}td.num,th.num{text-align:right}th{background:#f3eee4}</style></head><body>' +
+      '<h2>' + esc($('titre').textContent) + ' — Récapitulatif par club</h2><p>Saison ' + esc(MP.saison()) + ' · ' + esc($('tarifMode').selectedOptions[0].text) + ' · édité le ' + new Date().toLocaleDateString('fr-FR') + '</p>' +
+      $('recapClubs').innerHTML + '</body></html>');
+    w.document.close(); w.focus(); w.print();
+  }
+  function exporterClubs() {
+    const q = v => '"' + String(v).replace(/"/g, '""') + '"';
+    const L = calculClubs();
+    const csv = '\ufeff' + [['Club', 'Tireurs', 'Pistolet', 'Carabine', 'Para-tir', 'Engagements', 'Montant dû (€)'].map(q).join(';'),
+      ...L.map(c => [c.nom, c.tir, c.P, c.C, c.PC, c.eng, c.montant].map(q).join(';'))].join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = 'match_postal_' + MP.saison() + '_recap_clubs.csv';
+    a.click();
   }
 
   // ---------- Fenêtre d'un match ----------
