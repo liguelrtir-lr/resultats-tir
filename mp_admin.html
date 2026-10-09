@@ -6,7 +6,7 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- MATCH POSTAL — Administration (validation des scores, saisie directe, réglages, export) — v1.1 — 09/10/2026 -->
+<!-- MATCH POSTAL — Administration (validation des scores, saisie directe, réglages, export) — v1.2 — 09/10/2026 -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
@@ -136,7 +136,8 @@
   let ouvert = null;    // { id, m }
   let ecoutes = [];
 
-  document.querySelectorAll('.verTxt').forEach(e => e.textContent = MP.VERSION);
+  const VERSION_PAGE = 'v1.2 — 09/10/2026';   // ← à incrémenter à chaque modification de cette page
+  document.querySelectorAll('.verTxt').forEach(e => e.textContent = VERSION_PAGE);
   $('saisonTxt').textContent = MP.saison();
   $('footClub').textContent = CONFIG.clubName || '';
 
