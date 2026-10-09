@@ -6,7 +6,7 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- MATCH POSTAL — Classement public des qualifications — v1.2 — 09/10/2026 -->
+<!-- MATCH POSTAL — Classement public des qualifications — v1.3 — 09/10/2026 -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
@@ -46,7 +46,8 @@
       <h2 id="clTitre"></h2>
       <div class="scroll"><table class="t" id="table"></table></div>
       <div class="legende">
-        <span><span class="badge b-finale">Finale</span> qualifié(e) pour la finale</span>
+        <span><span class="badge b-finale">Finale</span> qualifié(e) pour la grande finale</span>
+        <span><span class="badge b-valide">Petite finale</span> tiré(e) au sort pour la petite finale</span>
         <span>Classement scratch au total des 3 matches validés · départage : meilleur match, puis 2e, puis 3e</span>
       </div>
       <div id="nonClasses"></div>
@@ -62,11 +63,11 @@
   const $ = id => document.getElementById(id);
   const esc = MP.esc;
 
-  let inscrits = null, scores = null;
+  let inscrits = null, scores = null, tirage = {};
   let onglet = new URLSearchParams(location.search).get('d') || 'P';
   if (!MP.DISC[onglet]) onglet = 'P';
 
-  const VERSION_PAGE = 'v1.2 — 09/10/2026';   // ← à incrémenter à chaque modification de cette page
+  const VERSION_PAGE = 'v1.3 — 09/10/2026';   // ← à incrémenter à chaque modification de cette page
   document.querySelectorAll('.verTxt').forEach(e => e.textContent = VERSION_PAGE);
   $('saisonTxt').textContent = MP.saison();
   $('footClub').textContent = CONFIG.clubName || '';
@@ -77,6 +78,7 @@
     if (!user) { auth.signInAnonymously().catch(e => fail('Connexion impossible — [' + (e.code || e.message) + ']')); return; }
     const err = e => fail('Lecture impossible — [' + (e.code || e.message) + ']');
     db.ref(BASE + '/settings/titre').on('value', s => { if (s.val()) { $('titre').textContent = s.val(); document.title = 'Classement — ' + s.val(); } });
+    db.ref(BASE + '/settings/tirage').on('value', s => { tirage = s.val() || {}; dessiner(); });
     db.ref(BASE + '/inscrits').on('value', s => { inscrits = s.val() || {}; dessiner(); }, err);
     db.ref(BASE + '/scores').on('value', s => { scores = s.val() || {}; dessiner(); }, err);
   });
@@ -89,6 +91,7 @@
     $('tabs').innerHTML = presentes.map(d => '<button class="' + (d === onglet ? 'on' : '') + '" onclick="onglet=\'' + d + '\';dessiner()">' + MP.DISC[d] + '</button>').join('');
 
     const { classes, nonClasses } = MP.classement(inscrits, scores, onglet);
+    const tir = tirage[onglet], petite = new Set((tir && tir.ids) || []);
     const para = onglet === 'PC';
     $('clTitre').textContent = MP.DISC[onglet] + ' — ' + classes.length + ' classé(s) · ' + MP.FINALE[onglet] + ' qualifiés pour la finale';
 
@@ -101,10 +104,11 @@
         '<td><b>' + esc(l.i.nom) + '</b> ' + esc(l.i.prenom) + '</td><td>' + esc(l.i.club) + '</td>' +
         (para ? '<td>' + esc(l.i.cat || '') + '</td>' : '') +
         l.m.map(v => '<td class="num">' + (v === null ? '' : v) + '</td>').join('') +
-        '<td class="num total">' + l.total + '</td><td>' + (l.finale ? '<span class="badge b-finale">Finale</span>' : '') + '</td></tr>';
+        '<td class="num total">' + l.total + '</td><td>' + (l.finale ? '<span class="badge b-finale">Finale</span>' : petite.has(l.id) ? '<span class="badge b-valide">Petite finale</span>' : '') + '</td></tr>';
     });
     $('table').innerHTML = h;
 
+    $('clTitre').textContent += tir ? ' · petite finale tirée au sort le ' + MP.dateFr(tir.ts) : '';
     $('nonClasses').innerHTML = nonClasses.length
       ? '<h3 style="margin-top:22px;">Pas encore classés (3 matches validés obligatoires)</h3><div class="scroll"><table class="t">' +
         '<tr><th>Tireur</th><th>Club</th><th class="num">M1</th><th class="num">M2</th><th class="num">M3</th><th class="num">Validés</th></tr>' +

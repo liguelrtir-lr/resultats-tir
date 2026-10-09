@@ -6,7 +6,7 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- MATCH POSTAL — Administration (validation des scores, saisie directe, réglages, export) — v1.5 — 09/10/2026 -->
+<!-- MATCH POSTAL — Administration (validation des scores, saisie directe, réglages, export, finales) — v1.6 — 09/10/2026 -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
@@ -81,6 +81,14 @@
           <div><label for="rLimite">Date limite d'inscription</label><input id="rLimite" type="date"></div>
           <div><label for="rPeriode">Période des matches (texte libre)</label><input id="rPeriode" maxlength="80" placeholder="ex : du 1er novembre au 31 janvier"></div>
         </div>
+        <div class="row2">
+          <div><label for="rFDate">Date des finales</label><input id="rFDate" type="date"></div>
+          <div><label for="rFLieu">Lieu des finales</label><input id="rFLieu" maxlength="120" placeholder="ex : Stand de tir de …, adresse"></div>
+        </div>
+        <div class="row2">
+          <div><label for="rHPetite">Heure petite finale</label><input id="rHPetite" type="time"></div>
+          <div><label for="rHGrande">Heure grande finale</label><input id="rHGrande" type="time"></div>
+        </div>
         <label for="rClubs">Liste des clubs de la Ligue — une ligne par club : n° de club puis nom (<span id="rClubsN">0</span> clubs)</label>
         <textarea id="rClubs" rows="8" placeholder="ex :&#10;1166090 SCT Saint-Cyprien&#10;1166xxx SMTT Thuir&#10;…"></textarea>
         <div class="hint">Collez ici les 84 clubs, copiés depuis Excel (2 colonnes N° / Nom) ou l'extranet. Séparateur libre : tabulation, espace, « ; » ou « - ».
@@ -92,6 +100,14 @@
         <div id="rMsg"></div>
         <div class="btns"><button class="ok" type="button" onclick="enregistrerReglages()">Enregistrer les réglages</button>
           <button class="sec" type="button" onclick="exporterCSV()">⬇️ Exporter inscrits + contacts + scores (CSV)</button></div>
+      </details>
+
+      <details class="card" id="cardFinales">
+        <summary>🏆 Phase 2 — Finales : qualifiés, tirage au sort, invitations</summary>
+        <div id="finInfo" class="hint" style="margin-top:10px;"></div>
+        <div id="finales"></div>
+        <div class="hint">Le bouton ✉️ ouvre votre messagerie avec les invités en <b>copie cachée</b> et le texte prêt : relisez, puis envoyez.
+          Si votre messagerie ne s'ouvre pas, utilisez 📋 pour copier les adresses et le texte.</div>
       </details>
 
       <details class="card" id="cardClubs">
@@ -156,7 +172,7 @@
   let ouvert = null;    // { id, m }
   let ecoutes = [];
 
-  const VERSION_PAGE = 'v1.5 — 09/10/2026';   // ← à incrémenter à chaque modification de cette page
+  const VERSION_PAGE = 'v1.6 — 09/10/2026';   // ← à incrémenter à chaque modification de cette page
   document.querySelectorAll('.verTxt').forEach(e => e.textContent = VERSION_PAGE);
   $('saisonTxt').textContent = MP.saison();
   $('footClub').textContent = CONFIG.clubName || '';
@@ -190,6 +206,10 @@
     $('rTitre').value = settings.titre || '';
     $('rLimite').value = settings.dateLimite || '';
     $('rPeriode').value = settings.periode || '';
+    $('rFDate').value = settings.finaleDate || '2027-03-07';
+    $('rFLieu').value = settings.finaleLieu || '';
+    $('rHPetite').value = settings.heurePetite || '08:30';
+    $('rHGrande').value = settings.heureGrande || '09:45';
     const cm = settings.clubsNum || {};
     $('rClubs').value = Object.keys(cm).sort().map(n => n + '\t' + cm[n]).join('\n');
     $('rClubsN').textContent = Object.keys(cm).length;
@@ -198,7 +218,8 @@
   }
   function enregistrerReglages() {
     const st = { titre: $('rTitre').value.trim(), dateLimite: $('rLimite').value, periode: $('rPeriode').value.trim(),
-      ouvert: $('rOuvert').checked, saisieOuverte: $('rSaisie').checked };
+      ouvert: $('rOuvert').checked, saisieOuverte: $('rSaisie').checked,
+      finaleDate: $('rFDate').value, finaleLieu: $('rFLieu').value.trim(), heurePetite: $('rHPetite').value, heureGrande: $('rHGrande').value };
     st.clubsNum = {};
     const rejets = [];
     $('rClubs').value.split(/\r?\n/).forEach(l => {
@@ -209,7 +230,7 @@
       if (nom) st.clubsNum[num] = nom; else rejets.push(t);
     });
     $('rClubsErr').textContent = rejets.length ? ' ⚠️ ' + rejets.length + ' ligne(s) ignorée(s) faute de n° à 7 chiffres : ' + rejets.slice(0, 3).join(' | ') + (rejets.length > 3 ? '…' : '') : '';
-    db.ref(BASE + '/settings').set(st)
+    db.ref(BASE + '/settings').update(st)      // update : conserve le tirage au sort (settings/tirage)
       .then(() => msgIn('rMsg', 'Réglages enregistrés.', 'ok'))
       .catch(e => msgIn('rMsg', 'Refusé — ' + (e.code || e.message)));
   }
@@ -274,6 +295,108 @@
     });
     $('table').innerHTML = h;
     dessinerClubs();
+    dessinerFinales();
+  }
+
+  // ---------- Phase 2 : finales ----------
+  let contactsCache = null;
+  async function contacts() {
+    if (!contactsCache) contactsCache = (await db.ref(BASE + '/contacts').once('value')).val() || {};
+    return contactsCache;
+  }
+  function dateFinaleTxt() {
+    const d = settings.finaleDate || '2027-03-07';
+    return new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  }
+  const heureTxt = h => (h || '').replace(/^0(\d)/, '$1').replace(':', ' h ');
+  function listesFinales(disc) {
+    const { classes } = MP.classement(inscrits, scores, disc);
+    const grande = classes.filter(l => l.finale);
+    const tir = ((settings.tirage || {})[disc]) || null;
+    const petite = tir ? (tir.ids || []).map(id => classes.find(l => l.id === id)).filter(Boolean) : [];
+    const eligibles = classes.filter(l => !l.finale);
+    return { classes, grande, petite, eligibles, tir };
+  }
+  function dessinerFinales() {
+    if (!$('cardFinales').open) return;
+    $('finInfo').innerHTML = '📅 ' + esc(dateFinaleTxt()) + ' — petite finale ' + esc(heureTxt(settings.heurePetite || '08:30')) +
+      ', grande finale ' + esc(heureTxt(settings.heureGrande || '09:45')) + ' — 📍 ' + (settings.finaleLieu ? esc(settings.finaleLieu) : '<b style="color:var(--red)">lieu à renseigner dans ⚙️ Réglages</b>');
+    let h = '';
+    MP.ORDRE.forEach(d => {
+      const F = listesFinales(d);
+      const quota = MP.FINALE[d], qP = MP.PETITE[d];
+      h += '<h3 style="margin-top:18px;">' + MP.DISC[d] + '</h3>';
+      // Grande finale
+      h += '<div style="margin:6px 0;"><b>Grande finale</b> — ' + F.grande.length + ' qualifié(s) sur ' + quota +
+        (F.grande.length > quota ? ' <span class="badge b-attente">ex æquo au ' + quota + 'e rang</span>' : '') + ' ' +
+        (F.grande.length ? '<button class="ok" onclick="inviter(\'' + d + '\',\'grande\')">✉️ Inviter</button> <button class="sec" onclick="copier(\'' + d + '\',\'grande\')">📋 Copier</button>' : '') + '</div>';
+      h += F.grande.length ? '<div class="hint" style="margin-top:0;">' + F.grande.map(l => l.rang + '. ' + esc(l.i.nom + ' ' + l.i.prenom) + ' (' + l.total + ')').join(' · ') + '</div>' : '';
+      // Petite finale
+      if (qP) {
+        h += '<div style="margin:10px 0 6px;"><b>Petite finale</b> — tirage de ' + qP + ' parmi les ' + F.eligibles.length + ' non-qualifié(s) ayant leurs 3 matches ';
+        if (F.tir) {
+          h += '<span class="badge b-valide">tiré le ' + esc(MP.dateFr(F.tir.ts)) + '</span> ' +
+            '<button class="ok" onclick="inviter(\'' + d + '\',\'petite\')">✉️ Inviter</button> <button class="sec" onclick="copier(\'' + d + '\',\'petite\')">📋 Copier</button> ' +
+            '<button class="del" title="Annuler ce tirage" onclick="annulerTirage(\'' + d + '\')">↩️</button></div>' +
+            '<div class="hint" style="margin-top:0;">' + F.petite.map(l => esc(l.i.nom + ' ' + l.i.prenom)).join(' · ') + '</div>';
+        } else {
+          h += F.eligibles.length ? '<button class="ok" onclick="tirer(\'' + d + '\')">🎲 Tirer au sort</button></div>' : '</div>';
+        }
+      }
+    });
+    $('finales').innerHTML = h;
+  }
+  document.getElementById('cardFinales').addEventListener('toggle', dessinerFinales);
+
+  // Tirage équitable : mélange de Fisher-Yates avec le générateur aléatoire cryptographique du navigateur
+  function aleaInt(n) { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % n; }
+  function tirer(d) {
+    const F = listesFinales(d), q = MP.PETITE[d];
+    if (!confirm('Tirer au sort ' + Math.min(q, F.eligibles.length) + ' tireur(s) parmi ' + F.eligibles.length + ' pour la petite finale ' + MP.DISC[d] + ' ?\n\nÀ faire une fois TOUS les scores validés : le résultat est enregistré avec la date et l\'heure.')) return;
+    const pool = F.eligibles.map(l => l.id);
+    for (let k = pool.length - 1; k > 0; k--) { const j = aleaInt(k + 1); [pool[k], pool[j]] = [pool[j], pool[k]]; }
+    const ids = pool.slice(0, q);
+    db.ref(BASE + '/settings/tirage/' + d).set({ ids, eligibles: pool.length, ts: firebase.database.ServerValue.TIMESTAMP, par: (auth.currentUser && auth.currentUser.email) || '' })
+      .catch(e => alert('Refusé — ' + (e.code || e.message)));
+  }
+  function annulerTirage(d) {
+    if (!confirm('Annuler le tirage de la petite finale ' + MP.DISC[d] + ' ? (à ne faire qu\'en cas d\'erreur, avant l\'envoi des invitations)')) return;
+    db.ref(BASE + '/settings/tirage/' + d).remove().catch(e => alert('Refusé — ' + (e.code || e.message)));
+  }
+
+  async function messageInvitation(d, type) {
+    const F = listesFinales(d), liste = type === 'grande' ? F.grande : F.petite;
+    let c; try { c = await contacts(); } catch (e) { alert('Lecture des contacts refusée — ' + (e.code || e.message)); return null; }
+    const emails = [...new Set(liste.map(l => (c[l.id] || {}).email).filter(Boolean))];
+    const sans = liste.filter(l => !(c[l.id] || {}).email).map(l => l.i.nom + ' ' + l.i.prenom);
+    const titre = settings.titre || ('Match Postal ' + MP.saison());
+    const heure = heureTxt(type === 'grande' ? (settings.heureGrande || '09:45') : (settings.heurePetite || '08:30'));
+    const lieu = settings.finaleLieu || '(lieu communiqué prochainement)';
+    const nomF = type === 'grande' ? 'GRANDE FINALE' : 'PETITE FINALE';
+    const sujet = titre + ' — Invitation ' + (type === 'grande' ? 'à la grande finale' : 'à la petite finale') + ' — ' + MP.DISC[d];
+    const corps = 'Bonjour,\n\n' +
+      (type === 'grande'
+        ? 'Félicitations ! À l\'issue des qualifications du ' + titre + ', vous faites partie des ' + MP.FINALE[d] + ' premiers en ' + MP.DISC[d] + ' et vous êtes qualifié(e) pour la ' + nomF + '.'
+        : 'Vous avez participé aux 3 matches de qualification du ' + titre + ' en ' + MP.DISC[d] + ' et vous avez été tiré(e) au sort pour participer à la ' + nomF + '.') +
+      '\n\n📅 ' + dateFinaleTxt() + ' à ' + heure + '\n📍 ' + lieu +
+      '\n\nMerci de confirmer votre présence en répondant à ce message.' +
+      '\n\nClassement des qualifications : https://liguelrtir-lr.github.io/resultats-tir/mp_classement.html' +
+      '\n\nSportivement,\nLa Ligue de Tir Languedoc-Roussillon';
+    return { emails, sans, sujet, corps };
+  }
+  async function inviter(d, type) {
+    const m = await messageInvitation(d, type); if (!m) return;
+    if (m.sans.length) alert('Sans adresse e-mail : ' + m.sans.join(', '));
+    if (!m.emails.length) return;
+    const moi = (auth.currentUser && auth.currentUser.email) || '';
+    location.href = 'mailto:' + encodeURIComponent(moi) + '?bcc=' + m.emails.map(encodeURIComponent).join(',') +
+      '&subject=' + encodeURIComponent(m.sujet) + '&body=' + encodeURIComponent(m.corps);
+  }
+  async function copier(d, type) {
+    const m = await messageInvitation(d, type); if (!m) return;
+    const txt = 'Destinataires (copie cachée) :\n' + m.emails.join(', ') + '\n\nObjet : ' + m.sujet + '\n\n' + m.corps;
+    try { await navigator.clipboard.writeText(txt); alert('Copié : ' + m.emails.length + ' adresse(s), objet et texte.' + (m.sans.length ? '\nSans e-mail : ' + m.sans.join(', ') : '')); }
+    catch (e) { prompt('Copiez ce texte :', txt); }
   }
 
   // ---------- Récapitulatif par club ----------
