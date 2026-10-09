@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<!--
+  © 2026 Gérard GARCIA — Tous droits réservés.
+  Logiciel de gestion de compétitions de tir sportif (inscriptions, saisie, résultats).
+  Toute reproduction, copie, modification, diffusion ou réutilisation, totale ou partielle,
+  est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
+  intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
+-->
+<!-- MATCH POSTAL — Inscription publique — v1.1 — 09/10/2026 -->
+<!--
+  Données Firebase : matchPostal/<saison>/
+     settings           : { titre, ouvert (true/false), dateLimite "AAAA-MM-JJ" }   (optionnel)
+     inscrits/<id>      : { nom, prenom, licence, club, disc ('P'|'C'|'PC'), cat (para-tir seulement), ts }   (lecture publique)
+     contacts/<même id> : { email, tel }   (lecture réservée à l'admin connecté)
+  Saison : constante SAISON ci-dessous, ou ?s=2026-2027 dans l'adresse.
+-->
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>Inscription Match Postal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="config.js"></script>
+  <style>
+    :root { --bord:#3a0e14; --gold:#d99a1c; --bg:#faf5ed; --line:#efe7da; --muted:#64748b; --red:#c1271d; --green:#0f7a52; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:'Barlow',sans-serif; background:var(--bg); color:#0f1923; }
+    header { background:var(--bord); color:#fff; padding:16px; display:flex; align-items:center; gap:14px; }
+    header img { height:56px; width:56px; object-fit:contain; }
+    header h1 { font-family:'Rajdhani',sans-serif; margin:0; font-size:1.35rem; letter-spacing:.03em; }
+    header .sub { color:#f5c96a; font-weight:600; font-size:.95rem; text-transform:uppercase; }
+    header .ver { font-size:.7rem; opacity:.6; }
+    main { max-width:640px; margin:0 auto; padding:16px; }
+    .card { background:#fff; border:1px solid var(--line); border-radius:16px; padding:18px; margin-bottom:16px; }
+    h2 { font-family:'Rajdhani',sans-serif; font-size:1.15rem; margin:0 0 12px; color:var(--bord); text-transform:uppercase; letter-spacing:.04em; }
+    label { display:block; font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:10px 0 4px; font-weight:600; }
+    input, select { width:100%; padding:11px 12px; border:1px solid #d9cfbf; border-radius:10px; font-size:1rem; font-family:inherit; background:#fff; }
+    input:focus, select:focus { outline:2px solid var(--gold); border-color:var(--gold); }
+    .row2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    @media (max-width:420px) { .row2 { grid-template-columns:1fr; } }
+    .disc { display:grid; gap:10px; }
+    .disc label.opt { margin:0; border:2px solid #e5dccd; border-radius:12px; padding:13px 14px; font-size:1.05rem; text-transform:none; letter-spacing:0; color:#0f1923; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:10px; }
+    .disc input { width:auto; transform:scale(1.3); }
+    .disc label.opt:has(input:checked) { background:var(--bord); border-color:var(--bord); color:#fff; }
+    .disc label.opt small { font-weight:400; opacity:.75; margin-left:auto; font-size:.8rem; }
+    .info { font-size:.92rem; line-height:1.45; }
+    .info b { color:var(--bord); }
+    .hint { font-size:.85rem; color:var(--muted); margin-top:6px; }
+    .req { color:var(--red); }
+    button.main { width:100%; padding:15px; border:none; border-radius:14px; background:var(--gold); color:var(--bord); font-family:'Rajdhani',sans-serif; font-weight:700; font-size:1.15rem; letter-spacing:.05em; text-transform:uppercase; cursor:pointer; margin-top:16px; }
+    button.main:disabled { opacity:.5; cursor:wait; }
+    button.sec { width:100%; padding:12px; border:1px solid #d9cfbf; border-radius:12px; background:#fff; font-family:inherit; font-size:1rem; cursor:pointer; margin-top:10px; }
+    .msg { padding:12px 14px; border-radius:12px; margin-top:12px; font-weight:500; }
+    .msg.err { background:#fef2f2; color:#991b1b; border:1px solid #fecaca; }
+    .msg.ok { background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; }
+    .full { text-align:center; padding:30px 16px; }
+    .full .ico { font-size:3rem; }
+    .recap td { padding:4px 10px 4px 0; vertical-align:top; }
+    .recap td:first-child { color:var(--muted); }
+    .count { display:flex; gap:10px; flex-wrap:wrap; }
+    .count div { flex:1; min-width:110px; background:#f7f1e6; border-radius:12px; padding:10px; text-align:center; }
+    .count b { display:block; font-family:'Rajdhani',sans-serif; font-size:1.6rem; color:var(--bord); }
+    .count span { font-size:.78rem; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+    .hidden { display:none; }
+    footer { text-align:center; font-size:.75rem; color:var(--muted); padding:20px; }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="logo.png" alt="" onerror="this.style.display='none'">
+    <div>
+      <h1 id="titre">Match Postal</h1>
+      <div class="sub">Inscription — saison <span id="saisonTxt"></span></div>
+      <div class="ver">Version <span class="verTxt"></span></div>
+    </div>
+  </header>
+
+  <main>
+    <div id="screenLoading" class="card">Chargement…</div>
+    <div id="screenError" class="card hidden"><div class="msg err" id="errorText"></div></div>
+
+    <div id="screenForm" class="hidden">
+      <div class="card info">
+        <h2>Le principe</h2>
+        <b>Phase 1 — à domicile :</b> 3 matches de 60 coups (sur 600, points entiers) tirés dans votre club, sur 3 mois.
+        Classement <b>scratch</b> (toutes catégories mélangées), sauf en para-tir.
+        <b>Les 3 matches sont obligatoires</b> pour être classé.<br><br>
+        <b>Phase 2 — finales :</b> les 20 premiers au pistolet, les 10 premiers à la carabine et les 4 premiers
+        en para-tir carabine sont invités à la <b>finale</b>. Une <b>petite finale</b> est ensuite tirée au sort
+        parmi tous les autres tireurs ayant fait leurs 3 matches (20 pistolets, 10 carabines), quel que soit leur classement.
+        <div class="count" style="margin-top:14px;">
+          <div><b id="nP">–</b><span>Pistolet</span></div>
+          <div><b id="nC">–</b><span>Carabine</span></div>
+          <div><b id="nPC">–</b><span>Para-tir cara.</span></div>
+        </div>
+        <div class="hint" id="limiteTxt"></div>
+      </div>
+
+      <div id="closedCard" class="card full hidden"><div class="ico">⛔</div><div id="closedText" style="font-weight:600;"></div></div>
+
+      <form id="form" class="card" onsubmit="inscrire(event)" novalidate>
+        <h2>Le tireur</h2>
+        <div class="row2">
+          <div><label for="nom">Nom <span class="req">*</span></label><input id="nom" maxlength="40" autocomplete="family-name"></div>
+          <div><label for="prenom">Prénom <span class="req">*</span></label><input id="prenom" maxlength="40" autocomplete="given-name"></div>
+        </div>
+        <div class="row2">
+          <div><label for="licence">N° de licence <span class="req">*</span></label><input id="licence" maxlength="20" inputmode="numeric" autocomplete="off"></div>
+          <div><label for="club">Club <span class="req">*</span></label><input id="club" maxlength="60" autocomplete="organization"></div>
+        </div>
+
+        <h2 style="margin-top:20px;">Discipline(s)</h2>
+        <div class="disc">
+          <label class="opt"><input type="checkbox" name="disc" value="P">Pistolet 10 m <small>60 coups</small></label>
+          <label class="opt"><input type="checkbox" name="disc" value="C">Carabine 10 m <small>60 coups</small></label>
+          <label class="opt"><input type="checkbox" name="disc" value="PC">Para-tir Carabine 10 m <small>60 coups</small></label>
+        </div>
+        <div id="paraBox" class="hidden">
+          <label for="cat">Catégorie para-tir <span class="req">*</span></label>
+          <select id="cat"></select>
+        </div>
+        <div class="hint">Vous pouvez cocher plusieurs disciplines : chacune donne lieu à 3 matches et à un classement séparé.
+          Pistolet et carabine : classement scratch, toutes catégories mélangées.</div>
+
+        <h2 style="margin-top:20px;">Contact</h2>
+        <label for="email">E-mail <span class="req">*</span></label>
+        <input id="email" type="email" maxlength="80" autocomplete="email" placeholder="pour recevoir l'invitation aux finales">
+        <label for="tel">Téléphone (facultatif)</label>
+        <input id="tel" type="tel" maxlength="20" autocomplete="tel">
+        <div class="hint">Votre e-mail et votre téléphone ne sont pas affichés publiquement : seuls les organisateurs y ont accès.</div>
+
+        <div id="formMsg"></div>
+        <button class="main" id="btnSubmit" type="submit">M'inscrire</button>
+      </form>
+    </div>
+
+    <div id="screenDone" class="card hidden">
+      <div class="msg ok">✅ Inscription enregistrée !</div>
+      <table class="recap" id="recap" style="margin-top:12px;"></table>
+      <div class="hint" style="margin-top:10px;">Tirez vos 3 matches dans votre club avant la date limite et transmettez vos cibles / résultats selon les consignes de l'organisateur.</div>
+      <button class="sec" onclick="autreInscription()">Inscrire un autre tireur</button>
+    </div>
+  </main>
+  <footer><span id="footClub"></span> · Match Postal · <span class="verTxt"></span> · © 2026 Gérard GARCIA</footer>
+
+<script>
+  // ============ RÉGLAGES ============
+  const VERSION = 'v1.1 — 09/10/2026';
+  const SAISON_DEFAUT = '2026-2027';
+  const DISC = { P: 'Pistolet 10 m', C: 'Carabine 10 m', PC: 'Para-tir Carabine 10 m' };
+  // Catégories demandées uniquement pour le para-tir carabine (pistolet et carabine = scratch)
+  const CATS_PARA = ["HP R1/R2", "HP R3", "HP R4", "HP R5", "HP R6", "HP R7/R8", "HP R9", "HP VIS", "HP VIP"];
+  // ==================================
+
+  const params = new URLSearchParams(location.search);
+  const SAISON = (params.get('s') || SAISON_DEFAUT).replace(/[.#$\[\]\/]/g, '');
+  const BASE = 'matchPostal/' + SAISON;
+
+  firebase.initializeApp(CONFIG.firebase);
+  const db = firebase.database();
+  const auth = firebase.auth();
+
+  let inscrits = {};      // copie locale (contrôle des doublons + compteurs)
+  let ouvert = true;
+
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const norm = s => String(s || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ');
+  const licNorm = s => String(s || '').replace(/\s+/g, '').toUpperCase();
+  function show(id) { ['screenLoading', 'screenError', 'screenForm', 'screenDone'].forEach(s => $(s).classList.toggle('hidden', s !== id)); }
+  function fail(t) { $('errorText').textContent = t; show('screenError'); }
+  function msg(t, ok) { $('formMsg').innerHTML = t ? '<div class="msg ' + (ok ? 'ok' : 'err') + '">' + t + '</div>' : ''; }
+
+  // Initialisation de l'écran
+  document.querySelectorAll('.verTxt').forEach(e => e.textContent = VERSION);
+  $('saisonTxt').textContent = SAISON;
+  $('footClub').textContent = CONFIG.clubName || '';
+  $('cat').innerHTML = '<option value="">— choisir —</option>' + CATS_PARA.map(c => '<option>' + esc(c) + '</option>').join('');
+  const paraCoche = () => !!document.querySelector('input[name=disc][value=PC]:checked');
+  document.querySelectorAll('input[name=disc]').forEach(cb => cb.addEventListener('change', () => {
+    msg(''); $('paraBox').classList.toggle('hidden', !paraCoche());
+  }));
+
+  auth.onAuthStateChanged(user => {
+    if (!user) {
+      auth.signInAnonymously().catch(e => fail("Connexion impossible (connexion anonyme désactivée ?) — [" + (e.code || e.message) + "]"));
+      return;
+    }
+    db.ref(BASE + '/settings').on('value', s => {
+      const st = s.val() || {};
+      if (st.titre) { $('titre').textContent = st.titre; document.title = 'Inscription — ' + st.titre; }
+      ouvert = st.ouvert !== false;
+      let closedReason = '';
+      if (!ouvert) closedReason = 'Les inscriptions sont closes.';
+      if (st.dateLimite) {
+        const d = new Date(st.dateLimite + 'T23:59:59');
+        $('limiteTxt').textContent = 'Date limite d\'inscription : ' + d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+        if (new Date() > d) { ouvert = false; closedReason = 'La date limite d\'inscription est dépassée.'; }
+      }
+      $('closedCard').classList.toggle('hidden', ouvert);
+      $('form').classList.toggle('hidden', !ouvert);
+      $('closedText').textContent = closedReason;
+    });
+    db.ref(BASE + '/inscrits').on('value', s => {
+      inscrits = s.val() || {};
+      const n = { P: 0, C: 0, PC: 0 };
+      Object.values(inscrits).forEach(i => { if (n[i.disc] !== undefined) n[i.disc]++; });
+      $('nP').textContent = n.P; $('nC').textContent = n.C; $('nPC').textContent = n.PC;
+      if (!$('screenDone').classList.contains('hidden')) return;
+      show('screenForm');
+    }, e => fail("Lecture impossible — vérifiez les règles Firebase du nœud matchPostal. [" + (e.code || e.message) + "]"));
+  });
+
+  function dejaInscrit(lic, nom, prenom, disc) {
+    return Object.values(inscrits).some(i => i.disc === disc &&
+      ((lic && licNorm(i.licence) === lic) || (norm(i.nom) === norm(nom) && norm(i.prenom) === norm(prenom))));
+  }
+
+  async function inscrire(ev) {
+    ev.preventDefault();
+    msg('');
+    if (!ouvert) return msg('Les inscriptions sont closes.');
+    const nom = $('nom').value.trim().toUpperCase();
+    const prenom = $('prenom').value.trim().replace(/(^|[\s-])\S/g, c => c.toUpperCase());
+    const licence = licNorm($('licence').value);
+    const club = $('club').value.trim();
+    const cat = $('cat').value;
+    const email = $('email').value.trim().toLowerCase();
+    const tel = $('tel').value.trim();
+    const discs = [...document.querySelectorAll('input[name=disc]:checked')].map(c => c.value);
+
+    const manque = [];
+    if (!nom) manque.push('nom'); if (!prenom) manque.push('prénom'); if (!licence) manque.push('n° de licence');
+    if (!club) manque.push('club'); if (!email) manque.push('e-mail');
+    if (manque.length) return msg('Merci de compléter : ' + manque.join(', ') + '.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return msg('L\'adresse e-mail ne semble pas valide.');
+    if (!discs.length) return msg('Cochez au moins une discipline.');
+    if (discs.includes('PC') && !cat) return msg('Choisissez la catégorie para-tir.');
+
+    const deja = discs.filter(d => dejaInscrit(licence, nom, prenom, d));
+    const aFaire = discs.filter(d => !deja.includes(d));
+    if (!aFaire.length) return msg('Ce tireur est déjà inscrit en ' + deja.map(d => DISC[d]).join(' et ') + '.');
+
+    $('btnSubmit').disabled = true;
+    try {
+      for (const disc of aFaire) {
+        const ref = db.ref(BASE + '/inscrits').push();
+        const fiche = { nom, prenom, licence, club, disc, ts: firebase.database.ServerValue.TIMESTAMP };
+        if (disc === 'PC') fiche.cat = cat;
+        await ref.set(fiche);
+        await db.ref(BASE + '/contacts/' + ref.key).set(tel ? { email, tel } : { email });
+      }
+      $('recap').innerHTML =
+        row('Tireur', esc(nom + ' ' + prenom)) + row('Licence', esc(licence)) + row('Club', esc(club)) + (aFaire.includes('PC') ? row('Cat. para-tir', esc(cat)) : '') +
+        row('Inscrit en', aFaire.map(d => '<b>' + DISC[d] + '</b>').join('<br>')) +
+        (deja.length ? row('Déjà inscrit', deja.map(d => DISC[d]).join('<br>')) : '') +
+        row('E-mail', esc(email));
+      show('screenDone');
+      window.scrollTo(0, 0);
+    } catch (e) {
+      msg('Enregistrement refusé — [' + (e.code || e.message) + ']. Réessayez ou prévenez l\'organisateur.');
+    } finally {
+      $('btnSubmit').disabled = false;
+    }
+  }
+  function row(a, b) { return '<tr><td>' + a + '</td><td>' + b + '</td></tr>'; }
+
+  function autreInscription() {
+    ['nom', 'prenom', 'licence', 'email', 'tel'].forEach(id => $(id).value = '');
+    $('cat').value = '';
+    document.querySelectorAll('input[name=disc]').forEach(c => c.checked = false);   // le club est conservé
+    $('paraBox').classList.add('hidden');
+    msg('');
+    show('screenForm');
+    window.scrollTo(0, 0);
+  }
+</script>
+</body>
+</html>

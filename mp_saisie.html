@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<!--
+  © 2026 Gérard GARCIA — Tous droits réservés.
+  Logiciel de gestion de compétitions de tir sportif (inscriptions, saisie, résultats).
+  Toute reproduction, copie, modification, diffusion ou réutilisation, totale ou partielle,
+  est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
+  intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
+-->
+<!-- MATCH POSTAL — Envoi des scores par le tireur ou son club (avec photo de contrôle) — v1.0 — 09/10/2026 -->
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>Match Postal — Envoi des scores</title>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="config.js"></script>
+  <script src="mp_commun.js"></script>
+  <link rel="stylesheet" href="mp_style.css">
+  <style>
+    .match { display:flex; align-items:center; gap:10px; padding:12px 0; border-bottom:1px solid var(--line); }
+    .match:last-child { border-bottom:none; }
+    .match .lib { font-weight:600; min-width:78px; }
+    .match .sc { font-family:'Rajdhani',sans-serif; font-size:1.4rem; font-weight:700; color:var(--bord); min-width:48px; text-align:right; }
+    .match .act { margin-left:auto; }
+    .match .motif { font-size:.82rem; color:var(--red); }
+    .discCard h3 { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+    .total { font-size:.9rem; color:var(--muted); }
+    .photoBox { border:2px dashed #d9cfbf; border-radius:12px; padding:14px; text-align:center; cursor:pointer; background:#fffdf8; }
+    .photoBox img { max-width:100%; max-height:320px; border-radius:8px; margin-top:8px; }
+    input.big { font-family:'Rajdhani',sans-serif; font-size:2rem; font-weight:700; text-align:center; letter-spacing:.05em; }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="logo.png" alt="" onerror="this.style.display='none'">
+    <div>
+      <h1 id="titre">Match Postal</h1>
+      <div class="sub">Envoi des scores — saison <span id="saisonTxt"></span></div>
+      <div class="ver">Version <span class="verTxt"></span></div>
+    </div>
+  </header>
+
+  <main>
+    <div id="screenLoading" class="card">Chargement…</div>
+    <div id="screenError" class="card hidden"><div class="msg err" id="errorText"></div></div>
+    <div id="screenClosed" class="card hidden" style="text-align:center;padding:30px 16px;">
+      <div style="font-size:3rem;">⛔</div><div style="font-weight:600;">L'envoi des scores est fermé.</div>
+    </div>
+
+    <!-- 1. Identification -->
+    <form id="screenId" class="card hidden" onsubmit="identifier(event)" novalidate>
+      <h2>Identification du tireur</h2>
+      <div class="hint" style="margin-top:0;">Le tireur ou son club saisit le score de chaque match avec une photo de contrôle :
+        écran de la cible électronique ou feuille de comptage officielle. Le score est ensuite <b>validé par l'organisateur</b>.</div>
+      <div class="row2">
+        <div><label for="idLic">N° de licence <span class="req">*</span></label><input id="idLic" maxlength="20" inputmode="numeric" autocomplete="off"></div>
+        <div><label for="idNom">Nom <span class="req">*</span></label><input id="idNom" maxlength="40" autocomplete="off"></div>
+      </div>
+      <div id="idMsg"></div>
+      <button class="main" type="submit">Continuer</button>
+      <div class="hint" style="text-align:center;margin-top:12px;">Pas encore inscrit ? <a href="mp_inscription.html" id="lienInscr">Inscription</a></div>
+    </form>
+
+    <!-- 2. Tableau des matches du tireur -->
+    <div id="screenTireur" class="hidden">
+      <div class="card" style="display:flex;align-items:center;gap:10px;">
+        <div><div style="font-weight:700;font-size:1.1rem;" id="tNom"></div><div class="hint" style="margin:0;" id="tInfo"></div></div>
+        <button class="sec" style="margin-left:auto;" onclick="changerTireur()">Changer de tireur</button>
+      </div>
+      <div id="discList"></div>
+    </div>
+
+    <!-- 3. Saisie d'un match -->
+    <form id="screenMatch" class="card hidden" onsubmit="envoyer(event)" novalidate>
+      <h2 id="mTitre"></h2>
+      <label for="mScore">Score du match (sur 600, sans dixièmes) <span class="req">*</span></label>
+      <input id="mScore" class="big" inputmode="numeric" maxlength="3" autocomplete="off" placeholder="000">
+      <label>Photo de contrôle <span class="req">*</span></label>
+      <div class="photoBox" onclick="document.getElementById('mFile').click()">
+        <div id="photoTxt">📷 Prendre ou choisir une photo<br><span class="hint">écran de la cible électronique ou feuille de comptage officielle</span></div>
+        <img id="photoPrev" class="hidden" alt="">
+      </div>
+      <input id="mFile" type="file" accept="image/*" class="hidden" onchange="photoChoisie(this)">
+      <label for="mNote">Remarque (facultatif)</label>
+      <input id="mNote" maxlength="120" placeholder="ex : tiré le 14/11 au club de …, saisi par le club">
+      <div id="mMsg"></div>
+      <button class="main" id="btnEnvoyer" type="submit">Envoyer le score</button>
+      <button class="sec" type="button" style="width:100%;margin-top:10px;" onclick="retourTireur()">Annuler</button>
+    </form>
+  </main>
+  <footer><span id="footClub"></span> · Match Postal · <span class="verTxt"></span> · © 2026 Gérard GARCIA</footer>
+
+<script>
+  const BASE = MP.base();
+  firebase.initializeApp(CONFIG.firebase);
+  const db = firebase.database();
+  const auth = firebase.auth();
+  const $ = id => document.getElementById(id);
+  const esc = MP.esc;
+
+  let inscrits = {}, scores = {}, settings = {};
+  let tireur = null;          // { licence, nom }
+  let cible = null;           // { id, m } match en cours de saisie
+  let photoData = null;
+  let pret = { i: false, s: false, st: false };
+
+  document.querySelectorAll('.verTxt').forEach(e => e.textContent = MP.VERSION);
+  $('saisonTxt').textContent = MP.saison();
+  $('footClub').textContent = CONFIG.clubName || '';
+  $('lienInscr').href = 'mp_inscription.html' + location.search;
+
+  function show(id) {
+    ['screenLoading', 'screenError', 'screenClosed', 'screenId', 'screenTireur', 'screenMatch']
+      .forEach(s => $(s).classList.toggle('hidden', s !== id));
+  }
+  function fail(t) { $('errorText').textContent = t; show('screenError'); }
+  function msgIn(el, t, type) { $(el).innerHTML = t ? '<div class="msg ' + (type || 'err') + '">' + t + '</div>' : ''; }
+
+  auth.onAuthStateChanged(user => {
+    if (!user) {
+      auth.signInAnonymously().catch(e => fail("Connexion impossible (connexion anonyme désactivée ?) — [" + (e.code || e.message) + "]"));
+      return;
+    }
+    const err = e => fail("Lecture impossible — vérifiez les règles Firebase du nœud matchPostal. [" + (e.code || e.message) + "]");
+    db.ref(BASE + '/settings').on('value', s => { settings = s.val() || {}; pret.st = true; maj(); }, err);
+    db.ref(BASE + '/inscrits').on('value', s => { inscrits = s.val() || {}; pret.i = true; maj(); }, err);
+    db.ref(BASE + '/scores').on('value', s => { scores = s.val() || {}; pret.s = true; maj(); }, err);
+  });
+
+  function maj() {
+    if (!pret.i || !pret.s || !pret.st) return;
+    if (settings.titre) { $('titre').textContent = settings.titre; document.title = 'Scores — ' + settings.titre; }
+    if (settings.saisieOuverte === false) { show('screenClosed'); return; }
+    if (!$('screenMatch').classList.contains('hidden')) return;      // ne pas interrompre une saisie
+    if (tireur) afficherTireur(); else show('screenId');
+  }
+
+  function fichesDuTireur() {
+    return Object.entries(inscrits)
+      .filter(([, i]) => MP.licNorm(i.licence) === tireur.licence && MP.norm(i.nom) === tireur.nom)
+      .sort((a, b) => MP.ORDRE.indexOf(a[1].disc) - MP.ORDRE.indexOf(b[1].disc));
+  }
+
+  function identifier(ev) {
+    ev.preventDefault();
+    const licence = MP.licNorm($('idLic').value), nom = MP.norm($('idNom').value);
+    if (!licence || !nom) return msgIn('idMsg', 'Saisissez le n° de licence et le nom.');
+    tireur = { licence, nom };
+    if (!fichesDuTireur().length) {
+      tireur = null;
+      return msgIn('idMsg', 'Aucune inscription trouvée pour cette licence et ce nom. Vérifiez l\'orthographe ou <a href="mp_inscription.html' + location.search + '">inscrivez-vous</a>.');
+    }
+    msgIn('idMsg', '');
+    afficherTireur();
+  }
+
+  function afficherTireur() {
+    const fiches = fichesDuTireur();
+    if (!fiches.length) { tireur = null; show('screenId'); return; }
+    const i0 = fiches[0][1];
+    $('tNom').textContent = i0.nom + ' ' + i0.prenom;
+    $('tInfo').textContent = 'Licence ' + i0.licence + ' · ' + i0.club;
+    $('discList').innerHTML = fiches.map(([id, i]) => {
+      const sc = scores[id] || {};
+      let tot = 0, nbV = 0, lignes = '';
+      for (let m = 1; m <= MP.NB_MATCHES; m++) {
+        const x = sc[m];
+        let badge = '<span class="badge b-vide">Non envoyé</span>', val = '–', act = '', motif = '';
+        if (x) {
+          badge = '<span class="badge b-' + x.statut + '">' + (MP.STATUT[x.statut] || x.statut) + '</span>';
+          val = x.s;
+          if (x.statut === 'valide') { tot += x.s; nbV++; }
+          if (x.statut === 'refuse' && x.motif) motif = '<div class="motif">Motif : ' + esc(x.motif) + '</div>';
+        }
+        if (!x) act = '<button class="ok" onclick="ouvrirMatch(\'' + id + '\',' + m + ')">Saisir</button>';
+        else if (x.statut === 'attente') act = '<button class="sec" onclick="ouvrirMatch(\'' + id + '\',' + m + ')">Corriger</button>';
+        else if (x.statut === 'refuse') act = '<button class="ok" onclick="ouvrirMatch(\'' + id + '\',' + m + ')">Renvoyer</button>';
+        else act = '<span class="hint" style="margin:0;">🔒</span>';
+        lignes += '<div class="match"><div class="lib">Match ' + m + '</div><div class="sc">' + val + '</div>' +
+          '<div>' + badge + motif + '</div><div class="act">' + act + '</div></div>';
+      }
+      return '<div class="card discCard"><h3><span>' + MP.DISC[i.disc] + (i.cat ? ' <span class="hint">(' + esc(i.cat) + ')</span>' : '') +
+        '</span><span class="total">' + nbV + '/3 validés' + (nbV ? ' · ' + tot + ' pts' : '') + '</span></h3>' + lignes + '</div>';
+    }).join('') + '<div class="hint" style="text-align:center;">Un score « À valider » peut encore être corrigé. Une fois validé par l\'organisateur, il est verrouillé.</div>';
+    show('screenTireur');
+  }
+
+  function changerTireur() { tireur = null; $('idLic').value = ''; $('idNom').value = ''; show('screenId'); }
+
+  function ouvrirMatch(id, m) {
+    const i = inscrits[id];
+    const x = (scores[id] || {})[m];
+    cible = { id, m };
+    photoData = null;
+    $('mTitre').textContent = MP.DISC[i.disc] + ' — Match ' + m;
+    $('mScore').value = x && x.statut === 'attente' ? x.s : '';
+    $('mNote').value = x && x.statut === 'attente' && x.note ? x.note : '';
+    $('photoPrev').classList.add('hidden');
+    $('photoTxt').classList.remove('hidden');
+    $('mFile').value = '';
+    msgIn('mMsg', x && x.statut === 'attente' ? 'Ce score attend déjà sa validation : renvoyez-le avec une nouvelle photo pour le corriger.' : '', 'info');
+    show('screenMatch');
+    window.scrollTo(0, 0);
+  }
+  function retourTireur() { cible = null; afficherTireur(); window.scrollTo(0, 0); }
+
+  async function photoChoisie(inp) {
+    const f = inp.files && inp.files[0];
+    if (!f) return;
+    $('photoTxt').innerHTML = 'Préparation de la photo…';
+    try {
+      photoData = await MP.compresserPhoto(f);
+      $('photoPrev').src = photoData;
+      $('photoPrev').classList.remove('hidden');
+      $('photoTxt').innerHTML = '✅ Photo prête — toucher pour la changer';
+    } catch (e) {
+      photoData = null;
+      $('photoTxt').innerHTML = '⚠️ ' + esc(e.message) + '<br>Toucher pour réessayer';
+    }
+  }
+
+  async function envoyer(ev) {
+    ev.preventDefault();
+    if (!cible) return;
+    const s = MP.parseScore($('mScore').value);
+    if (s === null) return msgIn('mMsg', 'Score invalide : un nombre entier entre 0 et 600 (pas de dixièmes).');
+    if (!photoData) return msgIn('mMsg', 'La photo de contrôle est obligatoire.');
+    const actuel = (scores[cible.id] || {})[cible.m];
+    if (actuel && actuel.statut === 'valide') return msgIn('mMsg', 'Ce match est déjà validé.');
+    $('btnEnvoyer').disabled = true;
+    msgIn('mMsg', 'Envoi en cours…', 'info');
+    try {
+      await db.ref(BASE + '/preuves/' + cible.id + '/' + cible.m).set({ img: photoData, ts: firebase.database.ServerValue.TIMESTAMP });
+      const fiche = { s, statut: 'attente', par: 'tireur', ts: firebase.database.ServerValue.TIMESTAMP };
+      const note = $('mNote').value.trim();
+      if (note) fiche.note = note;
+      await db.ref(BASE + '/scores/' + cible.id + '/' + cible.m).set(fiche);
+      cible = null;
+      afficherTireur();
+      $('discList').insertAdjacentHTML('afterbegin', '<div class="msg ok" style="margin:0 0 16px;">✅ Score envoyé. Il apparaîtra au classement dès sa validation par l\'organisateur.</div>');
+      window.scrollTo(0, 0);
+    } catch (e) {
+      msgIn('mMsg', 'Envoi refusé — [' + (e.code || e.message) + ']. Si le match vient d\'être validé, il ne peut plus être modifié.');
+    } finally {
+      $('btnEnvoyer').disabled = false;
+    }
+  }
+</script>
+</body>
+</html>

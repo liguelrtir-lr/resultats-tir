@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<!--
+  © 2026 Gérard GARCIA — Tous droits réservés.
+  Logiciel de gestion de compétitions de tir sportif (inscriptions, saisie, résultats).
+  Toute reproduction, copie, modification, diffusion ou réutilisation, totale ou partielle,
+  est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
+  intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
+-->
+<!-- MATCH POSTAL — Classement public des qualifications — v1.0 — 09/10/2026 -->
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>Match Postal — Classement</title>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="config.js"></script>
+  <script src="mp_commun.js"></script>
+  <link rel="stylesheet" href="mp_style.css">
+  <style>
+    td.rang { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:1.2rem; color:var(--bord); width:40px; }
+    td.total { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:1.25rem; color:var(--bord); }
+    .legende { display:flex; gap:14px; flex-wrap:wrap; font-size:.85rem; color:var(--muted); margin-top:10px; }
+    @media print { header .right, .tabs, .noprint { display:none !important; } body { background:#fff; } .card { border:none; } }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="logo.png" alt="" onerror="this.style.display='none'">
+    <div>
+      <h1 id="titre">Match Postal</h1>
+      <div class="sub">Classement des qualifications — saison <span id="saisonTxt"></span></div>
+      <div class="ver">Version <span class="verTxt"></span> · mis à jour en direct</div>
+    </div>
+    <div class="right"><button class="hd" onclick="window.print()">🖨️ Imprimer</button></div>
+  </header>
+
+  <main class="wide">
+    <div id="screenLoading" class="card">Chargement…</div>
+    <div id="screenError" class="card hidden"><div class="msg err" id="errorText"></div></div>
+    <div id="screenCl" class="card hidden">
+      <div class="tabs" id="tabs"></div>
+      <h2 id="clTitre"></h2>
+      <div class="scroll"><table class="t" id="table"></table></div>
+      <div class="legende">
+        <span><span class="badge b-finale">Finale</span> qualifié(e) pour la finale</span>
+        <span>Classement scratch au total des 3 matches validés · départage : meilleur match, puis 2e, puis 3e</span>
+      </div>
+      <div id="nonClasses"></div>
+    </div>
+  </main>
+  <footer><span id="footClub"></span> · Match Postal · <span class="verTxt"></span> · © 2026 Gérard GARCIA</footer>
+
+<script>
+  const BASE = MP.base();
+  firebase.initializeApp(CONFIG.firebase);
+  const db = firebase.database();
+  const auth = firebase.auth();
+  const $ = id => document.getElementById(id);
+  const esc = MP.esc;
+
+  let inscrits = null, scores = null;
+  let onglet = new URLSearchParams(location.search).get('d') || 'P';
+  if (!MP.DISC[onglet]) onglet = 'P';
+
+  document.querySelectorAll('.verTxt').forEach(e => e.textContent = MP.VERSION);
+  $('saisonTxt').textContent = MP.saison();
+  $('footClub').textContent = CONFIG.clubName || '';
+
+  function fail(t) { $('errorText').textContent = t; $('screenLoading').classList.add('hidden'); $('screenError').classList.remove('hidden'); }
+
+  auth.onAuthStateChanged(user => {
+    if (!user) { auth.signInAnonymously().catch(e => fail('Connexion impossible — [' + (e.code || e.message) + ']')); return; }
+    const err = e => fail('Lecture impossible — [' + (e.code || e.message) + ']');
+    db.ref(BASE + '/settings/titre').on('value', s => { if (s.val()) { $('titre').textContent = s.val(); document.title = 'Classement — ' + s.val(); } });
+    db.ref(BASE + '/inscrits').on('value', s => { inscrits = s.val() || {}; dessiner(); }, err);
+    db.ref(BASE + '/scores').on('value', s => { scores = s.val() || {}; dessiner(); }, err);
+  });
+
+  function dessiner() {
+    if (!inscrits || !scores) return;
+    $('screenLoading').classList.add('hidden');
+    $('screenCl').classList.remove('hidden');
+    const presentes = MP.ORDRE.filter(d => d === 'P' || d === 'C' || Object.values(inscrits).some(i => i.disc === d));
+    $('tabs').innerHTML = presentes.map(d => '<button class="' + (d === onglet ? 'on' : '') + '" onclick="onglet=\'' + d + '\';dessiner()">' + MP.DISC[d] + '</button>').join('');
+
+    const { classes, nonClasses } = MP.classement(inscrits, scores, onglet);
+    const para = onglet === 'PC';
+    $('clTitre').textContent = MP.DISC[onglet] + ' — ' + classes.length + ' classé(s) · ' + MP.FINALE[onglet] + ' qualifiés pour la finale';
+
+    let h = '<tr><th>Rg</th><th>Tireur</th><th>Club</th>' + (para ? '<th>Cat.</th>' : '') +
+      '<th class="num">M1</th><th class="num">M2</th><th class="num">M3</th><th class="num">Total</th><th></th></tr>';
+    if (!classes.length) h += '<tr><td colspan="9" class="hint">Aucun tireur n\'a encore 3 matches validés.</td></tr>';
+    classes.forEach((l, n) => {
+      const sep = l.finale && classes[n + 1] && !classes[n + 1].finale;
+      h += '<tr class="' + (l.finale ? 'qualif' : '') + (sep ? ' sep' : '') + '"><td class="rang">' + l.rang + '</td>' +
+        '<td><b>' + esc(l.i.nom) + '</b> ' + esc(l.i.prenom) + '</td><td>' + esc(l.i.club) + '</td>' +
+        (para ? '<td>' + esc(l.i.cat || '') + '</td>' : '') +
+        l.m.map(v => '<td class="num">' + (v === null ? '' : v) + '</td>').join('') +
+        '<td class="num total">' + l.total + '</td><td>' + (l.finale ? '<span class="badge b-finale">Finale</span>' : '') + '</td></tr>';
+    });
+    $('table').innerHTML = h;
+
+    $('nonClasses').innerHTML = nonClasses.length
+      ? '<h3 style="margin-top:22px;">Pas encore classés (3 matches validés obligatoires)</h3><div class="scroll"><table class="t">' +
+        '<tr><th>Tireur</th><th>Club</th><th class="num">M1</th><th class="num">M2</th><th class="num">M3</th><th class="num">Validés</th></tr>' +
+        nonClasses.map(l => '<tr><td><b>' + esc(l.i.nom) + '</b> ' + esc(l.i.prenom) + '</td><td>' + esc(l.i.club) + '</td>' +
+          l.m.map(v => '<td class="num">' + (v === null ? '–' : v) + '</td>').join('') + '<td class="num">' + l.nb + '/3</td></tr>').join('') +
+        '</table></div>'
+      : '';
+  }
+</script>
+</body>
+</html>
