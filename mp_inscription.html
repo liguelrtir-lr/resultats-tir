@@ -6,11 +6,11 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- MATCH POSTAL — Inscription publique — v1.3 — 09/10/2026 -->
+<!-- MATCH POSTAL — Inscription publique — v1.4 — 09/10/2026 -->
 <!--
   Données Firebase : matchPostal/<saison>/
      settings           : { titre, ouvert (true/false), dateLimite "AAAA-MM-JJ" }   (optionnel)
-     inscrits/<id>      : { nom, prenom, licence, club, disc ('P'|'C'|'PC'), cat (para-tir seulement), ts }   (lecture publique)
+     inscrits/<id>      : { nom, prenom, licence, numClub (7 chiffres), club, disc ('P'|'C'|'PC'), cat (para-tir seulement), ts }   (lecture publique)
      contacts/<même id> : { email, tel }   (lecture réservée à l'admin connecté)
   Saison : constante SAISON ci-dessous, ou ?s=2026-2027 dans l'adresse.
 -->
@@ -118,13 +118,11 @@
         </div>
         <div class="row2">
           <div><label for="licence">N° de licence <span class="req">*</span></label><input id="licence" maxlength="20" inputmode="numeric" autocomplete="off"></div>
-          <div><label for="club">Club <span class="req">*</span></label><input id="club" maxlength="60" autocomplete="off" list="clubsList" placeholder="tapez la ville ou le sigle"><datalist id="clubsList"></datalist></div>
+          <div><label for="numClub">N° de club (7 chiffres) <span class="req">*</span></label><input id="numClub" maxlength="7" inputmode="numeric" autocomplete="off" placeholder="ex : 1166090"></div>
         </div>
-
-        <div id="clubHorsBox" class="hidden">
-          <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0;font-size:.9rem;color:#0f1923;">
-            <input type="checkbox" id="clubHors" style="width:auto;"> Mon club n'est pas dans la liste</label>
-        </div>
+        <label for="club">Nom du club <span class="req">*</span></label>
+        <input id="club" maxlength="60" autocomplete="off" placeholder="rempli automatiquement d'après le n° de club">
+        <div class="hint" id="clubInfo">Le n° de club figure sur votre licence.</div>
 
         <h2 style="margin-top:20px;">Discipline(s)</h2>
         <div class="disc">
@@ -167,7 +165,7 @@
 
 <script>
   // ============ RÉGLAGES ============
-  const VERSION = 'v1.3 — 09/10/2026';
+  const VERSION = 'v1.4 — 09/10/2026';
   const TARIF = 20;   // € — droit d'engagement au match postal
   const SAISON_DEFAUT = '2026-2027';
   const DISC = { P: 'Pistolet 10 m', C: 'Carabine 10 m', PC: 'Para-tir Carabine 10 m' };
@@ -185,8 +183,7 @@
 
   let inscrits = {};      // copie locale (contrôle des doublons + compteurs)
   let ouvert = true;
-  let clubsOfficiels = [];   // liste des clubs de la Ligue (réglée dans l'admin)
-  const cleClub = c => norm(c).replace(/[^a-z0-9]/g, '');
+  let clubsOfficiels = {};   // n° de club → nom officiel (liste réglée dans l'admin)
 
   const $ = id => document.getElementById(id);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -200,6 +197,18 @@
   document.querySelectorAll('.verTxt').forEach(e => e.textContent = VERSION);
   $('saisonTxt').textContent = SAISON;
   document.querySelectorAll('.tarif').forEach(e => e.textContent = TARIF);
+  // N° de club → nom du club (liste officielle)
+  function majClub() {
+    const n = $('numClub').value.replace(/\D/g, '');
+    const nom = clubsOfficiels[n];
+    if (nom) { $('club').value = nom; $('club').readOnly = true; $('clubInfo').innerHTML = '✅ Club reconnu'; return; }
+    $('club').readOnly = false;
+    if ($('club').dataset.auto === '1') $('club').value = '';
+    $('clubInfo').innerHTML = n.length === 7 && Object.keys(clubsOfficiels).length
+      ? '⚠️ N° de club absent de la liste de la Ligue : vérifiez-le, ou saisissez le nom du club.'
+      : 'Le n° de club figure sur votre licence.';
+  }
+  $('numClub').addEventListener('input', () => { $('numClub').value = $('numClub').value.replace(/\D/g, ''); $('club').dataset.auto = clubsOfficiels[$('numClub').value] ? '1' : $('club').dataset.auto; majClub(); });
   $('footClub').textContent = CONFIG.clubName || '';
   $('cat').innerHTML = '<option value="">— choisir —</option>' + CATS_PARA.map(c => '<option>' + esc(c) + '</option>').join('');
   const paraCoche = () => !!document.querySelector('input[name=disc][value=PC]:checked');
@@ -214,9 +223,8 @@
     }
     db.ref(BASE + '/settings').on('value', s => {
       const st = s.val() || {};
-      clubsOfficiels = Array.isArray(st.clubs) ? st.clubs : [];
-      $('clubsList').innerHTML = clubsOfficiels.map(c => '<option value="' + esc(c) + '">').join('');
-      $('clubHorsBox').classList.toggle('hidden', !clubsOfficiels.length);
+      clubsOfficiels = st.clubsNum || {};   // { "1166090": "SCT Saint-Cyprien", … }
+      majClub();
       if (st.titre) { $('titre').textContent = st.titre; document.title = 'Inscription — ' + st.titre; }
       ouvert = st.ouvert !== false;
       let closedReason = '';
@@ -253,6 +261,7 @@
     const prenom = $('prenom').value.trim().replace(/(^|[\s-])\S/g, c => c.toUpperCase());
     const licence = licNorm($('licence').value);
     let club = $('club').value.trim();
+    const numClub = $('numClub').value.replace(/\D/g, '');
     const cat = $('cat').value;
     const email = $('email').value.trim().toLowerCase();
     const tel = $('tel').value.trim();
@@ -260,14 +269,11 @@
 
     const manque = [];
     if (!nom) manque.push('nom'); if (!prenom) manque.push('prénom'); if (!licence) manque.push('n° de licence');
-    if (!club) manque.push('club'); if (!email) manque.push('e-mail');
+    if (!numClub) manque.push('n° de club'); if (!club) manque.push('nom du club'); if (!email) manque.push('e-mail');
     if (manque.length) return msg('Merci de compléter : ' + manque.join(', ') + '.');
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return msg('L\'adresse e-mail ne semble pas valide.');
-    if (club && clubsOfficiels.length && !$('clubHors').checked) {
-      const officiel = clubsOfficiels.find(c => cleClub(c) === cleClub(club));
-      if (!officiel) return msg('Choisissez votre club dans la liste proposée (tapez le nom de la ville ou le sigle, puis cliquez sur le club). S\'il n\'y figure pas, cochez « Mon club n\'est pas dans la liste ».');
-      club = officiel;      // orthographe officielle
-    }
+    if (numClub && !/^\d{7}$/.test(numClub)) return msg('Le n° de club doit comporter 7 chiffres (ex : 1166090).');
+    if (clubsOfficiels[numClub]) club = clubsOfficiels[numClub];      // orthographe officielle
     if (!discs.length) return msg('Cochez au moins une discipline.');
     if (discs.includes('PC') && !cat) return msg('Choisissez la catégorie para-tir.');
     if (!$('paye').checked) return msg('Cochez l\'attestation de paiement de l\'engagement (' + TARIF + ' €) à votre président de club.');
@@ -280,13 +286,13 @@
     try {
       for (const disc of aFaire) {
         const ref = db.ref(BASE + '/inscrits').push();
-        const fiche = { nom, prenom, licence, club, disc, attestePaiement: true, ts: firebase.database.ServerValue.TIMESTAMP };
+        const fiche = { nom, prenom, licence, numClub, club, disc, attestePaiement: true, ts: firebase.database.ServerValue.TIMESTAMP };
         if (disc === 'PC') fiche.cat = cat;
         await ref.set(fiche);
         await db.ref(BASE + '/contacts/' + ref.key).set(tel ? { email, tel } : { email });
       }
       $('recap').innerHTML =
-        row('Tireur', esc(nom + ' ' + prenom)) + row('Licence', esc(licence)) + row('Club', esc(club)) + (aFaire.includes('PC') ? row('Cat. para-tir', esc(cat)) : '') +
+        row('Tireur', esc(nom + ' ' + prenom)) + row('Licence', esc(licence)) + row('Club', esc(club) + ' (n° ' + esc(numClub) + ')') + (aFaire.includes('PC') ? row('Cat. para-tir', esc(cat)) : '') +
         row('Inscrit en', aFaire.map(d => '<b>' + DISC[d] + '</b>').join('<br>')) +
         (deja.length ? row('Déjà inscrit', deja.map(d => DISC[d]).join('<br>')) : '') +
         row('E-mail', esc(email)) + row('Engagement', 'paiement de ' + TARIF + ' € attesté (à régler au président du club)');
@@ -301,7 +307,7 @@
   function row(a, b) { return '<tr><td>' + a + '</td><td>' + b + '</td></tr>'; }
 
   function autreInscription() {
-    ['nom', 'prenom', 'licence', 'email', 'tel'].forEach(id => $(id).value = '');
+    ['nom', 'prenom', 'licence', 'email', 'tel'].forEach(id => $(id).value = '');   // n° et nom du club conservés
     $('cat').value = '';
     document.querySelectorAll('input[name=disc]').forEach(c => c.checked = false);   // le club est conservé
     $('paye').checked = false;

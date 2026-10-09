@@ -6,7 +6,7 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- MATCH POSTAL — Administration (validation des scores, saisie directe, réglages, export) — v1.4 — 09/10/2026 -->
+<!-- MATCH POSTAL — Administration (validation des scores, saisie directe, réglages, export) — v1.5 — 09/10/2026 -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
@@ -81,9 +81,10 @@
           <div><label for="rLimite">Date limite d'inscription</label><input id="rLimite" type="date"></div>
           <div><label for="rPeriode">Période des matches (texte libre)</label><input id="rPeriode" maxlength="80" placeholder="ex : du 1er novembre au 31 janvier"></div>
         </div>
-        <label for="rClubs">Liste des clubs de la Ligue — un club par ligne (<span id="rClubsN">0</span>)</label>
-        <textarea id="rClubs" rows="8" placeholder="ex :&#10;SCT Saint-Cyprien&#10;SMTT Thuir&#10;…"></textarea>
-        <div class="hint">Collez ici les 84 clubs (copier-coller depuis Excel ou l'extranet). Le formulaire d'inscription propose alors le club pendant la frappe et impose l'orthographe officielle.</div>
+        <label for="rClubs">Liste des clubs de la Ligue — une ligne par club : n° de club puis nom (<span id="rClubsN">0</span> clubs)</label>
+        <textarea id="rClubs" rows="8" placeholder="ex :&#10;1166090 SCT Saint-Cyprien&#10;1166xxx SMTT Thuir&#10;…"></textarea>
+        <div class="hint">Collez ici les 84 clubs, copiés depuis Excel (2 colonnes N° / Nom) ou l'extranet. Séparateur libre : tabulation, espace, « ; » ou « - ».
+          À l'inscription, le tireur tape son n° de club et le nom s'affiche tout seul. <span id="rClubsErr" style="color:var(--red)"></span></div>
         <div class="tools" style="margin-top:14px;">
           <label class="chk"><input type="checkbox" id="rOuvert"> Inscriptions ouvertes</label>
           <label class="chk"><input type="checkbox" id="rSaisie"> Envoi des scores ouvert</label>
@@ -155,7 +156,7 @@
   let ouvert = null;    // { id, m }
   let ecoutes = [];
 
-  const VERSION_PAGE = 'v1.4 — 09/10/2026';   // ← à incrémenter à chaque modification de cette page
+  const VERSION_PAGE = 'v1.5 — 09/10/2026';   // ← à incrémenter à chaque modification de cette page
   document.querySelectorAll('.verTxt').forEach(e => e.textContent = VERSION_PAGE);
   $('saisonTxt').textContent = MP.saison();
   $('footClub').textContent = CONFIG.clubName || '';
@@ -189,17 +190,25 @@
     $('rTitre').value = settings.titre || '';
     $('rLimite').value = settings.dateLimite || '';
     $('rPeriode').value = settings.periode || '';
-    $('rClubs').value = (settings.clubs || []).join('\n');
-    $('rClubsN').textContent = (settings.clubs || []).length;
+    const cm = settings.clubsNum || {};
+    $('rClubs').value = Object.keys(cm).sort().map(n => n + '\t' + cm[n]).join('\n');
+    $('rClubsN').textContent = Object.keys(cm).length;
     $('rOuvert').checked = settings.ouvert !== false;
     $('rSaisie').checked = settings.saisieOuverte !== false;
   }
   function enregistrerReglages() {
     const st = { titre: $('rTitre').value.trim(), dateLimite: $('rLimite').value, periode: $('rPeriode').value.trim(),
       ouvert: $('rOuvert').checked, saisieOuverte: $('rSaisie').checked };
-    const vus = new Set();
-    st.clubs = $('rClubs').value.split(/\r?\n/).map(c => c.replace(/\t/g, ' ').trim()).filter(c => c && !vus.has(cleClub(c)) && vus.add(cleClub(c)))
-      .sort((a, b) => a.localeCompare(b, 'fr'));
+    st.clubsNum = {};
+    const rejets = [];
+    $('rClubs').value.split(/\r?\n/).forEach(l => {
+      const t = l.trim(); if (!t) return;
+      const m = t.match(/^(\d{7})\s*[\t;,\-–:]?\s*(.+)$/) || t.match(/^(.+?)\s*[\t;,\-–:]?\s*(\d{7})$/);
+      if (!m) { rejets.push(t); return; }
+      const num = /^\d{7}$/.test(m[1]) ? m[1] : m[2], nom = (/^\d{7}$/.test(m[1]) ? m[2] : m[1]).replace(/^[\s;,\-–:]+|[\s;,\-–:]+$/g, '');
+      if (nom) st.clubsNum[num] = nom; else rejets.push(t);
+    });
+    $('rClubsErr').textContent = rejets.length ? ' ⚠️ ' + rejets.length + ' ligne(s) ignorée(s) faute de n° à 7 chiffres : ' + rejets.slice(0, 3).join(' | ') + (rejets.length > 3 ? '…' : '') : '';
     db.ref(BASE + '/settings').set(st)
       .then(() => msgIn('rMsg', 'Réglages enregistrés.', 'ok'))
       .catch(e => msgIn('rMsg', 'Refusé — ' + (e.code || e.message)));
@@ -273,7 +282,7 @@
   function calculClubs() {
     const clubs = {};
     Object.values(inscrits).forEach(i => {
-      const k = cleClub(i.club) || '?';
+      const k = i.numClub || ('nom:' + (cleClub(i.club) || '?'));
       const c = clubs[k] || (clubs[k] = { cle: k, noms: {}, licences: new Set(), P: 0, C: 0, PC: 0 });
       c.noms[i.club] = (c.noms[i.club] || 0) + 1;
       c.licences.add(MP.licNorm(i.licence) || MP.norm(i.nom + i.prenom));
@@ -283,40 +292,35 @@
     return Object.values(clubs).map(c => {
       const nom = Object.entries(c.noms).sort((a, b) => b[1] - a[1])[0][0];
       const eng = c.P + c.C + c.PC, tir = c.licences.size;
-      const off = settings.clubs || [];
-      return { nom, cle: c.cle, officiel: !off.length || off.some(o => cleClub(o) === c.cle),
+      const off = settings.clubsNum || {};
+      const num = c.cle.startsWith('nom:') ? '' : c.cle;
+      return { nom: off[num] || nom, num, cle: c.cle, officiel: !!off[num] || !Object.keys(off).length,
         tir, P: c.P, C: c.C, PC: c.PC, eng, montant: (parTireur ? tir : eng) * TARIF };
     }).sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
   }
   function dessinerClubs() {
     const L = calculClubs();
     const tot = L.reduce((t, c) => { ['tir', 'P', 'C', 'PC', 'eng', 'montant'].forEach(k => t[k] += c[k]); return t; }, { tir: 0, P: 0, C: 0, PC: 0, eng: 0, montant: 0 });
-    const ligne = (c, b) => '<tr' + (b ? ' style="font-weight:700;background:#f7f1e6"' : '') + '><td>' + (b ? 'TOTAL — ' + L.length + ' club(s)' : esc(c.nom) + (c.officiel ? '' : ' <span class="badge b-attente" title="Absent de la liste officielle">hors liste</span>') +
-        ' <button class="del" title="Renommer / regrouper avec un autre club" onclick="renommerClub(\'' + esc(c.cle) + '\')">✏️</button>') + '</td>' +
+    const ligne = (c, b) => '<tr' + (b ? ' style="font-weight:700;background:#f7f1e6"' : '') + '><td>' + (b ? 'TOTAL — ' + L.length + ' club(s)' : (c.num ? '<span class="hint" style="margin:0">' + c.num + '</span> ' : '<span class="badge b-attente">sans n°</span> ') + esc(c.nom) +
+        (c.officiel ? '' : ' <span class="badge b-attente" title="N° absent de la liste officielle">n° inconnu</span>') +
+        ' <button class="del" title="Corriger le n° de club de ces inscriptions" onclick="renommerClub(\'' + esc(c.cle) + '\')">✏️</button>') + '</td>' +
       ['tir', 'P', 'C', 'PC', 'eng'].map(k => '<td class="num">' + c[k] + '</td>').join('') + '<td class="num">' + c.montant + ' €</td></tr>';
-    $('recapClubs').innerHTML = '<table class="t" id="tableClubs"><tr><th>Club</th><th class="num">Tireurs</th><th class="num">Pistolet</th><th class="num">Carabine</th><th class="num">Para-tir</th><th class="num">Engagements</th><th class="num">Montant dû</th></tr>' +
+    $('recapClubs').innerHTML = '<table class="t" id="tableClubs"><tr><th>N° · Club</th><th class="num">Tireurs</th><th class="num">Pistolet</th><th class="num">Carabine</th><th class="num">Para-tir</th><th class="num">Engagements</th><th class="num">Montant dû</th></tr>' +
       (L.length ? L.map(c => ligne(c)).join('') + ligne(tot, true) : '<tr><td colspan="7" class="hint">Aucun inscrit.</td></tr>') + '</table>';
   }
-  // Renomme toutes les inscriptions d'un club (pour corriger « Thuir » → « SMTT Thuir », regrouper deux saisies, etc.)
+  // Corrige le n° de club de toutes les inscriptions d'une ligne du récapitulatif (regroupe avec le bon club)
   function renommerClub(cle) {
-    const ids = Object.keys(inscrits).filter(id => (cleClub(inscrits[id].club) || '?') === cle);
+    const ids = Object.keys(inscrits).filter(id => (inscrits[id].numClub || ('nom:' + (cleClub(inscrits[id].club) || '?'))) === cle);
     if (!ids.length) return;
-    const actuel = inscrits[ids[0]].club;
-    const off = settings.clubs || [];
-    let nouveau = prompt('Nouveau nom pour « ' + actuel + ' » (' + ids.length + ' inscription(s)).\n' +
-      (off.length ? 'Tapez le début du nom officiel (ville ou sigle) :' : 'Nom du club :'), actuel);
-    if (nouveau === null || !nouveau.trim()) return;
-    nouveau = nouveau.trim();
-    if (off.length) {
-      const exact = off.find(o => cleClub(o) === cleClub(nouveau));
-      const proches = off.filter(o => MP.norm(o).includes(MP.norm(nouveau)));
-      if (exact) nouveau = exact;
-      else if (proches.length === 1) nouveau = proches[0];
-      else if (proches.length > 1) { alert('Plusieurs clubs correspondent :\n- ' + proches.join('\n- ') + '\n\nRecommencez en étant plus précis.'); return; }
-      else if (!confirm('« ' + nouveau + ' » n\'est pas dans la liste officielle. L\'utiliser quand même ?')) return;
-    }
-    if (!confirm('Remplacer « ' + actuel + ' » par « ' + nouveau + ' » sur ' + ids.length + ' inscription(s) ?')) return;
-    const maj = {}; ids.forEach(id => maj['inscrits/' + id + '/club'] = nouveau);
+    const i0 = inscrits[ids[0]], off = settings.clubsNum || {};
+    let num = prompt('N° de club (7 chiffres) pour « ' + i0.club + ' » — ' + ids.length + ' inscription(s) :', i0.numClub || '');
+    if (num === null) return;
+    num = num.replace(/\D/g, '');
+    if (!/^\d{7}$/.test(num)) return alert('Le n° de club doit comporter 7 chiffres.');
+    let nom = off[num];
+    if (!nom) { nom = prompt('Ce n° n\'est pas dans la liste de la Ligue. Nom du club :', i0.club); if (!nom || !nom.trim()) return; nom = nom.trim(); }
+    if (!confirm('Mettre « ' + num + ' — ' + nom + ' » sur ' + ids.length + ' inscription(s) ?')) return;
+    const maj = {}; ids.forEach(id => { maj['inscrits/' + id + '/numClub'] = num; maj['inscrits/' + id + '/club'] = nom; });
     db.ref(BASE).update(maj).catch(e => alert('Refusé — ' + (e.code || e.message)));
   }
   function imprimerClubs() {
@@ -329,8 +333,8 @@
   function exporterClubs() {
     const q = v => '"' + String(v).replace(/"/g, '""') + '"';
     const L = calculClubs();
-    const csv = '\ufeff' + [['Club', 'Tireurs', 'Pistolet', 'Carabine', 'Para-tir', 'Engagements', 'Montant dû (€)'].map(q).join(';'),
-      ...L.map(c => [c.nom, c.tir, c.P, c.C, c.PC, c.eng, c.montant].map(q).join(';'))].join('\r\n');
+    const csv = '\ufeff' + [['N° club', 'Club', 'Tireurs', 'Pistolet', 'Carabine', 'Para-tir', 'Engagements', 'Montant dû (€)'].map(q).join(';'),
+      ...L.map(c => [c.num, c.nom, c.tir, c.P, c.C, c.PC, c.eng, c.montant].map(q).join(';'))].join('\r\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
     a.download = 'match_postal_' + MP.saison() + '_recap_clubs.csv';
@@ -422,7 +426,7 @@
     try { contacts = (await db.ref(BASE + '/contacts').once('value')).val() || {}; }
     catch (e) { return msgIn('rMsg', 'Lecture des contacts refusée — ' + (e.code || e.message)); }
     const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
-    const ent = ['Discipline', 'Nom', 'Prénom', 'Licence', 'Club', 'Catégorie para', 'E-mail', 'Téléphone',
+    const ent = ['Discipline', 'Nom', 'Prénom', 'Licence', 'N° club', 'Club', 'Catégorie para', 'E-mail', 'Téléphone',
       'Match 1', 'Statut 1', 'Match 2', 'Statut 2', 'Match 3', 'Statut 3', 'Total validé', 'Matches validés'];
     const lignes = Object.entries(inscrits)
       .sort((a, b) => MP.ORDRE.indexOf(a[1].disc) - MP.ORDRE.indexOf(b[1].disc) || (a[1].nom + a[1].prenom).localeCompare(b[1].nom + b[1].prenom, 'fr'))
@@ -434,7 +438,7 @@
           ms.push(x ? x.s : '', x ? MP.STATUT[x.statut] : '');
           if (x && x.statut === 'valide') { tot += x.s; nbV++; }
         }
-        return [MP.DISC[i.disc], i.nom, i.prenom, i.licence, i.club, i.cat || '', c.email || '', c.tel || '', ...ms, nbV ? tot : '', nbV].map(q).join(';');
+        return [MP.DISC[i.disc], i.nom, i.prenom, i.licence, i.numClub || '', i.club, i.cat || '', c.email || '', c.tel || '', ...ms, nbV ? tot : '', nbV].map(q).join(';');
       });
     const csv = '﻿' + [ent.map(q).join(';'), ...lignes].join('\r\n');
     const a = document.createElement('a');
