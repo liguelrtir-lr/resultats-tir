@@ -6,7 +6,7 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- MATCH POSTAL — Administration (validation des scores, saisie directe, réglages, export, finales) — v1.7 — 09/10/2026 -->
+<!-- MATCH POSTAL — Administration (validation des scores, saisie directe, réglages, export, finales) — v1.8 — 09/10/2026 -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
@@ -88,6 +88,12 @@
         <div class="row2">
           <div><label for="rHPetite">Heure petite finale</label><input id="rHPetite" type="time"></div>
           <div><label for="rHGrande">Heure grande finale</label><input id="rHGrande" type="time"></div>
+        </div>
+        <label>Nombre de remplaçants avertis (liste d'attente de la grande finale)</label>
+        <div class="tools">
+          <label class="chk">Pistolet <input id="rResP" type="number" min="0" max="20" style="width:70px;padding:6px;"></label>
+          <label class="chk">Carabine <input id="rResC" type="number" min="0" max="20" style="width:70px;padding:6px;"></label>
+          <label class="chk">Para-tir <input id="rResPC" type="number" min="0" max="20" style="width:70px;padding:6px;"></label>
         </div>
         <label for="rClubs">Liste des clubs de la Ligue — une ligne par club : n° de club puis nom (<span id="rClubsN">0</span> clubs)</label>
         <textarea id="rClubs" rows="8" placeholder="ex :&#10;1166090 SCT Saint-Cyprien&#10;1166xxx SMTT Thuir&#10;…"></textarea>
@@ -173,7 +179,7 @@
   let ouvert = null;    // { id, m }
   let ecoutes = [];
 
-  const VERSION_PAGE = 'v1.7 — 09/10/2026';   // ← à incrémenter à chaque modification de cette page
+  const VERSION_PAGE = 'v1.8 — 09/10/2026';   // ← à incrémenter à chaque modification de cette page
   document.querySelectorAll('.verTxt').forEach(e => e.textContent = VERSION_PAGE);
   $('saisonTxt').textContent = MP.saison();
   $('footClub').textContent = CONFIG.clubName || '';
@@ -211,6 +217,8 @@
     $('rFLieu').value = settings.finaleLieu || '';
     $('rHPetite').value = settings.heurePetite || '08:30';
     $('rHGrande').value = settings.heureGrande || '09:45';
+    const R = reserves();
+    $('rResP').value = R.P; $('rResC').value = R.C; $('rResPC').value = R.PC;
     const cm = settings.clubsNum || {};
     $('rClubs').value = Object.keys(cm).sort().map(n => n + '\t' + cm[n]).join('\n');
     $('rClubsN').textContent = Object.keys(cm).length;
@@ -220,7 +228,8 @@
   function enregistrerReglages() {
     const st = { titre: $('rTitre').value.trim(), dateLimite: $('rLimite').value, periode: $('rPeriode').value.trim(),
       ouvert: $('rOuvert').checked, saisieOuverte: $('rSaisie').checked,
-      finaleDate: $('rFDate').value, finaleLieu: $('rFLieu').value.trim(), heurePetite: $('rHPetite').value, heureGrande: $('rHGrande').value };
+      finaleDate: $('rFDate').value, finaleLieu: $('rFLieu').value.trim(), heurePetite: $('rHPetite').value, heureGrande: $('rHGrande').value,
+      reserves: { P: +$('rResP').value || 0, C: +$('rResC').value || 0, PC: +$('rResPC').value || 0 } };
     st.clubsNum = {};
     const rejets = [];
     $('rClubs').value.split(/\r?\n/).forEach(l => {
@@ -316,9 +325,11 @@
     const tir = ((settings.tirage || {})[disc]) || null;
     const petite = tir ? (tir.ids || []).map(id => classes.find(l => l.id === id)).filter(Boolean) : [];
     const eligibles = classes.filter(l => !l.finale);
-    return { classes, grande, petite, eligibles, tir };
+    const reserve = eligibles.slice(0, reserves()[disc]);     // les suivants au classement, dans l'ordre
+    return { classes, grande, petite, eligibles, tir, reserve };
   }
   // Boutons ✉️ / 📋 : toujours affichés, grisés tant que la liste est vide
+  function reserves() { return Object.assign({ P: 5, C: 5, PC: 2 }, settings.reserves || {}); }
   function boutonsMail(d, type, n) {
     if (!n) return '<button class="ok" disabled style="opacity:.4;cursor:not-allowed" title="Disponible dès qu\'il y aura des invités">✉️ Inviter</button> ' +
       '<button class="sec" disabled style="opacity:.4;cursor:not-allowed">📋 Copier</button>';
@@ -339,6 +350,11 @@
         (F.grande.length > quota ? ' <span class="badge b-attente">ex æquo au ' + quota + 'e rang</span>' : '') + ' ' +
         boutonsMail(d, 'grande', F.grande.length) + '</div>';
       h += F.grande.length ? '<div class="hint" style="margin-top:0;">' + F.grande.map(l => l.rang + '. ' + esc(l.i.nom + ' ' + l.i.prenom) + ' (' + l.total + ')').join(' · ') + '</div>' : '';
+      // Liste d'attente (remplaçants)
+      if (reserves()[d]) {
+        h += '<div style="margin:10px 0 6px;"><b>Liste d\'attente</b> — ' + F.reserve.length + ' remplaçant(s) sur ' + reserves()[d] + ' ' + boutonsMail(d, 'reserve', F.reserve.length) + '</div>';
+        h += F.reserve.length ? '<div class="hint" style="margin-top:0;">' + F.reserve.map((l, k) => 'R' + (k + 1) + ' : ' + l.rang + 'e ' + esc(l.i.nom + ' ' + l.i.prenom) + ' (' + l.total + ')').join(' · ') + '</div>' : '';
+      }
       // Petite finale
       if (qP) {
         h += '<div style="margin:10px 0 6px;"><b>Petite finale</b> — tirage de ' + qP + ' parmi les ' + F.eligibles.length + ' non-qualifié(s) ayant leurs 3 matches ';
@@ -374,15 +390,27 @@
   }
 
   async function messageInvitation(d, type) {
-    const F = listesFinales(d), liste = type === 'grande' ? F.grande : F.petite;
+    const F = listesFinales(d), liste = type === 'grande' ? F.grande : type === 'reserve' ? F.reserve : F.petite;
     let c; try { c = await contacts(); } catch (e) { alert('Lecture des contacts refusée — ' + (e.code || e.message)); return null; }
     const emails = [...new Set(liste.map(l => (c[l.id] || {}).email).filter(Boolean))];
     const sans = liste.filter(l => !(c[l.id] || {}).email).map(l => l.i.nom + ' ' + l.i.prenom);
     const titre = settings.titre || ('Match Postal ' + MP.saison());
-    const heure = heureTxt(type === 'grande' ? (settings.heureGrande || '09:45') : (settings.heurePetite || '08:30'));
+    const heure = heureTxt(type === 'petite' ? (settings.heurePetite || '08:30') : (settings.heureGrande || '09:45'));
     const lieu = settings.finaleLieu || '(lieu communiqué prochainement)';
     const nomF = type === 'grande' ? 'GRANDE FINALE' : 'PETITE FINALE';
-    const sujet = titre + ' — Invitation ' + (type === 'grande' ? 'à la grande finale' : 'à la petite finale') + ' — ' + MP.DISC[d];
+    const sujet = titre + ' — ' + (type === 'grande' ? 'Invitation à la grande finale' : type === 'reserve' ? 'Liste d\'attente de la grande finale' : 'Invitation à la petite finale') + ' — ' + MP.DISC[d];
+    if (type === 'reserve') {
+      const corpsR = 'Bonjour,\n\n' +
+        'À l\'issue des qualifications du ' + titre + ' en ' + MP.DISC[d] + ', vous êtes classé(e) juste après les ' + MP.FINALE[d] + ' qualifiés pour la GRANDE FINALE.' +
+        '\n\nVous figurez sur la liste d\'attente : en cas de désistement d\'un qualifié, les remplaçants seront appelés dans l\'ordre suivant :\n' +
+        liste.map((l, k) => '  ' + (k + 1) + '. ' + l.i.nom + ' ' + l.i.prenom + ' (' + l.rang + 'e, ' + l.total + ' pts)').join('\n') +
+        '\n\n📅 ' + dateFinaleTxt() + ' à ' + heure + '\n📍 ' + lieu +
+        '\n\nMerci de nous indiquer dès maintenant, en répondant à ce message, si vous seriez disponible pour être repêché(e).' +
+        '\nSi vous êtes par ailleurs tiré(e) au sort pour la petite finale, vous recevrez une invitation séparée.' +
+        '\n\nClassement des qualifications : https://liguelrtir-lr.github.io/resultats-tir/mp_classement.html' +
+        '\n\nSportivement,\nLa Ligue de Tir Languedoc-Roussillon';
+      return { emails, sans, sujet, corps: corpsR };
+    }
     const corps = 'Bonjour,\n\n' +
       (type === 'grande'
         ? 'Félicitations ! À l\'issue des qualifications du ' + titre + ', vous faites partie des ' + MP.FINALE[d] + ' premiers en ' + MP.DISC[d] + ' et vous êtes qualifié(e) pour la ' + nomF + '.'
