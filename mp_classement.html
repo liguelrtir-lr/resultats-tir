@@ -6,7 +6,7 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- MATCH POSTAL — Classement public des qualifications — v1.0 — 09/10/2026 -->
+<!-- MATCH POSTAL — Classement public des qualifications — v1.1 — 09/10/2026 -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
@@ -33,7 +33,7 @@
     <div>
       <h1 id="titre">Match Postal</h1>
       <div class="sub">Classement des qualifications — saison <span id="saisonTxt"></span></div>
-      <div class="ver">Version <span class="verTxt"></span> · mis à jour en direct</div>
+      <div class="ver">Version v1.1 · mis à jour en direct</div>
     </div>
     <div class="right"><button class="hd" onclick="window.print()">🖨️ Imprimer</button></div>
   </header>
@@ -84,7 +84,7 @@
     if (!inscrits || !scores) return;
     $('screenLoading').classList.add('hidden');
     $('screenCl').classList.remove('hidden');
-    const presentes = MP.ORDRE.filter(d => d === 'P' || d === 'C' || Object.values(inscrits).some(i => i.disc === d));
+    const presentes = MP.ORDRE;   // les 3 onglets toujours affichés
     $('tabs').innerHTML = presentes.map(d => '<button class="' + (d === onglet ? 'on' : '') + '" onclick="onglet=\'' + d + '\';dessiner()">' + MP.DISC[d] + '</button>').join('');
 
     const { classes, nonClasses } = MP.classement(inscrits, scores, onglet);
