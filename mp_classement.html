@@ -6,7 +6,7 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- MATCH POSTAL — Classement public des qualifications — v1.3 — 09/10/2026 -->
+<!-- MATCH POSTAL — Classement public des qualifications — v1.4 — 09/10/2026 -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
@@ -24,6 +24,12 @@
     td.rang { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:1.2rem; color:var(--bord); width:40px; }
     td.total { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:1.25rem; color:var(--bord); }
     .legende { display:flex; gap:14px; flex-wrap:wrap; font-size:.85rem; color:var(--muted); margin-top:10px; }
+    table.t tr.qualif td { background:#fde68a; }            /* grande finale : jaune */
+    table.t tr.petite td { background:#bbf7d0; }            /* petite finale : vert */
+    .boxPetite { margin-top:22px; border:2px solid #16a34a; background:#f0fdf4; border-radius:14px; padding:14px 16px; }
+    .boxPetite h3 { color:#166534; }
+    .boxPetite table.t td { background:#dcfce7; }
+    @media print { table.t tr.qualif td, table.t tr.petite td, .boxPetite, .boxPetite table.t td { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
     @media print { header .right, .tabs, .noprint { display:none !important; } body { background:#fff; } .card { border:none; } }
   </style>
 </head>
@@ -47,9 +53,10 @@
       <div class="scroll"><table class="t" id="table"></table></div>
       <div class="legende">
         <span><span class="badge b-finale">Finale</span> qualifié(e) pour la grande finale</span>
-        <span><span class="badge b-valide">Petite finale</span> tiré(e) au sort pour la petite finale</span>
+        <span><span class="badge b-valide">Petite finale</span> tiré(e) au sort pour la petite finale (liste en vert sous le classement)</span>
         <span>Classement scratch au total des 3 matches validés · départage : meilleur match, puis 2e, puis 3e</span>
       </div>
+      <div id="petiteFinale"></div>
       <div id="nonClasses"></div>
     </div>
   </main>
@@ -67,7 +74,7 @@
   let onglet = new URLSearchParams(location.search).get('d') || 'P';
   if (!MP.DISC[onglet]) onglet = 'P';
 
-  const VERSION_PAGE = 'v1.3 — 09/10/2026';   // ← à incrémenter à chaque modification de cette page
+  const VERSION_PAGE = 'v1.4 — 09/10/2026';   // ← à incrémenter à chaque modification de cette page
   document.querySelectorAll('.verTxt').forEach(e => e.textContent = VERSION_PAGE);
   $('saisonTxt').textContent = MP.saison();
   $('footClub').textContent = CONFIG.clubName || '';
@@ -100,7 +107,7 @@
     if (!classes.length) h += '<tr><td colspan="9" class="hint">Aucun tireur n\'a encore 3 matches validés.</td></tr>';
     classes.forEach((l, n) => {
       const sep = l.finale && classes[n + 1] && !classes[n + 1].finale;
-      h += '<tr class="' + (l.finale ? 'qualif' : '') + (sep ? ' sep' : '') + '"><td class="rang">' + l.rang + '</td>' +
+      h += '<tr class="' + (l.finale ? 'qualif' : petite.has(l.id) ? 'petite' : '') + (sep ? ' sep' : '') + '"><td class="rang">' + l.rang + '</td>' +
         '<td><b>' + esc(l.i.nom) + '</b> ' + esc(l.i.prenom) + '</td><td>' + esc(l.i.club) + '</td>' +
         (para ? '<td>' + esc(l.i.cat || '') + '</td>' : '') +
         l.m.map(v => '<td class="num">' + (v === null ? '' : v) + '</td>').join('') +
@@ -109,6 +116,15 @@
     $('table').innerHTML = h;
 
     $('clTitre').textContent += tir ? ' · petite finale tirée au sort le ' + MP.dateFr(tir.ts) : '';
+    // Liste des tirés au sort (petite finale), en vert, sous le classement
+    const tires = classes.filter(l => petite.has(l.id)).sort((a, b) => a.i.nom.localeCompare(b.i.nom, 'fr'));
+    $('petiteFinale').innerHTML = !MP.PETITE[onglet] ? '' : tir
+      ? '<div class="boxPetite"><h3>🎲 Petite finale — ' + MP.DISC[onglet] + ' : ' + tires.length + ' tireur(s) tiré(s) au sort le ' + esc(MP.dateFr(tir.ts)) + '</h3>' +
+        '<div class="hint" style="margin:0 0 8px;">Tirage parmi les ' + (tir.eligibles || '') + ' non-qualifiés ayant tiré leurs 3 matches, quel que soit leur classement.</div>' +
+        '<div class="scroll"><table class="t"><tr><th>Tireur</th><th>Club</th><th class="num">Total qualif.</th></tr>' +
+        tires.map(l => '<tr><td><b>' + esc(l.i.nom) + '</b> ' + esc(l.i.prenom) + '</td><td>' + esc(l.i.club) + '</td><td class="num">' + l.total + '</td></tr>').join('') +
+        '</table></div></div>'
+      : '<div class="boxPetite"><h3>🎲 Petite finale — ' + MP.DISC[onglet] + '</h3><div class="hint" style="margin:0;">Le tirage au sort de ' + MP.PETITE[onglet] + ' tireurs aura lieu à la clôture des qualifications.</div></div>';
     $('nonClasses').innerHTML = nonClasses.length
       ? '<h3 style="margin-top:22px;">Pas encore classés (3 matches validés obligatoires)</h3><div class="scroll"><table class="t">' +
         '<tr><th>Tireur</th><th>Club</th><th class="num">M1</th><th class="num">M2</th><th class="num">M3</th><th class="num">Validés</th></tr>' +
