@@ -4,7 +4,7 @@
   Voir le fichier LICENCE.
 */
 // ============================================================
-//  MATCH POSTAL — fonctions communes (v1.0 — 09/10/2026)
+//  MATCH POSTAL — fonctions communes (v1.1 — 09/10/2026)
 //  Utilisé par mp_inscription.html, mp_saisie.html, mp_admin.html, mp_classement.html
 //  Données Firebase : matchPostal/<saison>/
 //     settings               : { titre, ouvert, dateLimite, saisieOuverte, periode }
@@ -15,14 +15,14 @@
 //     preuves/<id>/<1|2|3>   : { img (photo JPEG compressée, data URL), ts }   (admin seulement)
 // ============================================================
 const MP = {
-  VERSION: 'v1.0 — 09/10/2026',
+  VERSION: 'v1.1 — 09/10/2026',
   SAISON_DEFAUT: '2026-2027',
   NB_MATCHES: 3,
   MAX: 600,
   DISC: { P: 'Pistolet 10 m', C: 'Carabine 10 m', PC: 'Para-tir Carabine 10 m' },
   DISC_COURT: { P: 'Pistolet', C: 'Carabine', PC: 'Para-tir cara.' },
   ORDRE: ['P', 'C', 'PC'],
-  FINALE: { P: 20, C: 10, PC: 4 },        // qualifiés pour la finale
+  FINALE: { P: 19, C: 9, PC: 4 },         // qualifiés pour la finale
   PETITE: { P: 20, C: 10, PC: 0 },        // tirés au sort pour la petite finale (pas de para-tir)
   STATUT: { attente: 'À valider', valide: 'Validé', refuse: 'Refusé' },
 
