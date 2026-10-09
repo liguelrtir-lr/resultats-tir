@@ -6,7 +6,7 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- MATCH POSTAL — Inscription publique — v1.1 — 09/10/2026 -->
+<!-- MATCH POSTAL — Inscription publique — v1.3 — 09/10/2026 -->
 <!--
   Données Firebase : matchPostal/<saison>/
      settings           : { titre, ouvert (true/false), dateLimite "AAAA-MM-JJ" }   (optionnel)
@@ -100,6 +100,14 @@
         <div class="hint" id="limiteTxt"></div>
       </div>
 
+      <div class="card info" style="border:2px solid var(--gold);background:#fffaf0;">
+        <h2>💶 Droit d'engagement : <span class="tarif"></span> €</h2>
+        L'engagement au match postal est de <b><span class="tarif"></span> €</b>.
+        Chaque tireur <b>règle ce montant à son président de club</b>, qui reverse ensuite
+        l'ensemble des engagements de son club <b>à la Ligue par virement</b>.<br><br>
+        En vous inscrivant, vous attestez avoir réglé votre engagement à votre président de club.
+      </div>
+
       <div id="closedCard" class="card full hidden"><div class="ico">⛔</div><div id="closedText" style="font-weight:600;"></div></div>
 
       <form id="form" class="card" onsubmit="inscrire(event)" novalidate>
@@ -110,7 +118,12 @@
         </div>
         <div class="row2">
           <div><label for="licence">N° de licence <span class="req">*</span></label><input id="licence" maxlength="20" inputmode="numeric" autocomplete="off"></div>
-          <div><label for="club">Club <span class="req">*</span></label><input id="club" maxlength="60" autocomplete="organization"></div>
+          <div><label for="club">Club <span class="req">*</span></label><input id="club" maxlength="60" autocomplete="off" list="clubsList" placeholder="tapez la ville ou le sigle"><datalist id="clubsList"></datalist></div>
+        </div>
+
+        <div id="clubHorsBox" class="hidden">
+          <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0;font-size:.9rem;color:#0f1923;">
+            <input type="checkbox" id="clubHors" style="width:auto;"> Mon club n'est pas dans la liste</label>
         </div>
 
         <h2 style="margin-top:20px;">Discipline(s)</h2>
@@ -133,6 +146,11 @@
         <input id="tel" type="tel" maxlength="20" autocomplete="tel">
         <div class="hint">Votre e-mail et votre téléphone ne sont pas affichés publiquement : seuls les organisateurs y ont accès.</div>
 
+        <label class="opt" style="display:flex;gap:10px;align-items:flex-start;text-transform:none;letter-spacing:0;font-size:.95rem;color:#0f1923;margin-top:18px;border:2px solid #e5dccd;border-radius:12px;padding:12px;cursor:pointer;">
+          <input type="checkbox" id="paye" style="width:auto;transform:scale(1.3);margin-top:3px;">
+          <span>J'atteste avoir réglé mon engagement de <b><span class="tarif"></span> €</b> à mon président de club,
+          qui le reversera à la Ligue par virement. <span class="req">*</span></span>
+        </label>
         <div id="formMsg"></div>
         <button class="main" id="btnSubmit" type="submit">M'inscrire</button>
       </form>
@@ -149,7 +167,8 @@
 
 <script>
   // ============ RÉGLAGES ============
-  const VERSION = 'v1.1 — 09/10/2026';
+  const VERSION = 'v1.3 — 09/10/2026';
+  const TARIF = 20;   // € — droit d'engagement au match postal
   const SAISON_DEFAUT = '2026-2027';
   const DISC = { P: 'Pistolet 10 m', C: 'Carabine 10 m', PC: 'Para-tir Carabine 10 m' };
   // Catégories demandées uniquement pour le para-tir carabine (pistolet et carabine = scratch)
@@ -166,6 +185,8 @@
 
   let inscrits = {};      // copie locale (contrôle des doublons + compteurs)
   let ouvert = true;
+  let clubsOfficiels = [];   // liste des clubs de la Ligue (réglée dans l'admin)
+  const cleClub = c => norm(c).replace(/[^a-z0-9]/g, '');
 
   const $ = id => document.getElementById(id);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -178,6 +199,7 @@
   // Initialisation de l'écran
   document.querySelectorAll('.verTxt').forEach(e => e.textContent = VERSION);
   $('saisonTxt').textContent = SAISON;
+  document.querySelectorAll('.tarif').forEach(e => e.textContent = TARIF);
   $('footClub').textContent = CONFIG.clubName || '';
   $('cat').innerHTML = '<option value="">— choisir —</option>' + CATS_PARA.map(c => '<option>' + esc(c) + '</option>').join('');
   const paraCoche = () => !!document.querySelector('input[name=disc][value=PC]:checked');
@@ -192,6 +214,9 @@
     }
     db.ref(BASE + '/settings').on('value', s => {
       const st = s.val() || {};
+      clubsOfficiels = Array.isArray(st.clubs) ? st.clubs : [];
+      $('clubsList').innerHTML = clubsOfficiels.map(c => '<option value="' + esc(c) + '">').join('');
+      $('clubHorsBox').classList.toggle('hidden', !clubsOfficiels.length);
       if (st.titre) { $('titre').textContent = st.titre; document.title = 'Inscription — ' + st.titre; }
       ouvert = st.ouvert !== false;
       let closedReason = '';
@@ -227,7 +252,7 @@
     const nom = $('nom').value.trim().toUpperCase();
     const prenom = $('prenom').value.trim().replace(/(^|[\s-])\S/g, c => c.toUpperCase());
     const licence = licNorm($('licence').value);
-    const club = $('club').value.trim();
+    let club = $('club').value.trim();
     const cat = $('cat').value;
     const email = $('email').value.trim().toLowerCase();
     const tel = $('tel').value.trim();
@@ -238,8 +263,14 @@
     if (!club) manque.push('club'); if (!email) manque.push('e-mail');
     if (manque.length) return msg('Merci de compléter : ' + manque.join(', ') + '.');
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return msg('L\'adresse e-mail ne semble pas valide.');
+    if (club && clubsOfficiels.length && !$('clubHors').checked) {
+      const officiel = clubsOfficiels.find(c => cleClub(c) === cleClub(club));
+      if (!officiel) return msg('Choisissez votre club dans la liste proposée (tapez le nom de la ville ou le sigle, puis cliquez sur le club). S\'il n\'y figure pas, cochez « Mon club n\'est pas dans la liste ».');
+      club = officiel;      // orthographe officielle
+    }
     if (!discs.length) return msg('Cochez au moins une discipline.');
     if (discs.includes('PC') && !cat) return msg('Choisissez la catégorie para-tir.');
+    if (!$('paye').checked) return msg('Cochez l\'attestation de paiement de l\'engagement (' + TARIF + ' €) à votre président de club.');
 
     const deja = discs.filter(d => dejaInscrit(licence, nom, prenom, d));
     const aFaire = discs.filter(d => !deja.includes(d));
@@ -249,7 +280,7 @@
     try {
       for (const disc of aFaire) {
         const ref = db.ref(BASE + '/inscrits').push();
-        const fiche = { nom, prenom, licence, club, disc, ts: firebase.database.ServerValue.TIMESTAMP };
+        const fiche = { nom, prenom, licence, club, disc, attestePaiement: true, ts: firebase.database.ServerValue.TIMESTAMP };
         if (disc === 'PC') fiche.cat = cat;
         await ref.set(fiche);
         await db.ref(BASE + '/contacts/' + ref.key).set(tel ? { email, tel } : { email });
@@ -258,7 +289,7 @@
         row('Tireur', esc(nom + ' ' + prenom)) + row('Licence', esc(licence)) + row('Club', esc(club)) + (aFaire.includes('PC') ? row('Cat. para-tir', esc(cat)) : '') +
         row('Inscrit en', aFaire.map(d => '<b>' + DISC[d] + '</b>').join('<br>')) +
         (deja.length ? row('Déjà inscrit', deja.map(d => DISC[d]).join('<br>')) : '') +
-        row('E-mail', esc(email));
+        row('E-mail', esc(email)) + row('Engagement', 'paiement de ' + TARIF + ' € attesté (à régler au président du club)');
       show('screenDone');
       window.scrollTo(0, 0);
     } catch (e) {
@@ -273,6 +304,7 @@
     ['nom', 'prenom', 'licence', 'email', 'tel'].forEach(id => $(id).value = '');
     $('cat').value = '';
     document.querySelectorAll('input[name=disc]').forEach(c => c.checked = false);   // le club est conservé
+    $('paye').checked = false;
     $('paraBox').classList.add('hidden');
     msg('');
     show('screenForm');
