@@ -6,7 +6,7 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- MATCH POSTAL — Administration (validation des scores, saisie directe, réglages, export) — v1.0 — 09/10/2026 -->
+<!-- MATCH POSTAL — Administration (validation des scores, saisie directe, réglages, export) — v1.1 — 09/10/2026 -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
@@ -314,7 +314,9 @@
     const i = inscrits[id];
     if (!confirm('Supprimer l\'inscription de ' + i.nom + ' ' + i.prenom + ' en ' + MP.DISC[i.disc] + ' (avec ses scores et photos) ?')) return;
     const maj = {};
-    ['inscrits', 'contacts', 'scores', 'preuves'].forEach(n => maj[n + '/' + id] = null);
+    // Les règles Firebase protègent scores et photos match par match : on efface donc chaque match un par un
+    ['inscrits', 'contacts'].forEach(n => maj[n + '/' + id] = null);
+    for (let m = 1; m <= MP.NB_MATCHES; m++) { maj['scores/' + id + '/' + m] = null; maj['preuves/' + id + '/' + m] = null; }
     db.ref(BASE).update(maj).catch(e => alert('Refusé — ' + (e.code || e.message)));
   }
 
