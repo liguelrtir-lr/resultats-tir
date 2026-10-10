@@ -6,7 +6,7 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- LIGUE LR — version v2.14 — 02/10/2026 -->
+<!-- LIGUE LR — version v2.15 — 10/10/2026 -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
@@ -584,7 +584,7 @@
     <button class="btn-create" onclick="openCreateModal()">+ Nouvelle Compétition</button>
     <button class="btn-create" style="margin-top:12px; background:#fff; color:#3a0e14; box-shadow:none;" onclick="openCreate12Modal()">👥 + 12 h par équipes</button>
     <button class="btn-logout" onclick="doLogout()" style="margin-top:auto;">⎋ Déconnexion</button>
-    <div class="sidebar-footer"><span id="footerClub"></span> · v2.14 — 02/10/2026<br>© 2026 Gérard GARCIA — Tous droits réservés</div>
+    <div class="sidebar-footer"><span id="footerClub"></span> · v2.15 — 10/10/2026<br>© 2026 Gérard GARCIA — Tous droits réservés</div>
   </aside>
 
   <main class="main-content">
@@ -1301,6 +1301,7 @@
               <button onclick="openQr('${code}','resultats')" class="btn-act btn-qr" style="grid-column: span 2;">🏆 QR Résultats</button>
               <a href="?series=${encodeURIComponent(code)}" target="_blank" class="btn-act btn-slots">🎟️ Séries</a>
               <a href="impression_series.html?comp=${code}" target="_blank" class="btn-act btn-print-series">🖨️ Imprimer séries</a>
+              <a href="export_sius.html?comp=${code}" target="_blank" class="btn-act btn-print-series" title="Listes de départ pour les cibles électroniques SIUS">📤 Export SIUS</a>
               <button onclick="openEditModal('${code}', '${config.name.replace(/'/g,"\\'")}', '${config.type || ''}')" class="btn-act btn-edit-comp">✏️ Modifier</button>
               <a href="affichage_multicomp.html?comp=${code}" target="_blank" class="btn-act btn-tv">📺 Affichage Live (écran)</a>
               <button onclick="deleteComp('${code}', '${config.name.replace(/'/g,"\\'")}')" class="btn-act btn-del">🗑️ Supprimer</button>

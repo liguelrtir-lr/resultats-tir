@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<!--
+  © 2026 Gérard GARCIA — Tous droits réservés.
+  Logiciel de gestion de compétitions de tir sportif (inscriptions, saisie, résultats).
+  Toute reproduction, copie, modification, diffusion ou réutilisation, totale ou partielle,
+  est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
+  intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
+-->
+<!-- Export des séries vers les cibles électroniques SIUS (liste de départ CSV) — v1.0 — 10/10/2026 -->
+<!--
+  Format SIUS (1 ligne par tireur, séparateur « ; », UTF-8 avec BOM, sans en-tête) — 17 colonnes :
+   1 n° de départ ; 2 n° de départ ; 3 NOM ; 4 Prénom ; 5 NOM Prénom ; 6 ligue (L-R) ; 7 catégorie (S1, D1, CG…) ;
+   8 vide ; 9 club ; 10 vide ; 11 n° de poste ; 12 relais ; 13 vide ; 14 0 ; 15 1 ; 16 0 ; 17 0
+  Un fichier par série (créneau) ; le n° de poste vient du tirage au sort « 🎲 Postes » du tableau de bord.
+-->
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>Export SIUS — séries</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="config.js"></script>
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; margin: 0; background: #f4f1ea; color: #1f2933; }
+    header { background: #3a0e14; color: #fff; padding: 14px 18px; display: flex; align-items: center; gap: 14px; }
+    header img { height: 54px; }
+    header h1 { margin: 0; font-size: 1.3em; }
+    header .sub { color: #f5c96a; font-weight: bold; font-size: .9em; }
+    main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+    .card { background: #fff; border: 1px solid #e6dfd2; border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; }
+    .opts { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+    .opts label { font-size: .9em; }
+    .opts input { padding: 5px 7px; border: 1px solid #ccc; border-radius: 6px; width: 80px; }
+    .serie-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .serie-head h2 { margin: 0; font-size: 1.1em; color: #3a0e14; }
+    .n { color: #64748b; font-size: .9em; }
+    button { padding: 8px 14px; border-radius: 8px; border: none; cursor: pointer; font-size: .95em; font-weight: bold; }
+    .dl { background: #0f7a52; color: #fff; margin-left: auto; }
+    .all { background: #d99a1c; color: #3a0e14; }
+    .warn { background: #fff7e6; border: 1px solid #f5d9a8; color: #7c4a03; padding: 8px 10px; border-radius: 8px; margin-top: 8px; font-size: .9em; }
+    table { width: 100%; border-collapse: collapse; font-size: .85em; margin-top: 10px; }
+    th, td { border-bottom: 1px solid #eee; padding: 5px 6px; text-align: left; white-space: nowrap; }
+    th { background: #f7f1e6; font-size: .8em; text-transform: uppercase; color: #64748b; }
+    td.p { font-weight: bold; text-align: center; }
+    .scroll { overflow-x: auto; }
+    .hint { color: #64748b; font-size: .85em; }
+    footer { text-align: center; color: #94a3b8; font-size: .75em; padding: 16px; }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="logo.png" alt="" class="header-logo" onerror="this.style.display='none'">
+    <div>
+      <h1 id="compTitle">Compétition</h1>
+      <div class="sub">📤 Export des séries pour les cibles SIUS</div>
+    </div>
+  </header>
+  <main>
+    <div class="card">
+      <div class="opts">
+        <label>N° de départ à partir de <input id="optStart" type="number" min="1" value="1" onchange="render()"></label>
+        <label>Code ligue (colonne 6) <input id="optLigue" value="L-R" onchange="render()"></label>
+        <button class="all" onclick="toutTelecharger()">⬇️ Télécharger toutes les séries</button>
+      </div>
+      <div class="hint" style="margin-top:8px;">Un fichier CSV par série, au format de la liste de départ SIUS (même format que le fichier du stand).
+        Le n° de départ est attribué une fois par tireur, dans l'ordre des séries puis des postes ; un tireur engagé dans plusieurs séries garde le même numéro.
+        Les postes viennent du tirage « 🎲 Postes » du tableau de bord.</div>
+    </div>
+    <div id="content"><div class="card">Chargement…</div></div>
+  </main>
+  <footer>Export SIUS v1.0 — 10/10/2026 · © 2026 Gérard GARCIA</footer>
+
+<script>
+  firebase.initializeApp(CONFIG.firebase);
+  const db = firebase.database();
+  const CLUB_PATH = 'clubs/' + CONFIG.clubKey;
+  const compId = new URLSearchParams(location.search).get('comp');
+
+  // Logo personnalisé par compétition (même convention que les autres pages)
+  if (compId) { const t = new Image(); t.onload = () => document.querySelectorAll('.header-logo').forEach(i => i.src = 'logo_' + compId + '.png'); t.src = 'logo_' + compId + '.png'; }
+
+  // Catégorie du site → code SIUS / FFTir
+  const CAT_CODES = {
+    'senior 1': 'S1', 'senior 2': 'S2', 'senior 3': 'S3', 'dame 1': 'D1', 'dame 2': 'D2', 'dame 3': 'D3',
+    'junior garcon': 'JG', 'junior fille': 'JF', 'cadet g': 'CG', 'cadet garcon': 'CG', 'cadet f': 'CF', 'cadet fille': 'CF', 'cadette': 'CF',
+    'minime g': 'MG', 'minime garcon': 'MG', 'minime f': 'MF', 'minime fille': 'MF',
+    'benjamin garcon': 'BG', 'benjamin g': 'BG', 'benjamin fille': 'BF', 'benjamin f': 'BF',
+    'poussin garcon': 'PG', 'poussin g': 'PG', 'poussin fille': 'PF', 'poussin f': 'PF'
+  };
+  const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  function catCode(c) {
+    const n = norm(c);
+    if (CAT_CODES[n]) return CAT_CODES[n];
+    if (/^[a-z]{1,2}\d?$/i.test(String(c || '').trim())) return String(c).trim().toUpperCase();   // déjà un code (S3, CG…)
+    return String(c || '').trim();
+  }
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const champ = s => String(s == null ? '' : s).replace(/[;\r\n]+/g, ' ').trim();      // pas de « ; » ni de retour à la ligne dans un champ
+
+  let shooters = null, slots = null, compName = 'Compétition', series = [];
+
+  if (!compId) document.getElementById('content').innerHTML = '<div class="card" style="color:red;font-weight:bold;">⚠️ Aucune compétition indiquée.</div>';
+  else {
+    db.ref(CLUB_PATH + '/' + compId + '/config').on('value', s => { const c = s.val(); compName = (c && c.name) || 'Compétition'; document.getElementById('compTitle').textContent = compName; });
+    db.ref(CLUB_PATH + '/' + compId + '/slots').on('value', s => { slots = s.val() || {}; render(); });
+    db.ref(CLUB_PATH + '/' + compId + '/shooters').on('value', s => { shooters = s.val() || {}; render(); });
+  }
+
+  function quand(sl) {
+    if (!sl.date) return '';
+    const [y, m, d] = sl.date.split('-');
+    return d + '/' + m + (sl.time ? ' ' + sl.time : '');
+  }
+
+  function construire() {
+    const ordre = Object.entries(slots).sort((a, b) => {
+      const ka = a[1].datetime || '', kb = b[1].datetime || '';
+      return ka < kb ? -1 : ka > kb ? 1 : 0;
+    });
+    const debut = Math.max(1, parseInt(document.getElementById('optStart').value, 10) || 1);
+    const ligue = champ(document.getElementById('optLigue').value);
+    const numeros = {};   // tireur (licence ou nom+prénom) → n° de départ
+    let prochain = debut;
+    return ordre.map(([sid, sl], idx) => {
+      const reg = sl.registered || {};
+      const lignes = Object.keys(reg).filter(id => shooters[id]).map(id => {
+        const sh = shooters[id], r = reg[id] || {};
+        return { id, nom: String(sh.lastName || '').toUpperCase(), prenom: sh.firstName || '', licence: sh.licence || r.licence || '',
+          club: sh.club || '', cat: catCode(sh.category), poste: r.poste || null, disc: sh.discipline || '' };
+      }).sort((a, b) => (a.poste && b.poste) ? a.poste - b.poste : a.poste ? -1 : b.poste ? 1 : a.nom.localeCompare(b.nom, 'fr'));
+      lignes.forEach(l => {
+        const cle = l.licence ? 'L' + l.licence : 'N' + norm(l.nom + ' ' + l.prenom);
+        if (!numeros[cle]) numeros[cle] = prochain++;
+        l.num = numeros[cle];
+      });
+      const csv = '﻿' + lignes.map(l => [l.num, l.num, champ(l.nom), champ(l.prenom), champ(l.nom + ' ' + l.prenom), ligue, champ(l.cat), '',
+        champ(String(l.club).toUpperCase()), '', l.poste || '', 1, '', 0, 1, 0, 0].join(';')).join('\n') + (lignes.length ? '\n' : '');
+      const titre = (quand(sl) ? quand(sl) + (sl.label ? ' — ' + sl.label : '') : (sl.label || 'Série ' + (idx + 1)));
+      const fic = ('SIUS_' + (idx + 1) + '_' + (sl.label || '') + '_' + (sl.date || '') + '_' + (sl.time || ''))
+        .normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/_+$/, '') + '.csv';
+      return { sid, titre, lignes, csv, fic, sansPoste: lignes.filter(l => !l.poste).length };
+    });
+  }
+
+  function render() {
+    if (shooters === null || slots === null) return;
+    if (!Object.keys(slots).length) {
+      document.getElementById('content').innerHTML = '<div class="card">Cette compétition n\'a pas de séries (créneaux). Créez-les dans « 🎟️ Séries » du tableau de bord.</div>';
+      return;
+    }
+    series = construire();
+    document.getElementById('content').innerHTML = series.map((s, k) =>
+      '<div class="card"><div class="serie-head"><h2>' + esc(s.titre) + '</h2><span class="n">' + s.lignes.length + ' tireur(s)</span>' +
+      '<button class="dl" onclick="telecharger(' + k + ')"' + (s.lignes.length ? '' : ' disabled style="opacity:.4"') + '>⬇️ Fichier SIUS</button></div>' +
+      (s.sansPoste ? '<div class="warn">⚠️ ' + s.sansPoste + ' tireur(s) sans n° de poste : faites le tirage « 🎲 Postes » de cette série avant l\'export (sinon la colonne poste reste vide).</div>' : '') +
+      (s.lignes.length ? '<div class="scroll"><table><tr><th>N° départ</th><th>Poste</th><th>Nom</th><th>Prénom</th><th>Cat.</th><th>Club</th><th>Discipline</th></tr>' +
+        s.lignes.map(l => '<tr><td>' + l.num + '</td><td class="p">' + (l.poste || '—') + '</td><td><b>' + esc(l.nom) + '</b></td><td>' + esc(l.prenom) + '</td><td>' + esc(l.cat) +
+          '</td><td>' + esc(l.club) + '</td><td>' + esc(l.disc) + '</td></tr>').join('') + '</table></div>' : '<div class="hint">Aucun inscrit dans cette série.</div>') +
+      '<div class="hint" style="margin-top:6px;">Fichier : ' + esc(s.fic) + '</div></div>').join('');
+  }
+
+  function telecharger(k) {
+    const s = series[k]; if (!s || !s.lignes.length) return;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([s.csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = s.fic;
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+  function toutTelecharger() {
+    series.forEach((s, k) => { if (s.lignes.length) setTimeout(() => telecharger(k), k * 400); });
+  }
+</script>
+</body>
+</html>
