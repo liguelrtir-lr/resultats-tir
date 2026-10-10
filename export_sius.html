@@ -6,9 +6,9 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- Export des séries vers les cibles électroniques SIUS (liste de départ CSV) — v1.0 — 10/10/2026 -->
+<!-- Export des séries vers les cibles électroniques SIUS (liste de départ CSV) — v1.1 — 10/10/2026 -->
 <!--
-  Format SIUS (1 ligne par tireur, séparateur « ; », UTF-8 avec BOM, sans en-tête) — 17 colonnes :
+  Format SIUS (1 ligne par tireur, séparateur « ; », sans en-tête) — par défaut au format Windows : ANSI (Windows-1252), CRLF, sans BOM — 17 colonnes :
    1 n° de départ ; 2 n° de départ ; 3 NOM ; 4 Prénom ; 5 NOM Prénom ; 6 ligue (L-R) ; 7 catégorie (S1, D1, CG…) ;
    8 vide ; 9 club ; 10 vide ; 11 n° de poste ; 12 relais ; 13 vide ; 14 0 ; 15 1 ; 16 0 ; 17 0
   Un fichier par série (créneau) ; le n° de poste vient du tirage au sort « 🎲 Postes » du tableau de bord.
@@ -62,15 +62,18 @@
       <div class="opts">
         <label>N° de départ à partir de <input id="optStart" type="number" min="1" value="1" onchange="render()"></label>
         <label>Code ligue (colonne 6) <input id="optLigue" value="L-R" onchange="render()"></label>
+        <label>Format <select id="optFmt" onchange="render()" style="padding:5px;border-radius:6px;">
+          <option value="win">Windows — PC SIUS (ANSI, CRLF) recommandé</option>
+          <option value="utf8">UTF-8 avec BOM</option></select></label>
         <button class="all" onclick="toutTelecharger()">⬇️ Télécharger toutes les séries</button>
       </div>
-      <div class="hint" style="margin-top:8px;">Un fichier CSV par série, au format de la liste de départ SIUS (même format que le fichier du stand).
+      <div class="hint" style="margin-top:8px;">Un fichier CSV par série, au format de la liste de départ SIUS, prêt pour le PC Windows des cibles.
         Le n° de départ est attribué une fois par tireur, dans l'ordre des séries puis des postes ; un tireur engagé dans plusieurs séries garde le même numéro.
         Les postes viennent du tirage « 🎲 Postes » du tableau de bord.</div>
     </div>
     <div id="content"><div class="card">Chargement…</div></div>
   </main>
-  <footer>Export SIUS v1.0 — 10/10/2026 · © 2026 Gérard GARCIA</footer>
+  <footer>Export SIUS v1.1 — 10/10/2026 · © 2026 Gérard GARCIA</footer>
 
 <script>
   firebase.initializeApp(CONFIG.firebase);
@@ -135,8 +138,9 @@
         if (!numeros[cle]) numeros[cle] = prochain++;
         l.num = numeros[cle];
       });
-      const csv = '﻿' + lignes.map(l => [l.num, l.num, champ(l.nom), champ(l.prenom), champ(l.nom + ' ' + l.prenom), ligue, champ(l.cat), '',
-        champ(String(l.club).toUpperCase()), '', l.poste || '', 1, '', 0, 1, 0, 0].join(';')).join('\n') + (lignes.length ? '\n' : '');
+      const fl = document.getElementById('optFmt').value === 'win' ? '\r\n' : '\n';
+      const csv = lignes.map(l => [l.num, l.num, champ(l.nom), champ(l.prenom), champ(l.nom + ' ' + l.prenom), ligue, champ(l.cat), '',
+        champ(String(l.club).toUpperCase()), '', l.poste || '', 1, '', 0, 1, 0, 0].join(';')).join(fl) + (lignes.length ? fl : '');
       const titre = (quand(sl) ? quand(sl) + (sl.label ? ' — ' + sl.label : '') : (sl.label || 'Série ' + (idx + 1)));
       const fic = ('SIUS_' + (idx + 1) + '_' + (sl.label || '') + '_' + (sl.date || '') + '_' + (sl.time || ''))
         .normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/_+$/, '') + '.csv';
@@ -164,9 +168,19 @@
   function telecharger(k) {
     const s = series[k]; if (!s || !s.lignes.length) return;
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([s.csv], { type: 'text/csv;charset=utf-8' }));
+    const win = document.getElementById('optFmt').value === 'win';
+    a.href = URL.createObjectURL(win ? new Blob([enAnsi(s.csv)], { type: 'text/csv;charset=windows-1252' })
+                                     : new Blob(['\ufeff' + s.csv], { type: 'text/csv;charset=utf-8' }));
     a.download = s.fic;
     document.body.appendChild(a); a.click(); a.remove();
+  }
+  // Texte → octets Windows-1252 (« ANSI »)
+  const CP1252 = { '€':0x80,'‚':0x82,'ƒ':0x83,'„':0x84,'…':0x85,'†':0x86,'‡':0x87,'ˆ':0x88,'‰':0x89,'Š':0x8A,'‹':0x8B,'Œ':0x8C,'Ž':0x8E,
+    '‘':0x91,'’':0x92,'“':0x93,'”':0x94,'•':0x95,'–':0x96,'—':0x97,'˜':0x98,'™':0x99,'š':0x9A,'›':0x9B,'œ':0x9C,'ž':0x9E,'Ÿ':0x9F };
+  function enAnsi(t) {
+    const o = [];
+    for (const c of t) { const k = c.codePointAt(0); o.push(k < 0x80 || (k >= 0xA0 && k <= 0xFF) ? k : (CP1252[c] !== undefined ? CP1252[c] : 0x3F)); }
+    return new Uint8Array(o);
   }
   function toutTelecharger() {
     series.forEach((s, k) => { if (s.lignes.length) setTimeout(() => telecharger(k), k * 400); });
