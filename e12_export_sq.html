@@ -6,7 +6,7 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- 12 H PAR ÉQUIPES — Export Sport Quantum match par match — v1.1 — 11/10/2026 -->
+<!-- 12 H PAR ÉQUIPES — Export Sport Quantum match par match — v1.2 — 11/10/2026 -->
 <!--
   Une équipe = un poste = une cible SQ toute la journée. Chaque match devient un « relay » SQ :
   sur chaque cible, le tireur de l'équipe qui tire ce match (tour de rôle : tireur 1 matches impairs,
@@ -70,6 +70,10 @@
         <label>Nom des cibles <input id="optPrefix" class="w90" value="Cible " onchange="memo();render()"></label>
         <label>Chiffres <select id="optDigits" onchange="memo();render()"><option value="2">01, 02…</option><option value="1">1, 2…</option><option value="3">001…</option></select></label>
         <label>Pays <input id="optPays" value="FRA" class="w60" onchange="memo();render()"></label>
+        <label>Encodage <select id="optEnc" onchange="memo()">
+          <option value="utf8">UTF-8 — format du modèle SQ (recommandé)</option>
+          <option value="bom">UTF-8 avec BOM (accents lisibles dans Excel)</option>
+          <option value="ansi">Windows ANSI</option></select></label>
       </div>
       <div class="opts" style="margin-top:12px;">
         <label>Type de match SQ — pistolet <input id="optTypeP" class="w140" placeholder="ex : 12HPIST" onchange="memo();render()"></label>
@@ -83,7 +87,7 @@
     </div>
     <div id="content"><div class="card">Chargement…</div></div>
   </main>
-  <footer>Export SQ 12 h v1.1 — 11/10/2026 · © 2026 Gérard GARCIA</footer>
+  <footer>Export SQ 12 h v1.2 — 11/10/2026 · © 2026 Gérard GARCIA</footer>
 
 <script>
   firebase.initializeApp(CONFIG.firebase);
@@ -91,7 +95,7 @@
   const CLUB_PATH = 'clubs/' + CONFIG.clubKey;
   const compId = new URLSearchParams(location.search).get('comp');
   const MEMO_KEY = 'e12_export_sq_' + CONFIG.clubKey + '_' + compId;
-  const CHAMPS = ['optLieu', 'optDebut', 'optDuree', 'optPrefix', 'optDigits', 'optPays', 'optTypeP', 'optTypeC'];
+  const CHAMPS = ['optLieu', 'optDebut', 'optDuree', 'optPrefix', 'optDigits', 'optPays', 'optEnc', 'optTypeP', 'optTypeC'];
   E12.applyLogo(compId);
 
   let reglages = {};
@@ -224,10 +228,23 @@
         '</table></div><div class="hint" style="margin-top:6px;">Fichier : ' + esc(f.fic) + '</div></div>').join('');
   }
 
+  // Texte → octets Windows-1252 (« ANSI ») : accents lisibles par le PC SQ et par Excel Mac/PC
+  const CP1252 = { '€':0x80,'‚':0x82,'ƒ':0x83,'„':0x84,'…':0x85,'†':0x86,'‡':0x87,'ˆ':0x88,'‰':0x89,'Š':0x8A,'‹':0x8B,'Œ':0x8C,'Ž':0x8E,
+    '‘':0x91,'’':0x92,'“':0x93,'”':0x94,'•':0x95,'–':0x96,'—':0x97,'˜':0x98,'™':0x99,'š':0x9A,'›':0x9B,'œ':0x9C,'ž':0x9E,'Ÿ':0x9F };
+  function enAnsi(t) {
+    const o = [];
+    for (const c of t) { const k = c.codePointAt(0); o.push(k < 0x80 || (k >= 0xA0 && k <= 0xFF) ? k : (CP1252[c] !== undefined ? CP1252[c] : 0x3F)); }
+    return new Uint8Array(o);
+  }
+  function blobCsv(csv) {
+    const enc = document.getElementById('optEnc').value;
+    if (enc === 'ansi') return new Blob([enAnsi(csv)], { type: 'text/csv;charset=windows-1252' });
+    return new Blob([(enc === 'bom' ? '\ufeff' : '') + csv], { type: 'text/csv;charset=utf-8' });
+  }
   function telecharger(i) {
     const f = fichiers[i]; if (!f) return;
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([f.csv], { type: 'text/csv;charset=utf-8' }));
+    a.href = URL.createObjectURL(blobCsv(f.csv));
     a.download = f.fic;
     document.body.appendChild(a); a.click(); a.remove();
   }

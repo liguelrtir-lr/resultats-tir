@@ -6,7 +6,7 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- Export des séries vers les cibles électroniques Sport Quantum (SQ) — v1.1 — 11/10/2026 -->
+<!-- Export des séries vers les cibles électroniques Sport Quantum (SQ) — v1.2 — 11/10/2026 -->
 <!--
   Format d'import SQ (séparateur « ; », UTF-8 sans BOM, CRLF) — un fichier par série (= « relay ») :
    ligne 1 : header;device;relay;title;firstname;lastname;country;licence;category;clubname;arg1…arg6
@@ -72,9 +72,13 @@
         <label>Chiffres <select id="optDigits" onchange="memo();render()"><option value="2">01, 02…</option><option value="1">1, 2…</option><option value="3">001…</option></select></label>
         <label>Durée d'une série <input id="optDuree" type="number" min="0.25" step="0.25" value="1.5" class="w60" onchange="memo();render()"> h</label>
         <label>Pays <input id="optPays" value="FRA" class="w60" onchange="memo();render()"></label>
+        <label>Encodage <select id="optEnc" onchange="memo()">
+          <option value="utf8">UTF-8 — format du modèle SQ (recommandé)</option>
+          <option value="bom">UTF-8 avec BOM (accents lisibles dans Excel)</option>
+          <option value="ansi">Windows ANSI</option></select></label>
         <button class="all" onclick="toutTelecharger()">⬇️ Télécharger toutes les séries</button>
       </div>
-      <div class="hint" style="margin-top:8px;">Fichiers CSV au format d'import Sport Quantum (UTF-8, Windows CRLF).
+      <div class="hint" style="margin-top:8px;">Fichiers CSV au format d'import Sport Quantum (Windows CRLF).
         Le n° de cible = n° de poste tiré au sort « 🎲 Postes » ; la civilité (M. / Mme.) est déduite de la catégorie (D1, JF, CF… → Mme.).
         SQ sépare les tireurs par <b>type de match</b> (pistolet / carabine, adultes / cadets…) : indiquez ci-dessous le type SQ de chaque
         discipline × catégorie. Dans une même série, tous les tireurs ayant le même type vont dans le même fichier → une série peut donner 2, 3 fichiers ou plus.</div>
@@ -82,7 +86,7 @@
     <div class="card" id="typesCard"></div>
     <div id="content"><div class="card">Chargement…</div></div>
   </main>
-  <footer>Export Sport Quantum v1.1 — 11/10/2026 · © 2026 Gérard GARCIA</footer>
+  <footer>Export Sport Quantum v1.2 — 11/10/2026 · © 2026 Gérard GARCIA</footer>
 
 <script>
   firebase.initializeApp(CONFIG.firebase);
@@ -96,7 +100,7 @@
   // ── Mémorisation des réglages (par compétition, sur cet ordinateur) ──
   let reglages = {};
   try { reglages = JSON.parse(localStorage.getItem(MEMO_KEY) || '{}') || {}; } catch (e) { reglages = {}; }
-  ['optLieu', 'optPrefix', 'optDigits', 'optDuree', 'optPays'].forEach(id => { if (reglages[id] != null) document.getElementById(id).value = reglages[id]; });
+  ['optLieu', 'optPrefix', 'optDigits', 'optDuree', 'optPays', 'optEnc'].forEach(id => { if (reglages[id] != null) document.getElementById(id).value = reglages[id]; });
   // Correspondance « discipline | catégorie » → type de match SQ, commune à toutes les compétitions du site
   const TYPES_KEY = 'export_sq_types_' + CONFIG.clubKey;
   let typesSQ = {};
@@ -115,7 +119,7 @@
     render(true);
   }
   function memo() {
-    ['optLieu', 'optPrefix', 'optDigits', 'optDuree', 'optPays'].forEach(id => reglages[id] = document.getElementById(id).value);
+    ['optLieu', 'optPrefix', 'optDigits', 'optDuree', 'optPays', 'optEnc'].forEach(id => reglages[id] = document.getElementById(id).value);
     try { localStorage.setItem(MEMO_KEY, JSON.stringify(reglages)); } catch (e) {}
   }
 
@@ -212,7 +216,7 @@
       Object.values(groupes).forEach(gl => {
         const type = gl[0].type;
         const libre = type || (gl[0].disc + ' ' + gl[0].cat);
-        const relayName = champ((sl.label || ('Série ' + relay)) + ' — ' + libre);
+        const relayName = champ((sl.label || ('Série ' + relay)) + ' - ' + libre);
         const out = [
           ligne(['header', 'device', 'relay', 'title', 'firstname', 'lastname', 'country', 'licence', 'category', 'clubname', 'arg1', 'arg2', 'arg3', 'arg4', 'arg5', 'arg6']),
           ligne(['meta', 'event_name', champ(compName)]),
@@ -276,10 +280,23 @@
         '<div class="hint" style="margin-top:4px;">Fichier : ' + esc(f.fic) + '</div></div>').join('')) + '</div>').join('');
   }
 
+  // Texte → octets Windows-1252 (« ANSI ») : accents lisibles par le PC SQ et par Excel Mac/PC
+  const CP1252 = { '€':0x80,'‚':0x82,'ƒ':0x83,'„':0x84,'…':0x85,'†':0x86,'‡':0x87,'ˆ':0x88,'‰':0x89,'Š':0x8A,'‹':0x8B,'Œ':0x8C,'Ž':0x8E,
+    '‘':0x91,'’':0x92,'“':0x93,'”':0x94,'•':0x95,'–':0x96,'—':0x97,'˜':0x98,'™':0x99,'š':0x9A,'›':0x9B,'œ':0x9C,'ž':0x9E,'Ÿ':0x9F };
+  function enAnsi(t) {
+    const o = [];
+    for (const c of t) { const k = c.codePointAt(0); o.push(k < 0x80 || (k >= 0xA0 && k <= 0xFF) ? k : (CP1252[c] !== undefined ? CP1252[c] : 0x3F)); }
+    return new Uint8Array(o);
+  }
+  function blobCsv(csv) {
+    const enc = document.getElementById('optEnc').value;
+    if (enc === 'ansi') return new Blob([enAnsi(csv)], { type: 'text/csv;charset=windows-1252' });
+    return new Blob([(enc === 'bom' ? '\ufeff' : '') + csv], { type: 'text/csv;charset=utf-8' });
+  }
   function telecharger(k) {
     const s = series[k]; if (!s || s.vide || !s.lignes.length) return;
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([s.csv], { type: 'text/csv;charset=utf-8' }));
+    a.href = URL.createObjectURL(blobCsv(s.csv));
     a.download = s.fic;
     document.body.appendChild(a); a.click(); a.remove();
   }
