@@ -6,7 +6,7 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- MATCH POSTAL — Administration (validation des scores, saisie directe, réglages, export, finales) — v1.8 — 09/10/2026 -->
+<!-- MATCH POSTAL — Administration (validation des scores, saisie directe, réglages, export, finales) — v1.9 — 11/10/2026 -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
@@ -102,6 +102,7 @@
         <div class="tools" style="margin-top:14px;">
           <label class="chk"><input type="checkbox" id="rOuvert"> Inscriptions ouvertes</label>
           <label class="chk"><input type="checkbox" id="rSaisie"> Envoi des scores ouvert</label>
+          <label class="chk"><input type="checkbox" id="rConfirm"> Confirmations de présence aux finales ouvertes</label>
         </div>
         <div id="rMsg"></div>
         <div class="btns"><button class="ok" type="button" onclick="enregistrerReglages()">Enregistrer les réglages</button>
@@ -179,7 +180,7 @@
   let ouvert = null;    // { id, m }
   let ecoutes = [];
 
-  const VERSION_PAGE = 'v1.8 — 09/10/2026';   // ← à incrémenter à chaque modification de cette page
+  const VERSION_PAGE = 'v1.9 — 11/10/2026';   // ← à incrémenter à chaque modification de cette page
   document.querySelectorAll('.verTxt').forEach(e => e.textContent = VERSION_PAGE);
   $('saisonTxt').textContent = MP.saison();
   $('footClub').textContent = CONFIG.clubName || '';
@@ -196,6 +197,7 @@
     ecoute('/settings', v => { settings = v; remplirReglages(); });
     ecoute('/inscrits', v => { inscrits = v; dessiner(); });
     ecoute('/scores', v => { scores = v; dessiner(); if (ouvert) remplirModal(false); });
+    ecoute('/confirmations', v => { confirmations = v; dessinerFinales(); });
     show('screenAdmin');
   });
 
@@ -224,10 +226,11 @@
     $('rClubsN').textContent = Object.keys(cm).length;
     $('rOuvert').checked = settings.ouvert !== false;
     $('rSaisie').checked = settings.saisieOuverte !== false;
+    $('rConfirm').checked = !!settings.confirmOuvert;
   }
   function enregistrerReglages() {
     const st = { titre: $('rTitre').value.trim(), dateLimite: $('rLimite').value, periode: $('rPeriode').value.trim(),
-      ouvert: $('rOuvert').checked, saisieOuverte: $('rSaisie').checked,
+      ouvert: $('rOuvert').checked, saisieOuverte: $('rSaisie').checked, confirmOuvert: $('rConfirm').checked,
       finaleDate: $('rFDate').value, finaleLieu: $('rFLieu').value.trim(), heurePetite: $('rHPetite').value, heureGrande: $('rHGrande').value,
       reserves: { P: +$('rResP').value || 0, C: +$('rResC').value || 0, PC: +$('rResPC').value || 0 } };
     st.clubsNum = {};
@@ -310,6 +313,7 @@
 
   // ---------- Phase 2 : finales ----------
   let contactsCache = null;
+  let confirmations = {};
   async function contacts() {
     if (!contactsCache) contactsCache = (await db.ref(BASE + '/contacts').once('value')).val() || {};
     return contactsCache;
@@ -319,17 +323,33 @@
     return new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   }
   const heureTxt = h => (h || '').replace(/^0(\d)/, '$1').replace(':', ' h ');
-  function listesFinales(disc) {
-    const { classes } = MP.classement(inscrits, scores, disc);
-    const grande = classes.filter(l => l.finale);
-    const tir = ((settings.tirage || {})[disc]) || null;
-    const petite = tir ? (tir.ids || []).map(id => classes.find(l => l.id === id)).filter(Boolean) : [];
-    const eligibles = classes.filter(l => !l.finale);
-    const reserve = eligibles.slice(0, reserves()[disc]);     // les suivants au classement, dans l'ordre
-    return { classes, grande, petite, eligibles, tir, reserve };
+  function listesFinales(disc) { return MP.finales(inscrits, scores, settings, disc); }
+
+  // Réponse de présence : ✅ présent, ❌ absent, ⏳ sans réponse — cliquable pour la saisir à la main (réponse par téléphone…)
+  function icone(id) {
+    const c = confirmations[id];
+    const t = c ? (c.reponse === 'oui' ? '✅' : '❌') : '⏳';
+    const tip = c ? (c.reponse === 'oui' ? 'Présent' : 'Absent') + ' — ' + MP.dateFr(c.ts) + (c.par === 'admin' ? ' (saisi par vous)' : '') + (c.note ? ' — « ' + c.note + ' »' : '') : 'Sans réponse';
+    return '<span style="cursor:pointer" title="' + esc(tip) + ' — cliquer pour modifier" onclick="changerConf(\'' + id + '\')">' + t + '</span>';
+  }
+  function bilan(liste) {
+    let o = 0, n = 0, a = 0;
+    liste.forEach(l => { const c = confirmations[l.id]; if (!c) a++; else if (c.reponse === 'oui') o++; else n++; });
+    return liste.length ? ' <span class="hint" style="margin:0;">✅ ' + o + ' · ❌ ' + n + ' · ⏳ ' + a + '</span>' : '';
+  }
+  function changerConf(id) {
+    const i = inscrits[id]; if (!i) return;
+    const r = prompt('Présence de ' + i.nom + ' ' + i.prenom + ' (' + MP.DISC[i.disc] + ') :\n  O = présent\n  N = absent\n  (vide) = effacer la réponse', '');
+    if (r === null) return;
+    const v = r.trim().toUpperCase();
+    const ref = db.ref(BASE + '/confirmations/' + id);
+    const p = !v ? ref.remove() : (v === 'O' || v === 'N')
+      ? ref.set({ reponse: v === 'O' ? 'oui' : 'non', convocation: (MP.convocations(inscrits, scores, settings, id)[0] || {}).type || '', par: 'admin', ts: firebase.database.ServerValue.TIMESTAMP })
+      : Promise.reject({ message: 'Tapez O, N ou laissez vide.' });
+    p.catch(e => alert('Refusé — ' + (e.code || e.message)));
   }
   // Boutons ✉️ / 📋 : toujours affichés, grisés tant que la liste est vide
-  function reserves() { return Object.assign({ P: 5, C: 5, PC: 2 }, settings.reserves || {}); }
+  function reserves() { return Object.assign({}, MP.RESERVES_DEFAUT, settings.reserves || {}); }
   function boutonsMail(d, type, n) {
     if (!n) return '<button class="ok" disabled style="opacity:.4;cursor:not-allowed" title="Disponible dès qu\'il y aura des invités">✉️ Inviter</button> ' +
       '<button class="sec" disabled style="opacity:.4;cursor:not-allowed">📋 Copier</button>';
@@ -348,21 +368,21 @@
       // Grande finale
       h += '<div style="margin:6px 0;"><b>Grande finale</b> — ' + F.grande.length + ' qualifié(s) sur ' + quota +
         (F.grande.length > quota ? ' <span class="badge b-attente">ex æquo au ' + quota + 'e rang</span>' : '') + ' ' +
-        boutonsMail(d, 'grande', F.grande.length) + '</div>';
-      h += F.grande.length ? '<div class="hint" style="margin-top:0;">' + F.grande.map(l => l.rang + '. ' + esc(l.i.nom + ' ' + l.i.prenom) + ' (' + l.total + ')').join(' · ') + '</div>' : '';
+        boutonsMail(d, 'grande', F.grande.length) + bilan(F.grande) + '</div>';
+      h += F.grande.length ? '<div class="hint" style="margin-top:0;">' + F.grande.map(l => icone(l.id) + ' ' + l.rang + '. ' + esc(l.i.nom + ' ' + l.i.prenom) + ' (' + l.total + ')').join(' · ') + '</div>' : '';
       // Liste d'attente (remplaçants)
       if (reserves()[d]) {
-        h += '<div style="margin:10px 0 6px;"><b>Liste d\'attente</b> — ' + F.reserve.length + ' remplaçant(s) sur ' + reserves()[d] + ' ' + boutonsMail(d, 'reserve', F.reserve.length) + '</div>';
-        h += F.reserve.length ? '<div class="hint" style="margin-top:0;">' + F.reserve.map((l, k) => 'R' + (k + 1) + ' : ' + l.rang + 'e ' + esc(l.i.nom + ' ' + l.i.prenom) + ' (' + l.total + ')').join(' · ') + '</div>' : '';
+        h += '<div style="margin:10px 0 6px;"><b>Liste d\'attente</b> — ' + F.reserve.length + ' remplaçant(s) sur ' + reserves()[d] + ' ' + boutonsMail(d, 'reserve', F.reserve.length) + bilan(F.reserve) + '</div>';
+        h += F.reserve.length ? '<div class="hint" style="margin-top:0;">' + F.reserve.map((l, k) => icone(l.id) + ' R' + (k + 1) + ' : ' + l.rang + 'e ' + esc(l.i.nom + ' ' + l.i.prenom) + ' (' + l.total + ')').join(' · ') + '</div>' : '';
       }
       // Petite finale
       if (qP) {
         h += '<div style="margin:10px 0 6px;"><b>Petite finale</b> — tirage de ' + qP + ' parmi les ' + F.eligibles.length + ' non-qualifié(s) ayant leurs 3 matches ';
         if (F.tir) {
           h += '<span class="badge b-valide">tiré le ' + esc(MP.dateFr(F.tir.ts)) + '</span> ' +
-            boutonsMail(d, 'petite', F.petite.length) + ' ' +
+            boutonsMail(d, 'petite', F.petite.length) + bilan(F.petite) + ' ' +
             '<button class="del" title="Annuler ce tirage" onclick="annulerTirage(\'' + d + '\')">↩️</button></div>' +
-            '<div class="hint" style="margin-top:0;">' + F.petite.map(l => esc(l.i.nom + ' ' + l.i.prenom)).join(' · ') + '</div>';
+            '<div class="hint" style="margin-top:0;">' + F.petite.map(l => icone(l.id) + ' ' + esc(l.i.nom + ' ' + l.i.prenom)).join(' · ') + '</div>';
         } else {
           h += '<button class="ok" ' + (F.eligibles.length ? 'onclick="tirer(\'' + d + '\')"' : 'disabled style="opacity:.4;cursor:not-allowed" title="Disponible quand des non-qualifiés auront leurs 3 matches validés"') + '>🎲 Tirer au sort</button> ' +
             boutonsMail(d, 'petite', 0) + '</div>';
@@ -405,7 +425,7 @@
         '\n\nVous figurez sur la liste d\'attente : en cas de désistement d\'un qualifié, les remplaçants seront appelés dans l\'ordre suivant :\n' +
         liste.map((l, k) => '  ' + (k + 1) + '. ' + l.i.nom + ' ' + l.i.prenom + ' (' + l.rang + 'e, ' + l.total + ' pts)').join('\n') +
         '\n\n📅 ' + dateFinaleTxt() + ' à ' + heure + '\n📍 ' + lieu +
-        '\n\nMerci de nous indiquer dès maintenant, en répondant à ce message, si vous seriez disponible pour être repêché(e).' +
+        '\n\n👉 Merci d\'indiquer dès maintenant si vous seriez disponible pour être repêché(e), en cliquant ici (n° de licence + nom) :\n' + MP.URL_CONFIRMATION +
         '\nSi vous êtes par ailleurs tiré(e) au sort pour la petite finale, vous recevrez une invitation séparée.' +
         '\n\nClassement des qualifications : https://liguelrtir-lr.github.io/resultats-tir/mp_classement.html' +
         '\n\nSportivement,\nLa Ligue de Tir Languedoc-Roussillon';
@@ -416,12 +436,18 @@
         ? 'Félicitations ! À l\'issue des qualifications du ' + titre + ', vous faites partie des ' + MP.FINALE[d] + ' premiers en ' + MP.DISC[d] + ' et vous êtes qualifié(e) pour la ' + nomF + '.'
         : 'Vous avez participé aux 3 matches de qualification du ' + titre + ' en ' + MP.DISC[d] + ' et vous avez été tiré(e) au sort pour participer à la ' + nomF + '.') +
       '\n\n📅 ' + dateFinaleTxt() + ' à ' + heure + '\n📍 ' + lieu +
-      '\n\nMerci de confirmer votre présence en répondant à ce message.' +
+      '\n\n👉 Merci de confirmer votre présence en cliquant ici (n° de licence + nom) :\n' + MP.URL_CONFIRMATION +
       '\n\nClassement des qualifications : https://liguelrtir-lr.github.io/resultats-tir/mp_classement.html' +
       '\n\nSportivement,\nLa Ligue de Tir Languedoc-Roussillon';
     return { emails, sans, sujet, corps };
   }
+  async function verifierConfirmOuvert() {
+    if (settings.confirmOuvert) return;
+    if (confirm('Les confirmations de présence ne sont pas encore ouvertes : le lien du mail afficherait « pas encore ouvert ».\n\nLes ouvrir maintenant ?'))
+      await db.ref(BASE + '/settings/confirmOuvert').set(true).catch(e => alert('Refusé — ' + (e.code || e.message)));
+  }
   async function inviter(d, type) {
+    await verifierConfirmOuvert();
     const m = await messageInvitation(d, type); if (!m) return;
     if (m.sans.length) alert('Sans adresse e-mail : ' + m.sans.join(', '));
     if (!m.emails.length) return;
@@ -430,6 +456,7 @@
       '&subject=' + encodeURIComponent(m.sujet) + '&body=' + encodeURIComponent(m.corps);
   }
   async function copier(d, type) {
+    await verifierConfirmOuvert();
     const m = await messageInvitation(d, type); if (!m) return;
     const txt = 'Destinataires (copie cachée) :\n' + m.emails.join(', ') + '\n\nObjet : ' + m.sujet + '\n\n' + m.corps;
     try { await navigator.clipboard.writeText(txt); alert('Copié : ' + m.emails.length + ' adresse(s), objet et texte.' + (m.sans.length ? '\nSans e-mail : ' + m.sans.join(', ') : '')); }

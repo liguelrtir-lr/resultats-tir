@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<!--
+  © 2026 Gérard GARCIA — Tous droits réservés.
+  Logiciel de gestion de compétitions de tir sportif (inscriptions, saisie, résultats).
+  Toute reproduction, copie, modification, diffusion ou réutilisation, totale ou partielle,
+  est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
+  intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
+-->
+<!-- MATCH POSTAL — Confirmation de présence aux finales — v1.0 — 11/10/2026 -->
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>Match Postal — Confirmation de présence</title>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="config.js"></script>
+  <script src="mp_commun.js"></script>
+  <link rel="stylesheet" href="mp_style.css">
+  <style>
+    .conv { border-radius:14px; padding:14px 16px; margin-top:12px; }
+    .conv.grande { background:#fde68a; }
+    .conv.petite { background:#bbf7d0; }
+    .conv.reserve { background:#fff1d6; border:1px dashed var(--orange); }
+    .conv h3 { margin:0 0 4px; }
+    .quand { font-weight:600; margin:8px 0; }
+    .choix { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
+    .choix button { padding:14px; border-radius:12px; font-size:1.05rem; font-weight:700; cursor:pointer; border:2px solid transparent; }
+    .choix .oui { background:var(--green); color:#fff; }
+    .choix .non { background:#fff; color:var(--red); border-color:var(--red); }
+    .choix button.sel { outline:4px solid var(--gold); }
+    .etat { margin-top:10px; font-weight:600; }
+    @media (max-width:420px) { .choix { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="logo.png" alt="" onerror="this.style.display='none'">
+    <div>
+      <h1 id="titre">Match Postal</h1>
+      <div class="sub">Confirmation de présence aux finales</div>
+      <div class="ver">Version <span class="verTxt"></span></div>
+    </div>
+  </header>
+
+  <main>
+    <div id="screenLoading" class="card">Chargement…</div>
+    <div id="screenError" class="card hidden"><div class="msg err" id="errorText"></div></div>
+    <div id="screenClosed" class="card hidden" style="text-align:center;padding:30px 16px;">
+      <div style="font-size:3rem;">⏳</div><div style="font-weight:600;">Les confirmations de présence ne sont pas encore ouvertes.</div>
+      <div class="hint">Elles le seront à la clôture des qualifications, lors de l'envoi des invitations.</div>
+    </div>
+
+    <form id="screenId" class="card hidden" onsubmit="identifier(event)" novalidate>
+      <h2>Identification</h2>
+      <div class="hint" style="margin-top:0;">Vous avez reçu une invitation à une finale ou un avis de liste d'attente : indiquez-nous si vous serez présent(e).</div>
+      <div class="row2">
+        <div><label for="idLic">N° de licence <span class="req">*</span></label><input id="idLic" maxlength="20" inputmode="numeric" autocomplete="off"></div>
+        <div><label for="idNom">Nom <span class="req">*</span></label><input id="idNom" maxlength="40" autocomplete="off"></div>
+      </div>
+      <div id="idMsg"></div>
+      <button class="main" type="submit">Continuer</button>
+    </form>
+
+    <div id="screenTireur" class="hidden">
+      <div class="card" style="display:flex;align-items:center;gap:10px;">
+        <div><div style="font-weight:700;font-size:1.1rem;" id="tNom"></div><div class="hint" style="margin:0;" id="tInfo"></div></div>
+        <button class="sec" style="margin-left:auto;" onclick="changer()">Changer</button>
+      </div>
+      <div id="convList"></div>
+    </div>
+  </main>
+  <footer><span id="footClub"></span> · Match Postal · <span class="verTxt"></span> · © 2026 Gérard GARCIA</footer>
+
+<script>
+  const VERSION_PAGE = 'v1.0 — 11/10/2026';   // ← à incrémenter à chaque modification de cette page
+  const BASE = MP.base();
+  firebase.initializeApp(CONFIG.firebase);
+  const db = firebase.database();
+  const auth = firebase.auth();
+  const $ = id => document.getElementById(id);
+  const esc = MP.esc;
+
+  let inscrits = null, scores = null, settings = null, confirmations = {};
+  let tireur = null;
+
+  document.querySelectorAll('.verTxt').forEach(e => e.textContent = VERSION_PAGE);
+  $('footClub').textContent = CONFIG.clubName || '';
+
+  function show(id) { ['screenLoading', 'screenError', 'screenClosed', 'screenId', 'screenTireur'].forEach(s => $(s).classList.toggle('hidden', s !== id)); }
+  function fail(t) { $('errorText').textContent = t; show('screenError'); }
+  function msgIn(el, t, type) { $(el).innerHTML = t ? '<div class="msg ' + (type || 'err') + '">' + t + '</div>' : ''; }
+
+  auth.onAuthStateChanged(user => {
+    if (!user) { auth.signInAnonymously().catch(e => fail('Connexion impossible — [' + (e.code || e.message) + ']')); return; }
+    const err = e => fail('Lecture impossible — vérifiez les règles Firebase (nœud confirmations). [' + (e.code || e.message) + ']');
+    db.ref(BASE + '/settings').on('value', s => { settings = s.val() || {}; maj(); }, err);
+    db.ref(BASE + '/inscrits').on('value', s => { inscrits = s.val() || {}; maj(); }, err);
+    db.ref(BASE + '/scores').on('value', s => { scores = s.val() || {}; maj(); }, err);
+    db.ref(BASE + '/confirmations').on('value', s => { confirmations = s.val() || {}; maj(); }, err);
+  });
+
+  function maj() {
+    if (!inscrits || !scores || !settings) return;
+    if (settings.titre) { $('titre').textContent = settings.titre; document.title = 'Confirmation — ' + settings.titre; }
+    if (!settings.confirmOuvert) { show('screenClosed'); return; }
+    if (tireur) afficher(); else if ($('screenId').classList.contains('hidden')) show('screenId');
+  }
+
+  function fiches() {
+    return Object.entries(inscrits).filter(([, i]) => MP.licNorm(i.licence) === tireur.licence && MP.norm(i.nom) === tireur.nom)
+      .sort((a, b) => MP.ORDRE.indexOf(a[1].disc) - MP.ORDRE.indexOf(b[1].disc));
+  }
+
+  function identifier(ev) {
+    ev.preventDefault();
+    const licence = MP.licNorm($('idLic').value), nom = MP.norm($('idNom').value);
+    if (!licence || !nom) return msgIn('idMsg', 'Saisissez le n° de licence et le nom.');
+    tireur = { licence, nom };
+    if (!fiches().length) { tireur = null; return msgIn('idMsg', 'Aucune inscription au match postal pour cette licence et ce nom.'); }
+    msgIn('idMsg', '');
+    afficher();
+  }
+  function changer() { tireur = null; $('idLic').value = ''; $('idNom').value = ''; show('screenId'); }
+
+  function dateFinale() {
+    return new Date((settings.finaleDate || '2027-03-07') + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  }
+  const heure = h => (h || '').replace(/^0(\d)/, '$1').replace(':', ' h ');
+
+  function afficher() {
+    const F = fiches(); if (!F.length) { changer(); return; }
+    const i0 = F[0][1];
+    $('tNom').textContent = i0.nom + ' ' + i0.prenom;
+    $('tInfo').textContent = 'Licence ' + i0.licence + ' · ' + i0.club;
+    const lieu = settings.finaleLieu ? esc(settings.finaleLieu) : 'lieu communiqué prochainement';
+    let h = '', aucune = true;
+    F.forEach(([id, i]) => {
+      const convs = MP.convocations(inscrits, scores, settings, id);
+      if (!convs.length) return;
+      aucune = false;
+      const types = convs.map(c => c.type);
+      const principal = types.includes('grande') ? 'grande' : types.includes('petite') ? 'petite' : 'reserve';
+      let texte = '';
+      convs.forEach(c => {
+        if (c.type === 'grande') texte += '<h3>🏆 Grande finale — ' + MP.DISC[i.disc] + '</h3><div>Qualifié(e) : <b>' + c.rang + 'e</b> des qualifications (' + c.total + ' pts).</div>' +
+          '<div class="quand">📅 ' + esc(dateFinale()) + ' à ' + esc(heure(settings.heureGrande || '09:45')) + ' — 📍 ' + lieu + '</div>';
+        if (c.type === 'petite') texte += '<h3>🎲 Petite finale — ' + MP.DISC[i.disc] + '</h3><div>Vous avez été tiré(e) au sort pour la petite finale.</div>' +
+          '<div class="quand">📅 ' + esc(dateFinale()) + ' à ' + esc(heure(settings.heurePetite || '08:30')) + ' — 📍 ' + lieu + '</div>';
+        if (c.type === 'reserve') texte += '<h3>⏳ Liste d\'attente de la grande finale — ' + MP.DISC[i.disc] + '</h3><div>Vous êtes <b>remplaçant n° ' + c.ordre +
+          '</b> (' + c.rang + 'e des qualifications). Vous serez appelé(e) en cas de désistement d\'un qualifié.</div>' +
+          '<div class="quand">📅 ' + esc(dateFinale()) + ' à ' + esc(heure(settings.heureGrande || '09:45')) + ' — 📍 ' + lieu + '</div>';
+      });
+      if (convs.length > 1) texte += '<div class="hint" style="margin-top:8px;">Votre réponse vaut pour la petite finale et pour un éventuel repêchage en grande finale.</div>';
+      const rep = confirmations[id];
+      const libOui = principal === 'reserve' ? '✅ Je suis disponible' : '✅ Je serai présent(e)';
+      const libNon = principal === 'reserve' ? '❌ Je ne suis pas disponible' : '❌ Je ne pourrai pas venir';
+      h += '<div class="card"><div class="conv ' + principal + '">' + texte + '</div>' +
+        '<label for="note_' + id + '">Message (facultatif)</label><input id="note_' + id + '" maxlength="120" value="' + esc(rep && rep.note || '') + '" placeholder="ex : j\'arriverai à 9 h">' +
+        '<div class="choix"><button class="oui' + (rep && rep.reponse === 'oui' ? ' sel' : '') + '" onclick="repondre(\'' + id + '\',\'oui\',\'' + principal + '\')">' + libOui + '</button>' +
+        '<button class="non' + (rep && rep.reponse === 'non' ? ' sel' : '') + '" onclick="repondre(\'' + id + '\',\'non\',\'' + principal + '\')">' + libNon + '</button></div>' +
+        '<div class="etat" id="etat_' + id + '">' + (rep ? (rep.reponse === 'oui' ? '✅ Réponse enregistrée : présent(e)' : '❌ Réponse enregistrée : absent(e)') +
+          ' — le ' + esc(MP.dateFr(rep.ts)) + '<div class="hint">Vous pouvez changer d\'avis : cliquez sur l\'autre bouton.</div>' : '') + '</div></div>';
+    });
+    if (aucune) h = '<div class="card"><div class="msg info" style="margin:0;">Vous n\'êtes convoqué(e) à aucune finale pour le moment.' +
+      ' Consultez le <a href="mp_classement.html' + location.search + '">classement des qualifications</a>.</div></div>';
+    $('convList').innerHTML = h;
+    show('screenTireur');
+  }
+
+  function repondre(id, reponse, convocation) {
+    const fiche = { reponse, convocation, par: 'tireur', ts: firebase.database.ServerValue.TIMESTAMP };
+    const note = ($('note_' + id).value || '').trim().slice(0, 120);
+    if (note) fiche.note = note;
+    db.ref(BASE + '/confirmations/' + id).set(fiche)
+      .catch(e => { $('etat_' + id).innerHTML = '<div class="msg err">Enregistrement refusé — [' + esc(e.code || e.message) + ']</div>'; });
+  }
+</script>
+</body>
+</html>

@@ -4,7 +4,7 @@
   Voir le fichier LICENCE.
 */
 // ============================================================
-//  MATCH POSTAL — fonctions communes (v1.1 — 09/10/2026)
+//  MATCH POSTAL — fonctions communes (v1.2 — 11/10/2026)
 //  Utilisé par mp_inscription.html, mp_saisie.html, mp_admin.html, mp_classement.html
 //  Données Firebase : matchPostal/<saison>/
 //     settings               : { titre, ouvert, dateLimite, saisieOuverte, periode }
@@ -13,9 +13,10 @@
 //     scores/<id>/<1|2|3>    : { s (0-600 entier), statut ('attente'|'valide'|'refuse'),
 //                                par ('tireur'|'admin'), motif, ts }
 //     preuves/<id>/<1|2|3>   : { img (photo JPEG compressée, data URL), ts }   (admin seulement)
+//     confirmations/<id>     : { reponse ('oui'|'non'), convocation ('grande'|'petite'|'reserve'), note, par ('tireur'|'admin'), ts }
 // ============================================================
 const MP = {
-  VERSION: 'v1.1 — 09/10/2026',
+  VERSION: 'v1.2 — 11/10/2026',
   SAISON_DEFAUT: '2026-2027',
   NB_MATCHES: 3,
   MAX: 600,
@@ -24,6 +25,8 @@ const MP = {
   ORDRE: ['P', 'C', 'PC'],
   FINALE: { P: 19, C: 9, PC: 4 },         // qualifiés pour la finale
   PETITE: { P: 20, C: 10, PC: 0 },        // tirés au sort pour la petite finale (pas de para-tir)
+  RESERVES_DEFAUT: { P: 5, C: 5, PC: 2 },  // remplaçants avertis (liste d'attente de la grande finale)
+  URL_CONFIRMATION: 'https://liguelrtir-lr.github.io/resultats-tir/mp_confirmation.html',
   STATUT: { attente: 'À valider', valide: 'Validé', refuse: 'Refusé' },
 
   saison() {
@@ -76,6 +79,29 @@ const MP = {
     const nonClasses = lignes.filter(l => !l.complet)
       .sort((a, b) => b.nb - a.nb || b.total - a.total || a.i.nom.localeCompare(b.i.nom));
     return { classes, nonClasses };
+  },
+
+  // Listes des finales d'une discipline : grande finale, petite finale (tirage enregistré), liste d'attente
+  finales(inscrits, scores, settings, disc) {
+    const { classes } = this.classement(inscrits, scores, disc);
+    const st = settings || {};
+    const grande = classes.filter(l => l.finale);
+    const tir = ((st.tirage || {})[disc]) || null;
+    const petite = tir ? (tir.ids || []).map(id => classes.find(l => l.id === id)).filter(Boolean) : [];
+    const eligibles = classes.filter(l => !l.finale);
+    const nbRes = Object.assign({}, this.RESERVES_DEFAUT, st.reserves || {})[disc] || 0;
+    const reserve = eligibles.slice(0, nbRes);
+    return { classes, grande, petite, eligibles, tir, reserve };
+  },
+
+  // Convocations d'une inscription : [{ type: 'grande'|'petite'|'reserve', rang, ordre }]
+  convocations(inscrits, scores, settings, id) {
+    const i = (inscrits || {})[id]; if (!i) return [];
+    const F = this.finales(inscrits, scores, settings, i.disc), out = [];
+    const g = F.grande.find(l => l.id === id); if (g) out.push({ type: 'grande', rang: g.rang, total: g.total });
+    const r = F.reserve.findIndex(l => l.id === id); if (r >= 0) out.push({ type: 'reserve', rang: F.reserve[r].rang, ordre: r + 1, total: F.reserve[r].total });
+    const p = F.petite.find(l => l.id === id); if (p) out.push({ type: 'petite', rang: p.rang, total: p.total });
+    return out;
   },
 
   // Photo → JPEG compressé (côté le plus long ≤ maxPx) en data URL, pour rester léger dans la base
