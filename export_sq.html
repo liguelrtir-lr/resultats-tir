@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<!--
+  © 2026 Gérard GARCIA — Tous droits réservés.
+  Logiciel de gestion de compétitions de tir sportif (inscriptions, saisie, résultats).
+  Toute reproduction, copie, modification, diffusion ou réutilisation, totale ou partielle,
+  est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
+  intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
+-->
+<!-- Export des séries vers les cibles électroniques Sport Quantum (SQ) — v1.1 — 11/10/2026 -->
+<!--
+  Format d'import SQ (séparateur « ; », UTF-8 sans BOM, CRLF) — un fichier par série (= « relay ») :
+   ligne 1 : header;device;relay;title;firstname;lastname;country;licence;category;clubname;arg1…arg6
+   lignes meta : event_name, event_location, relay_name, relay_type_name, relay_id, date_end, date_start
+   ligne screen_header (recopiée telle quelle)
+   puis 1 ligne par tireur : ;Cible 01;<relay>;M.|Mme.;Prénom;NOM;FRA;licence;S1;Club;;;;;;
+  Le n° de cible vient du tirage au sort « 🎲 Postes » du tableau de bord.
+-->
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>Export Sport Quantum — séries</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="config.js"></script>
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; margin: 0; background: #eef3f7; color: #1f2933; }
+    header { background: #0b2a4a; color: #fff; padding: 14px 18px; display: flex; align-items: center; gap: 14px; }
+    header img { height: 54px; }
+    header h1 { margin: 0; font-size: 1.3em; }
+    header .sub { color: #7fd3ff; font-weight: bold; font-size: .9em; }
+    main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+    .card { background: #fff; border: 1px solid #dbe3ea; border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; }
+    .opts { display: flex; flex-wrap: wrap; gap: 14px 18px; align-items: center; }
+    .opts label { font-size: .9em; }
+    .opts input, .opts select { padding: 5px 7px; border: 1px solid #ccc; border-radius: 6px; }
+    .w60 { width: 60px; } .w110 { width: 110px; } .w220 { width: 220px; }
+    .serie-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .serie-head h2 { margin: 0; font-size: 1.1em; color: #0b2a4a; }
+    .n { color: #64748b; font-size: .9em; }
+    .type { font-size: .85em; color: #334155; }
+    .map td input { padding: 4px 6px; border: 1px solid #ccc; border-radius: 6px; width: 150px; font-weight: bold; }
+    .map td.vide input { border-color: #f59e0b; background: #fffbeb; }
+    .type input { padding: 4px 6px; border: 1px solid #ccc; border-radius: 6px; width: 140px; font-weight: bold; }
+    button { padding: 8px 14px; border-radius: 8px; border: none; cursor: pointer; font-size: .95em; font-weight: bold; }
+    .dl { background: #0f7a52; color: #fff; margin-left: auto; }
+    .all { background: #1d8fd8; color: #fff; }
+    .warn { background: #fff7e6; border: 1px solid #f5d9a8; color: #7c4a03; padding: 8px 10px; border-radius: 8px; margin-top: 8px; font-size: .9em; }
+    table { width: 100%; border-collapse: collapse; font-size: .85em; margin-top: 10px; }
+    th, td { border-bottom: 1px solid #eee; padding: 5px 6px; text-align: left; white-space: nowrap; }
+    th { background: #eef4f9; font-size: .8em; text-transform: uppercase; color: #64748b; }
+    td.p { font-weight: bold; text-align: center; }
+    .scroll { overflow-x: auto; }
+    .hint { color: #64748b; font-size: .85em; }
+    footer { text-align: center; color: #94a3b8; font-size: .75em; padding: 16px; }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="logo.png" alt="" class="header-logo" onerror="this.style.display='none'">
+    <div>
+      <h1 id="compTitle">Compétition</h1>
+      <div class="sub">🎯 Export des séries pour les cibles Sport Quantum (SQ)</div>
+    </div>
+  </header>
+  <main>
+    <div class="card">
+      <div class="opts">
+        <label>Lieu <input id="optLieu" class="w220" placeholder="ex : Stand de Béziers" onchange="memo();render()"></label>
+        <label>Nom des cibles <input id="optPrefix" class="w110" value="Cible " onchange="memo();render()"></label>
+        <label>Chiffres <select id="optDigits" onchange="memo();render()"><option value="2">01, 02…</option><option value="1">1, 2…</option><option value="3">001…</option></select></label>
+        <label>Durée d'une série <input id="optDuree" type="number" min="0.25" step="0.25" value="1.5" class="w60" onchange="memo();render()"> h</label>
+        <label>Pays <input id="optPays" value="FRA" class="w60" onchange="memo();render()"></label>
+        <button class="all" onclick="toutTelecharger()">⬇️ Télécharger toutes les séries</button>
+      </div>
+      <div class="hint" style="margin-top:8px;">Fichiers CSV au format d'import Sport Quantum (UTF-8, Windows CRLF).
+        Le n° de cible = n° de poste tiré au sort « 🎲 Postes » ; la civilité (M. / Mme.) est déduite de la catégorie (D1, JF, CF… → Mme.).
+        SQ sépare les tireurs par <b>type de match</b> (pistolet / carabine, adultes / cadets…) : indiquez ci-dessous le type SQ de chaque
+        discipline × catégorie. Dans une même série, tous les tireurs ayant le même type vont dans le même fichier → une série peut donner 2, 3 fichiers ou plus.</div>
+    </div>
+    <div class="card" id="typesCard"></div>
+    <div id="content"><div class="card">Chargement…</div></div>
+  </main>
+  <footer>Export Sport Quantum v1.1 — 11/10/2026 · © 2026 Gérard GARCIA</footer>
+
+<script>
+  firebase.initializeApp(CONFIG.firebase);
+  const db = firebase.database();
+  const CLUB_PATH = 'clubs/' + CONFIG.clubKey;
+  const compId = new URLSearchParams(location.search).get('comp');
+  const MEMO_KEY = 'export_sq_' + CONFIG.clubKey + '_' + compId;
+
+  if (compId) { const t = new Image(); t.onload = () => document.querySelectorAll('.header-logo').forEach(i => i.src = 'logo_' + compId + '.png'); t.src = 'logo_' + compId + '.png'; }
+
+  // ── Mémorisation des réglages (par compétition, sur cet ordinateur) ──
+  let reglages = {};
+  try { reglages = JSON.parse(localStorage.getItem(MEMO_KEY) || '{}') || {}; } catch (e) { reglages = {}; }
+  ['optLieu', 'optPrefix', 'optDigits', 'optDuree', 'optPays'].forEach(id => { if (reglages[id] != null) document.getElementById(id).value = reglages[id]; });
+  // Correspondance « discipline | catégorie » → type de match SQ, commune à toutes les compétitions du site
+  const TYPES_KEY = 'export_sq_types_' + CONFIG.clubKey;
+  let typesSQ = {};
+  try { typesSQ = JSON.parse(localStorage.getItem(TYPES_KEY) || '{}') || {}; } catch (e) { typesSQ = {}; }
+  function setTypeSQ(cle, v) {
+    typesSQ[cle] = String(v || '').trim();
+    try { localStorage.setItem(TYPES_KEY, JSON.stringify(typesSQ)); } catch (e) {}
+    render(true);
+  }
+  // Recopier un type sur toutes les catégories vides de la même discipline
+  function propager(disc) {
+    const src = combos.find(c => c.disc === disc && typesSQ[c.cle]);
+    if (!src) return alert('Saisissez d\'abord un type pour une catégorie de cette discipline.');
+    combos.filter(c => c.disc === disc && !typesSQ[c.cle]).forEach(c => typesSQ[c.cle] = typesSQ[src.cle]);
+    try { localStorage.setItem(TYPES_KEY, JSON.stringify(typesSQ)); } catch (e) {}
+    render(true);
+  }
+  function memo() {
+    ['optLieu', 'optPrefix', 'optDigits', 'optDuree', 'optPays'].forEach(id => reglages[id] = document.getElementById(id).value);
+    try { localStorage.setItem(MEMO_KEY, JSON.stringify(reglages)); } catch (e) {}
+  }
+
+  // ── Catégories ──
+  const CAT_CODES = {
+    'senior 1': 'S1', 'senior 2': 'S2', 'senior 3': 'S3', 'dame 1': 'D1', 'dame 2': 'D2', 'dame 3': 'D3',
+    'junior garcon': 'JG', 'junior fille': 'JF', 'cadet g': 'CG', 'cadet garcon': 'CG', 'cadet f': 'CF', 'cadet fille': 'CF', 'cadette': 'CF',
+    'minime g': 'MG', 'minime garcon': 'MG', 'minime f': 'MF', 'minime fille': 'MF',
+    'benjamin garcon': 'BG', 'benjamin g': 'BG', 'benjamin fille': 'BF', 'benjamin f': 'BF',
+    'poussin garcon': 'PG', 'poussin g': 'PG', 'poussin fille': 'PF', 'poussin f': 'PF'
+  };
+  const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  function catCode(c) {
+    const n = norm(c);
+    if (CAT_CODES[n]) return CAT_CODES[n];
+    if (/^[a-z]{1,2}\d?$/i.test(String(c || '').trim())) return String(c).trim().toUpperCase();
+    return String(c || '').trim();
+  }
+  // Civilité déduite de la catégorie : D1-D3, JF, CF, MF, BF, PF, « dame », « fille »… → Mme.
+  function civilite(cat, catBrute) {
+    const c = String(cat || '').toUpperCase(), n = norm(catBrute);
+    if (/^D\d?$/.test(c) || /^[JCMBP]F$/.test(c) || /dame|fille|femme|cadette/.test(n)) return 'Mme.';
+    return 'M.';
+  }
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const champ = s => String(s == null ? '' : s).replace(/[;\r\n]+/g, ' ').trim();
+  const pad2 = n => String(n).padStart(2, '0');
+  const ligne = (vals) => { const a = vals.slice(); while (a.length < 16) a.push(''); return a.join(';'); };   // 16 colonnes comme le modèle SQ
+
+  const SCREEN_HEADER = "screen_header;screen_name;device_list ('target1', target2');orderType (rank|name|device);orderDirection (asc|desc) ;zoom (true|false);adaptZoom (true|false);centerZoom (true|false);grouping (true|false);ranking (hide|total|avg);dec (true|false);view_mode (grid|table);groupBySession (true|false);autoScroll (true|false);scrollSpeed (number);displayedColumns (name, user, club, session, strategy, seriesStats, count, avg, totalStats, rank)";
+
+  let shooters = null, slots = null, compName = 'Compétition', series = [];
+
+  if (!compId) document.getElementById('content').innerHTML = '<div class="card" style="color:red;font-weight:bold;">⚠️ Aucune compétition indiquée.</div>';
+  else {
+    db.ref(CLUB_PATH + '/' + compId + '/config').on('value', s => { const c = s.val(); compName = (c && c.name) || 'Compétition'; document.getElementById('compTitle').textContent = compName; render(); });
+    db.ref(CLUB_PATH + '/' + compId + '/slots').on('value', s => { slots = s.val() || {}; render(); });
+    db.ref(CLUB_PATH + '/' + compId + '/shooters').on('value', s => { shooters = s.val() || {}; render(); });
+  }
+
+  function quand(sl) {
+    if (!sl.date) return '';
+    const [y, m, d] = sl.date.split('-');
+    return d + '/' + m + (sl.time ? ' ' + sl.time : '');
+  }
+  // « 2026-01-11T12:00:00 » + durée → fin
+  function isoLocal(dt) { return dt.getFullYear() + '-' + pad2(dt.getMonth() + 1) + '-' + pad2(dt.getDate()) + 'T' + pad2(dt.getHours()) + ':' + pad2(dt.getMinutes()) + ':00'; }
+  function dates(sl) {
+    if (!sl.date) return { debut: '', fin: '' };
+    const [y, m, d] = sl.date.split('-').map(Number);
+    const [h, mi] = (sl.time || '08:00').split(':').map(Number);
+    const deb = new Date(y, m - 1, d, h || 0, mi || 0);
+    const duree = parseFloat(document.getElementById('optDuree').value) || 1.5;
+    return { debut: isoLocal(deb), fin: isoLocal(new Date(deb.getTime() + duree * 3600000)) };
+  }
+  function nomCible(poste) {
+    if (!poste) return '';
+    const n = parseInt(document.getElementById('optDigits').value, 10) || 2;
+    return document.getElementById('optPrefix').value + String(poste).padStart(n, '0');
+  }
+
+  const cleCombo = (disc, cat) => norm(disc) + '|' + String(cat || '').toUpperCase();
+  let combos = [];   // disciplines × catégories présentes dans la compétition
+
+  function construire() {
+    const ordre = Object.entries(slots).sort((a, b) => {
+      const ka = a[1].datetime || '', kb = b[1].datetime || '';
+      return ka < kb ? -1 : ka > kb ? 1 : 0;
+    });
+    const lieu = champ(document.getElementById('optLieu').value);
+    const pays = champ(document.getElementById('optPays').value) || 'FRA';
+    const vus = {};
+    const fichiers = [];
+    ordre.forEach(([sid, sl], idx) => {
+      const relay = idx + 1;
+      const reg = sl.registered || {};
+      const lignes = Object.keys(reg).filter(id => shooters[id]).map(id => {
+        const sh = shooters[id], r = reg[id] || {};
+        const cat = catCode(sh.category), disc = sh.discipline || r.discipline || '';
+        const cle = cleCombo(disc, cat);
+        if (!vus[cle]) vus[cle] = { cle, disc, cat, n: 0 };
+        vus[cle].n++;
+        return { id, nom: String(sh.lastName || '').toUpperCase(), prenom: sh.firstName || '', licence: sh.licence || r.licence || '',
+          club: sh.club || '', cat, civ: civilite(cat, sh.category), poste: r.poste || null, disc, cle, type: typesSQ[cle] || '' };
+      }).sort((a, b) => (a.poste && b.poste) ? a.poste - b.poste : a.poste ? -1 : b.poste ? 1 : a.nom.localeCompare(b.nom, 'fr'));
+      lignes.forEach(l => l.cible = nomCible(l.poste));
+
+      // Un fichier par type de match SQ (sans type : un fichier par discipline + catégorie, à compléter)
+      const groupes = {};
+      lignes.forEach(l => { const g = l.type ? 'T:' + l.type : 'X:' + l.cle; (groupes[g] = groupes[g] || []).push(l); });
+      const titreSerie = (quand(sl) ? quand(sl) + (sl.label ? ' — ' + sl.label : '') : (sl.label || 'Série ' + relay));
+      const dt = dates(sl);
+      if (!lignes.length) fichiers.push({ sid, relay, titreSerie, type: '', lignes: [], vide: true });
+      Object.values(groupes).forEach(gl => {
+        const type = gl[0].type;
+        const libre = type || (gl[0].disc + ' ' + gl[0].cat);
+        const relayName = champ((sl.label || ('Série ' + relay)) + ' — ' + libre);
+        const out = [
+          ligne(['header', 'device', 'relay', 'title', 'firstname', 'lastname', 'country', 'licence', 'category', 'clubname', 'arg1', 'arg2', 'arg3', 'arg4', 'arg5', 'arg6']),
+          ligne(['meta', 'event_name', champ(compName)]),
+          ligne(['meta', 'event_location', lieu]),
+          ligne(['meta', 'relay_name', relayName]),
+          ligne(['meta', 'relay_type_name', champ(type)]),
+          ligne(['meta', 'relay_id', relay]),
+          ligne(['meta', 'date_end', dt.fin]),
+          ligne(['meta', 'date_start', dt.debut]),
+          SCREEN_HEADER
+        ];
+        gl.forEach(l => out.push(ligne(['', l.cible, relay, l.civ, champ(l.prenom), champ(l.nom), pays, champ(l.licence), champ(l.cat), champ(l.club)])));
+        const fic = ('SQ_' + relay + '_' + (sl.label || '') + '_' + (sl.date || '') + '_' + (sl.time || '') + '_' + libre)
+          .normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/_+$/, '') + '.csv';
+        fichiers.push({ sid, relay, titreSerie, type, libre, lignes: gl, csv: out.join('\r\n') + '\r\n', fic, sansPoste: gl.filter(l => !l.poste).length });
+      });
+    });
+    combos = Object.values(vus).sort((a, b) => a.disc.localeCompare(b.disc, 'fr') || a.cat.localeCompare(b.cat));
+    return fichiers;
+  }
+
+  function rendreTypes() {
+    const parDisc = {};
+    combos.forEach(c => (parDisc[c.disc] = parDisc[c.disc] || []).push(c));
+    const manque = combos.filter(c => !typesSQ[c.cle]).length;
+    document.getElementById('typesCard').innerHTML = !combos.length ? '' :
+      '<h2 style="margin:0 0 6px;font-size:1.1em;color:#0b2a4a;">Types de match SQ</h2>' +
+      '<div class="hint">Mettez le même type pour les catégories qui tirent ensemble (ex. S1, S2, S3, D1… → CAR10ADU ; CG, CF → CAR10CAD). Mémorisé sur cet ordinateur pour toutes les compétitions.</div>' +
+      (manque ? '<div class="warn">⚠️ ' + manque + ' combinaison(s) sans type : leurs tireurs sont mis dans un fichier à part par catégorie, avec un type vide.</div>' : '') +
+      '<div class="scroll"><table class="map"><tr><th>Discipline</th><th>Catégorie</th><th>Tireurs</th><th>Type de match SQ</th></tr>' +
+      Object.entries(parDisc).map(([disc, lst]) => lst.map((c, i) =>
+        '<tr><td>' + (i ? '' : '<b>' + esc(disc || '(sans discipline)') + '</b>' + (lst.length > 1 ? ' <button type="button" style="padding:2px 8px;font-size:.8em;background:#e2e8f0;" onclick="propager(\'' + esc(disc).replace(/'/g, "\\'") + '\')" title="Recopier le type saisi sur les catégories vides de cette discipline">⇣ recopier</button>' : '')) + '</td>' +
+        '<td>' + esc(c.cat || '—') + '</td><td>' + c.n + '</td>' +
+        '<td class="' + (typesSQ[c.cle] ? '' : 'vide') + '"><input data-cle="' + esc(c.cle) + '" value="' + esc(typesSQ[c.cle] || '') + '" placeholder="à renseigner" onchange="setTypeSQ(this.dataset.cle, this.value)"></td></tr>').join('')).join('') +
+      '</table></div>';
+  }
+
+  function render(force) {
+    if (shooters === null || slots === null) return;
+    if (!Object.keys(slots).length) {
+      document.getElementById('content').innerHTML = '<div class="card">Cette compétition n\'a pas de séries (créneaux). Créez-les dans « 🎟️ Séries » du tableau de bord.</div>';
+      return;
+    }
+    const actif = document.activeElement;
+    if (!force && actif && actif.dataset && actif.dataset.cle) return;   // ne pas redessiner pendant la frappe
+    series = construire();
+    rendreTypes();
+    // Regroupement à l'écran par série
+    const parSerie = [];
+    series.forEach((f, k) => { let g = parSerie.find(x => x.sid === f.sid); if (!g) parSerie.push(g = { sid: f.sid, titre: f.titreSerie, fichiers: [] }); if (!f.vide) g.fichiers.push([f, k]); });
+    document.getElementById('content').innerHTML = parSerie.map(g =>
+      '<div class="card"><div class="serie-head"><h2>' + esc(g.titre) + '</h2><span class="n">' + g.fichiers.reduce((a, [f]) => a + f.lignes.length, 0) + ' tireur(s) · ' +
+      g.fichiers.length + ' fichier(s) SQ</span></div>' +
+      (!g.fichiers.length ? '<div class="hint">Aucun inscrit dans cette série.</div>' : g.fichiers.map(([f, k]) =>
+        '<div style="border-top:1px dashed #dbe3ea;margin-top:10px;padding-top:8px;"><div class="serie-head"><span class="type">Type SQ : <b' + (f.type ? '' : ' style="color:#b45309"') + '>' + esc(f.type || 'non renseigné (' + f.libre + ')') + '</b> · ' + f.lignes.length + ' tireur(s)</span>' +
+        '<button class="dl" onclick="telecharger(' + k + ')">⬇️ Fichier SQ</button></div>' +
+        (f.sansPoste ? '<div class="warn">⚠️ ' + f.sansPoste + ' tireur(s) sans n° de poste : faites le tirage « 🎲 Postes » de cette série avant l\'export.</div>' : '') +
+        '<div class="scroll"><table><tr><th>Cible</th><th>Civ.</th><th>Nom</th><th>Prénom</th><th>Licence</th><th>Cat.</th><th>Club</th><th>Discipline</th></tr>' +
+        f.lignes.map(l => '<tr><td class="p">' + (esc(l.cible) || '—') + '</td><td>' + l.civ + '</td><td><b>' + esc(l.nom) + '</b></td><td>' + esc(l.prenom) + '</td><td>' + esc(l.licence) +
+          '</td><td>' + esc(l.cat) + '</td><td>' + esc(l.club) + '</td><td>' + esc(l.disc) + '</td></tr>').join('') + '</table></div>' +
+        '<div class="hint" style="margin-top:4px;">Fichier : ' + esc(f.fic) + '</div></div>').join('')) + '</div>').join('');
+  }
+
+  function telecharger(k) {
+    const s = series[k]; if (!s || s.vide || !s.lignes.length) return;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([s.csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = s.fic;
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+  function toutTelecharger() {
+    let n = 0; series.forEach((s, k) => { if (!s.vide && s.lignes.length) setTimeout(() => telecharger(k), (n++) * 400); });
+  }
+</script>
+</body>
+</html>
