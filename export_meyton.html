@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<!--
+  © 2026 Gérard GARCIA — Tous droits réservés.
+  Logiciel de gestion de compétitions de tir sportif (inscriptions, saisie, résultats).
+  Toute reproduction, copie, modification, diffusion ou réutilisation, totale ou partielle,
+  est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
+  intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
+-->
+<!-- Export des séries vers les cibles électroniques MEYTON (liste de départ XML ShootMaster) — v1.0 — 11/10/2026 -->
+<!--
+  Format : <sl:StartList> (schéma http://meyton.org/2011/Schema/StartList), UTF-8, un <StarterRecord> par tireur :
+  Shooter (SportPassID = licence, FamilyName, GivenName, Gender M|W, Country), Club (Name, ID), LaneNo (= poste),
+  MatchClass (ClassNameID Name/ID + ClassLimits âges/genre), Discipline (Distance, MajorGermanRule, MinorGermanRule,
+  TotalCompetitionShotNo), RankingListName. Un fichier par série ; postes = tirage « 🎲 Postes ».
+-->
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>Export Meyton — séries</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="config.js"></script>
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; margin: 0; background: #eef2ee; color: #1f2933; }
+    header { background: #12391f; color: #fff; padding: 14px 18px; display: flex; align-items: center; gap: 14px; }
+    header img { height: 54px; }
+    header h1 { margin: 0; font-size: 1.3em; }
+    header .sub { color: #9be7b0; font-weight: bold; font-size: .9em; }
+    main { max-width: 1150px; margin: 0 auto; padding: 16px; }
+    .card { background: #fff; border: 1px solid #d9e3db; border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; }
+    .card h2 { margin: 0 0 6px; font-size: 1.1em; color: #12391f; }
+    .opts { display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: center; }
+    .opts label { font-size: .9em; }
+    .opts input { padding: 5px 7px; border: 1px solid #ccc; border-radius: 6px; }
+    .w60 { width: 60px; }
+    .serie-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .serie-head h2 { margin: 0; }
+    .n { color: #64748b; font-size: .9em; }
+    button { padding: 8px 14px; border-radius: 8px; border: none; cursor: pointer; font-size: .95em; font-weight: bold; }
+    .dl { background: #0f7a52; color: #fff; margin-left: auto; }
+    .all { background: #1f7a3a; color: #fff; }
+    .mini { padding: 2px 8px; font-size: .8em; background: #e2e8f0; }
+    .warn { background: #fff7e6; border: 1px solid #f5d9a8; color: #7c4a03; padding: 8px 10px; border-radius: 8px; margin-top: 8px; font-size: .9em; }
+    table { width: 100%; border-collapse: collapse; font-size: .85em; margin-top: 10px; }
+    th, td { border-bottom: 1px solid #eee; padding: 5px 6px; text-align: left; white-space: nowrap; }
+    th { background: #eef5ef; font-size: .8em; text-transform: uppercase; color: #64748b; }
+    td.p { font-weight: bold; text-align: center; }
+    .map input { padding: 4px 6px; border: 1px solid #ccc; border-radius: 6px; }
+    .map input.vide { border-color: #f59e0b; background: #fffbeb; }
+    .i50 { width: 50px; } .i70 { width: 70px; } .i180 { width: 180px; }
+    .scroll { overflow-x: auto; }
+    .hint { color: #64748b; font-size: .85em; }
+    footer { text-align: center; color: #94a3b8; font-size: .75em; padding: 16px; }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="logo.png" alt="" class="header-logo" onerror="this.style.display='none'">
+    <div>
+      <h1 id="compTitle">Compétition</h1>
+      <div class="sub">🎯 Export des séries pour les cibles MEYTON (ShootMaster)</div>
+    </div>
+  </header>
+  <main>
+    <div class="card">
+      <div class="opts">
+        <label>N° de liste de départ de la 1ʳᵉ série <input id="optListe" type="number" min="1" value="1" class="w60" onchange="memo();render()"></label>
+        <label>Pays <input id="optPays" value="FRA" class="w60" onchange="memo();render()"></label>
+        <label>Ligue (facultatif) <input id="optFedNom" placeholder="Ligue Languedoc-Roussillon" style="width:200px" onchange="memo();render()"></label>
+        <label>ID <input id="optFedId" class="w60" onchange="memo();render()"></label>
+        <label>Code <input id="optFedCode" class="w60" placeholder="LR" onchange="memo();render()"></label>
+        <button class="all" onclick="toutTelecharger()">⬇️ Télécharger toutes les séries</button>
+      </div>
+      <div class="hint" style="margin-top:8px;">Un fichier XML par série, au format liste de départ Meyton (UTF-8). N° de couloir (LaneNo) = n° de poste du tirage « 🎲 Postes » ;
+        n° de licence = SportPassID ; sexe déduit de la catégorie. Remplissez une fois les deux tableaux ci-dessous (disciplines et classes Meyton) :
+        ils sont mémorisés sur cet ordinateur pour toutes les compétitions du site.</div>
+    </div>
+    <div class="card" id="discCard"></div>
+    <div class="card" id="classCard"></div>
+    <div id="content"><div class="card">Chargement…</div></div>
+  </main>
+  <footer>Export Meyton v1.0 — 11/10/2026 · © 2026 Gérard GARCIA</footer>
+
+<script>
+  firebase.initializeApp(CONFIG.firebase);
+  const db = firebase.database();
+  const CLUB_PATH = 'clubs/' + CONFIG.clubKey;
+  const compId = new URLSearchParams(location.search).get('comp');
+  const MEMO_KEY = 'export_meyton_' + CONFIG.clubKey + '_' + compId;
+  const DISC_KEY = 'export_meyton_disc_' + CONFIG.clubKey;
+  const CLASS_KEY = 'export_meyton_class_' + CONFIG.clubKey;
+
+  if (compId) { const t = new Image(); t.onload = () => document.querySelectorAll('.header-logo').forEach(i => i.src = 'logo_' + compId + '.png'); t.src = 'logo_' + compId + '.png'; }
+
+  const lire = k => { try { return JSON.parse(localStorage.getItem(k) || '{}') || {}; } catch (e) { return {}; } };
+  const ecrire = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+  let reglages = lire(MEMO_KEY), discMap = lire(DISC_KEY), classMap = lire(CLASS_KEY);
+  ['optListe', 'optPays', 'optFedNom', 'optFedId', 'optFedCode'].forEach(id => { if (reglages[id] != null) document.getElementById(id).value = reglages[id]; });
+  function memo() { ['optListe', 'optPays', 'optFedNom', 'optFedId', 'optFedCode'].forEach(id => reglages[id] = document.getElementById(id).value); ecrire(MEMO_KEY, reglages); }
+
+  // ── Catégories ──
+  const CAT_CODES = {
+    'senior 1': 'S1', 'senior 2': 'S2', 'senior 3': 'S3', 'dame 1': 'D1', 'dame 2': 'D2', 'dame 3': 'D3',
+    'junior garcon': 'JG', 'junior fille': 'JF', 'cadet g': 'CG', 'cadet garcon': 'CG', 'cadet f': 'CF', 'cadet fille': 'CF', 'cadette': 'CF',
+    'minime g': 'MG', 'minime garcon': 'MG', 'minime f': 'MF', 'minime fille': 'MF',
+    'benjamin garcon': 'BG', 'benjamin g': 'BG', 'benjamin fille': 'BF', 'benjamin f': 'BF',
+    'poussin garcon': 'PG', 'poussin g': 'PG', 'poussin fille': 'PF', 'poussin f': 'PF'
+  };
+  const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  function catCode(c) {
+    const n = norm(c);
+    if (CAT_CODES[n]) return CAT_CODES[n];
+    if (/^[a-z]{1,2}\d?$/i.test(String(c || '').trim())) return String(c).trim().toUpperCase();
+    return String(c || '').trim();
+  }
+  const sexe = (cat, brute) => (/^D\d?$/.test(cat) || /^[JCMBP]F$/.test(cat) || /dame|fille|femme|cadette/.test(norm(brute))) ? 'W' : 'M';
+  // Classes Meyton proposées par défaut (nom, âges FFTir indicatifs, ID connu) — tout est modifiable
+  // IDs relevés sur les fichiers Meyton reçus : Minimes G/F = 30/31, Dames 1 = 61, Dames 2 = 71, ouvert = 99.
+  // Les autres suivent la même logique (garçons/hommes = x0, filles/dames = x1) : À VÉRIFIER sur le PC Meyton.
+  const CLASSES_DEF = {
+    PG: ['Poussins Garçons', 10, 8, 10], PF: ['Poussins Filles', 11, 8, 10],
+    BG: ['Benjamins Garçons', 20, 11, 12], BF: ['Benjamins Filles', 21, 11, 12],
+    MG: ['Minimes Garçons', 30, 13, 14], MF: ['Minimes Filles', 31, 13, 14],
+    CG: ['Cadets Garçons', 40, 15, 17], CF: ['Cadets Filles', 41, 15, 17],
+    JG: ['Juniors Garçons', 50, 18, 20], JF: ['Juniors Filles', 51, 18, 20],
+    S1: ['Seniors 1', 60, 21, 44], D1: ['Dames 1', 61, 21, 44],
+    S2: ['Seniors 2', 70, 45, 59], D2: ['Dames 2', 71, 45, 59],
+    S3: ['Seniors 3', 80, 60, 255], D3: ['Dames 3', 81, 60, 255]
+  };
+  const SURS = { MG: 1, MF: 1, D1: 1, D2: 1 };   // IDs confirmés par les fichiers reçus
+  function classeDe(cat) {
+    const m = classMap[cat] || {}, d = CLASSES_DEF[cat] || ['ouvert', 99, 0, 255];
+    return { nom: m.nom != null ? m.nom : d[0], id: m.id != null ? m.id : d[1], min: m.min != null ? m.min : d[2], max: m.max != null ? m.max : d[3] };
+  }
+  const distanceDe = disc => { const m = String(disc).match(/(\d+)\s?m\b/i); return m ? m[1] + 'm' : ''; };
+  const cleDisc = (disc, cat) => norm(disc) + '|' + cat;
+  function discDe(disc, cat) {
+    const m = discMap[cleDisc(disc, cat)] || {};
+    return { dist: m.dist != null ? m.dist : distanceDe(disc), maj: m.maj || '', min: m.min || '', coups: m.coups || '', liste: m.liste != null ? m.liste : '' };
+  }
+  function setDisc(cle, champ, v) { discMap[cle] = discMap[cle] || {}; discMap[cle][champ] = String(v).trim(); ecrire(DISC_KEY, discMap); render(true); }
+  function setClass(cat, champ, v) { classMap[cat] = Object.assign({}, classeDe(cat), classMap[cat] || {}); classMap[cat][champ] = String(v).trim(); ecrire(CLASS_KEY, classMap); render(true); }
+  // Recopie la 1re ligne complète d'une discipline sur les autres catégories de cette discipline (champs vides seulement)
+  function recopier(disc) {
+    const lst = combos.filter(c => c.disc === disc);
+    const src = lst.map(c => discDe(c.disc, c.cat)).find(d => d.maj && d.min && d.coups);
+    if (!src) return alert('Remplissez d\'abord complètement une ligne de cette discipline.');
+    lst.forEach(c => { const d = discDe(c.disc, c.cat); discMap[c.cle] = { dist: d.dist || src.dist, maj: d.maj || src.maj, min: d.min || src.min, coups: d.coups || src.coups, liste: d.liste || src.liste }; });
+    ecrire(DISC_KEY, discMap); render(true);
+  }
+
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const x = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c])).trim();
+
+  let shooters = null, slots = null, compName = 'Compétition', series = [], combos = [], cats = [];
+
+  if (!compId) document.getElementById('content').innerHTML = '<div class="card" style="color:red;font-weight:bold;">⚠️ Aucune compétition indiquée.</div>';
+  else {
+    db.ref(CLUB_PATH + '/' + compId + '/config').on('value', s => { const c = s.val(); compName = (c && c.name) || 'Compétition'; document.getElementById('compTitle').textContent = compName; render(); });
+    db.ref(CLUB_PATH + '/' + compId + '/slots').on('value', s => { slots = s.val() || {}; render(); });
+    db.ref(CLUB_PATH + '/' + compId + '/shooters').on('value', s => { shooters = s.val() || {}; render(); });
+  }
+
+  function quand(sl) {
+    if (!sl.date) return '';
+    const [y, m, d] = sl.date.split('-');
+    return d + '/' + m + (sl.time ? ' ' + sl.time : '');
+  }
+
+  function construire() {
+    const ordre = Object.entries(slots).sort((a, b) => { const ka = a[1].datetime || '', kb = b[1].datetime || ''; return ka < kb ? -1 : ka > kb ? 1 : 0; });
+    const pays = x(document.getElementById('optPays').value) || 'FRA';
+    const fed = { nom: x(document.getElementById('optFedNom').value), id: x(document.getElementById('optFedId').value), code: x(document.getElementById('optFedCode').value) };
+    const liste0 = Math.max(1, parseInt(document.getElementById('optListe').value, 10) || 1);
+    // N° de club Meyton : ordre alphabétique des clubs de la compétition
+    const clubs = [...new Set(Object.values(shooters).map(s => String(s.club || '').toUpperCase().trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
+    const vusD = {}, vusC = {};
+    const res = ordre.map(([sid, sl], idx) => {
+      const reg = sl.registered || {};
+      const lignes = Object.keys(reg).filter(id => shooters[id]).map(id => {
+        const sh = shooters[id], r = reg[id] || {};
+        const cat = catCode(sh.category), disc = sh.discipline || r.discipline || '';
+        const cle = cleDisc(disc, cat);
+        if (!vusD[cle]) vusD[cle] = { cle, disc, cat, n: 0 }; vusD[cle].n++;
+        if (!vusC[cat]) vusC[cat] = { cat, n: 0 }; vusC[cat].n++;
+        const club = String(sh.club || '').toUpperCase().trim();
+        return { nom: String(sh.lastName || '').toUpperCase(), prenom: sh.firstName || '', licence: sh.licence || r.licence || '',
+          club, clubId: clubs.indexOf(club) + 1, cat, g: sexe(cat, sh.category), poste: r.poste || null, disc, d: discDe(disc, cat), c: classeDe(cat) };
+      }).sort((a, b) => (a.poste && b.poste) ? a.poste - b.poste : a.poste ? -1 : b.poste ? 1 : a.nom.localeCompare(b.nom, 'fr'));
+      const listId = liste0 + idx;
+      const nomSerie = sl.label || ('Série ' + (idx + 1));
+      const xml = ['<?xml version="1.0" encoding="UTF-8"?>',
+        '<sl:StartList xmlns:sl="http://meyton.org/2011/Schema/StartList" xmlns:me="http://meyton.org/2011/Schema/MEXmlTypes" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://meyton.org/2011/Schema/StartList file:/opt/ShootMaster_5.4.0/MEData/XML/Schema/Starterliste.xsd" StartListID="' + listId + '" Version="0.2.2" Type="Standard">'];
+      lignes.forEach((l, i) => {
+        const liste = l.d.liste || (nomSerie + ' ' + l.disc).trim();
+        xml.push('    <StarterRecord StartID="' + (i + 1) + '">',
+          '        <Shooter>',
+          (l.licence ? '            <SportPassID>' + x(l.licence) + '</SportPassID>' : null),
+          '            <FamilyName>' + x(l.nom) + '</FamilyName>',
+          '            <GivenName>' + x(l.prenom) + '</GivenName>',
+          '            <Gender>' + l.g + '</Gender>',
+          '            <Country>' + pays + '</Country>',
+          '        </Shooter>',
+          '        <Club>',
+          '            <Name>' + x(l.club) + '</Name>',
+          '            <ID>' + l.clubId + '</ID>',
+          '        </Club>',
+          '        <LaneNo>' + (l.poste || '') + '</LaneNo>',
+          '        <MatchClass>',
+          '            <ClassNameID>',
+          '                <Name>' + x(l.c.nom) + '</Name>',
+          '                <ID>' + x(l.c.id) + '</ID>',
+          '            </ClassNameID>',
+          '            <ClassLimits>',
+          (l.c.min !== '' || l.c.max !== '' ? ['                <Limit>',
+            (l.c.min !== '' ? '                    <MinAge>' + x(l.c.min) + '</MinAge>' : null),
+            (l.c.max !== '' ? '                    <MaxAge>' + x(l.c.max) + '</MaxAge>' : null),
+            '                </Limit>'].filter(v => v !== null).join('\n') : null),
+          '                <Gender>' + (CLASSES_DEF[l.cat] ? l.g : '0') + '</Gender>',
+          '            </ClassLimits>',
+          '        </MatchClass>',
+          (fed.nom ? ['        <Federation>', '            <Name>' + fed.nom + '</Name>', '            <ID>' + fed.id + '</ID>', '            <FedCode>' + fed.code + '</FedCode>', '        </Federation>'].join('\n') : null),
+          '        <Discipline>',
+          '            <Distance>' + x(l.d.dist) + '</Distance>',
+          '            <MajorGermanRule>' + x(l.d.maj) + '</MajorGermanRule>',
+          '            <MinorGermanRule>' + x(l.d.min) + '</MinorGermanRule>',
+          '            <TotalCompetitionShotNo>' + x(l.d.coups) + '</TotalCompetitionShotNo>',
+          '        </Discipline>',
+          '        <RankingListName>' + x(liste) + '</RankingListName>',
+          '    </StarterRecord>');
+      });
+      xml.push('</sl:StartList>', '');
+      const fic = ('MEYTON_' + (idx + 1) + '_' + (sl.label || '') + '_' + (sl.date || '') + '_' + (sl.time || ''))
+        .normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/_+$/, '') + '.xml';
+      return { titre: (quand(sl) ? quand(sl) + (sl.label ? ' — ' + sl.label : '') : nomSerie), listId, lignes,
+        xml: xml.filter(v => v !== null).join('\n'), fic,
+        sansPoste: lignes.filter(l => !l.poste).length,
+        incomplet: lignes.filter(l => !l.d.maj || !l.d.min || !l.d.coups || l.c.id === '').length };
+    });
+    combos = Object.values(vusD).sort((a, b) => a.disc.localeCompare(b.disc, 'fr') || a.cat.localeCompare(b.cat));
+    cats = Object.values(vusC).sort((a, b) => a.cat.localeCompare(b.cat));
+    return res;
+  }
+
+  const inp = (cls, val, on, ph) => '<input class="' + cls + (String(val) === '' && !ph ? ' vide' : '') + '" value="' + esc(val) + '" placeholder="' + (ph || '') + '" onchange="' + on + '">';
+  function rendreTables() {
+    const parDisc = {};
+    combos.forEach(c => (parDisc[c.disc] = parDisc[c.disc] || []).push(c));
+    document.getElementById('discCard').innerHTML = !combos.length ? '' :
+      '<h2>Disciplines Meyton</h2><div class="hint">Codes de la discipline dans ShootMaster (règle principale / secondaire), nombre de coups et nom de la liste de classement.' +
+      ' Exemples reçus : « 2026_ET_S10_3x20 » (10 m 3x20 école de tir) → 10 / 5 / 60 coups ; « 2025_S37 » (10 m) → 5 / 16 / 140 coups. Liste de classement vide = nom de la série + discipline.</div>' +
+      '<div class="scroll"><table class="map"><tr><th>Discipline</th><th>Cat.</th><th>Tireurs</th><th>Distance</th><th>Règle princ.</th><th>Règle sec.</th><th>Coups</th><th>Liste de classement</th></tr>' +
+      Object.entries(parDisc).map(([disc, lst]) => lst.map((c, i) => {
+        const d = discDe(c.disc, c.cat), k = esc(c.cle).replace(/'/g, "\\'");
+        return '<tr><td>' + (i ? '' : '<b>' + esc(disc || '(sans discipline)') + '</b>' + (lst.length > 1 ? ' <button type="button" class="mini" onclick="recopier(\'' + esc(disc).replace(/'/g, "\\'") + '\')">⇣ recopier</button>' : '')) + '</td>' +
+          '<td>' + esc(c.cat) + '</td><td>' + c.n + '</td>' +
+          '<td>' + inp('i50', d.dist, "setDisc('" + k + "','dist',this.value)", '10m') + '</td>' +
+          '<td>' + inp('i50', d.maj, "setDisc('" + k + "','maj',this.value)") + '</td>' +
+          '<td>' + inp('i50', d.min, "setDisc('" + k + "','min',this.value)") + '</td>' +
+          '<td>' + inp('i50', d.coups, "setDisc('" + k + "','coups',this.value)") + '</td>' +
+          '<td>' + inp('i180', d.liste, "setDisc('" + k + "','liste',this.value)", 'automatique') + '</td></tr>';
+      }).join('')).join('') + '</table></div>';
+    document.getElementById('classCard').innerHTML = !cats.length ? '' :
+      '<h2>Classes Meyton (catégories)</h2><div class="hint">Nom et n° de la classe tels qu\'ils existent dans ShootMaster. IDs confirmés : Minimes G/F 30/31, Dames 1 61, Dames 2 71, ouvert 99 ; les autres sont déduits de la même logique — <b>à vérifier</b> sur le PC Meyton. Catégorie inconnue → classe « ouvert » (99).</div>' +
+      '<div class="scroll"><table class="map"><tr><th>Cat.</th><th>Tireurs</th><th>Nom de la classe</th><th>ID Meyton</th><th>Âge min</th><th>Âge max</th><th>Sexe</th></tr>' +
+      cats.map(c => {
+        const k = classeDe(c.cat), q = esc(c.cat).replace(/'/g, "\\'");
+        return '<tr><td><b>' + esc(c.cat) + '</b></td><td>' + c.n + '</td>' +
+          '<td>' + inp('i180', k.nom, "setClass('" + q + "','nom',this.value)") + '</td>' +
+          '<td>' + inp('i50', k.id, "setClass('" + q + "','id',this.value)") + ((SURS[c.cat] || (classMap[c.cat] && classMap[c.cat].id != null)) ? '' : ' <span title="ID déduit, à vérifier">❓</span>') + '</td>' +
+          '<td>' + inp('i50', k.min, "setClass('" + q + "','min',this.value)") + '</td>' +
+          '<td>' + inp('i50', k.max, "setClass('" + q + "','max',this.value)") + '</td>' +
+          '<td>' + sexe(c.cat, '') + '</td></tr>';
+      }).join('') + '</table></div>';
+  }
+
+  function render(force) {
+    if (shooters === null || slots === null) return;
+    if (!Object.keys(slots).length) {
+      document.getElementById('content').innerHTML = '<div class="card">Cette compétition n\'a pas de séries (créneaux). Créez-les dans « 🎟️ Séries » du tableau de bord.</div>';
+      return;
+    }
+    const a = document.activeElement;
+    if (!force && a && a.tagName === 'INPUT' && a.closest('.map')) return;
+    series = construire();
+    rendreTables();
+    document.getElementById('content').innerHTML = series.map((s, k) =>
+      '<div class="card"><div class="serie-head"><h2>' + esc(s.titre) + '</h2><span class="n">' + s.lignes.length + ' tireur(s) · liste n° ' + s.listId + '</span>' +
+      '<button class="dl" onclick="telecharger(' + k + ')"' + (s.lignes.length ? '' : ' disabled style="opacity:.4"') + '>⬇️ Fichier Meyton</button></div>' +
+      (s.sansPoste ? '<div class="warn">⚠️ ' + s.sansPoste + ' tireur(s) sans n° de poste : faites le tirage « 🎲 Postes » de cette série avant l\'export.</div>' : '') +
+      (s.incomplet ? '<div class="warn">⚠️ ' + s.incomplet + ' tireur(s) dont la discipline ou la classe Meyton n\'est pas complètement renseignée (cases orange ci-dessus).</div>' : '') +
+      (s.lignes.length ? '<div class="scroll"><table><tr><th>Couloir</th><th>Nom</th><th>Prénom</th><th>Licence</th><th>Club</th><th>Cat.</th><th>Classe</th><th>Discipline</th><th>Règles</th><th>Coups</th></tr>' +
+        s.lignes.map(l => '<tr><td class="p">' + (l.poste || '—') + '</td><td><b>' + esc(l.nom) + '</b></td><td>' + esc(l.prenom) + '</td><td>' + esc(l.licence) + '</td><td>' + esc(l.club) +
+          '</td><td>' + esc(l.cat) + '</td><td>' + esc(l.c.nom) + (l.c.id !== '' ? ' (' + esc(l.c.id) + ')' : '') + '</td><td>' + esc(l.disc) + '</td><td>' + esc(l.d.maj) + ' / ' + esc(l.d.min) +
+          '</td><td>' + esc(l.d.coups) + '</td></tr>').join('') + '</table></div>' : '<div class="hint">Aucun inscrit dans cette série.</div>') +
+      '<div class="hint" style="margin-top:6px;">Fichier : ' + esc(s.fic) + '</div></div>').join('');
+  }
+
+  function telecharger(k) {
+    const s = series[k]; if (!s || !s.lignes.length) return;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([s.xml], { type: 'application/xml;charset=utf-8' }));
+    a.download = s.fic;
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+  function toutTelecharger() { let n = 0; series.forEach((s, k) => { if (s.lignes.length) setTimeout(() => telecharger(k), (n++) * 400); }); }
+</script>
+</body>
+</html>
