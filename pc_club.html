@@ -6,25 +6,25 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- LES PETITS CANONS — Espace club : inscription des jeunes et envoi des scores — v1.0 — 15/10/2026 -->
+<!-- LES PETITS CANONS — Espace club : inscription des jeunes et envoi des scores — v1.1 — 16/10/2026 -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <title>Les Petits Canons — Espace club</title>
-  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="config.js"></script>
   <script src="pc_commun.js"></script>
-  <link rel="stylesheet" href="mp_style.css">
+  <link rel="stylesheet" href="pc_style.css">
   <style>
     .info { font-size:.92rem; line-height:1.45; }
     .info b { color:var(--bord); }
     .choix { display:grid; gap:8px; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); }
-    .choix label.opt { margin:0; border:2px solid #e5dccd; border-radius:12px; padding:12px; font-size:1rem; text-transform:none; letter-spacing:0; color:#0f1923; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:10px; }
+    .choix label.opt { margin:0; border:2px solid var(--line); border-radius:12px; padding:12px; font-size:1rem; text-transform:none; letter-spacing:0; color:#0f1923; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:10px; }
     .choix input { width:auto; transform:scale(1.25); }
     .choix label.opt:has(input:checked) { background:var(--bord); border-color:var(--bord); color:#fff; }
     .jeune { border-bottom:1px solid var(--line); padding:12px 0; }
@@ -33,17 +33,17 @@
     .jeune .tete b { font-size:1.05rem; }
     .match { display:flex; align-items:center; gap:10px; padding:6px 0 0 6px; flex-wrap:wrap; }
     .match .lib { font-weight:600; min-width:70px; }
-    .match .sc { font-family:'Rajdhani',sans-serif; font-size:1.3rem; font-weight:700; color:var(--bord); min-width:60px; text-align:right; }
+    .match .sc { font-family:var(--display); font-size:1.3rem; font-weight:700; color:var(--bord); min-width:60px; text-align:right; }
     .match .act { margin-left:auto; }
     .match .motif { font-size:.82rem; color:var(--red); }
-    .photoBox { border:2px dashed #d9cfbf; border-radius:12px; padding:14px; text-align:center; cursor:pointer; background:#fffdf8; }
+    .photoBox { border:2px dashed var(--line); border-radius:12px; padding:14px; text-align:center; cursor:pointer; background:#f6fbfa; }
     .photoBox img { max-width:100%; max-height:320px; border-radius:8px; margin-top:8px; }
-    input.big { font-family:'Rajdhani',sans-serif; font-size:2rem; font-weight:700; text-align:center; letter-spacing:.05em; }
+    input.big { font-family:var(--display); font-size:2rem; font-weight:700; text-align:center; letter-spacing:.05em; }
     .count { display:flex; gap:10px; flex-wrap:wrap; }
-    .count div { flex:1; min-width:110px; background:#f7f1e6; border-radius:12px; padding:10px; text-align:center; }
-    .count b { display:block; font-family:'Rajdhani',sans-serif; font-size:1.6rem; color:var(--bord); }
+    .count div { flex:1; min-width:110px; background:var(--tint); border-radius:12px; padding:10px; text-align:center; }
+    .count b { display:block; font-family:var(--display); font-size:1.6rem; color:var(--bord); }
     .count span { font-size:.78rem; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
-    .grp { font-family:'Rajdhani',sans-serif; font-weight:700; color:var(--bord); text-transform:uppercase; letter-spacing:.04em; margin:14px 0 2px; font-size:1rem; }
+    .grp { font-family:var(--display); font-weight:700; color:var(--bord); text-transform:uppercase; letter-spacing:.04em; margin:14px 0 2px; font-size:1rem; }
   </style>
 </head>
 <body>
@@ -179,7 +179,7 @@
   const esc = PC.esc;
   const TS = () => firebase.database.ServerValue.TIMESTAMP;
 
-  const VERSION_PAGE = 'v1.0 — 15/10/2026';   // ← à incrémenter à chaque modification de cette page
+  const VERSION_PAGE = 'v1.1 — 16/10/2026';   // ← à incrémenter à chaque modification de cette page
   document.querySelectorAll('.verTxt').forEach(e => e.textContent = VERSION_PAGE);
   $('saisonTxt').textContent = PC.saison();
   $('footClub').textContent = CONFIG.clubName || '';

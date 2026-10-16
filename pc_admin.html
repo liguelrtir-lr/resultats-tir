@@ -6,37 +6,37 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- LES PETITS CANONS — Administration — v1.0 — 15/10/2026 -->
+<!-- LES PETITS CANONS — Administration — v1.1 — 16/10/2026 -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <title>Les Petits Canons — Administration</title>
-  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="config.js"></script>
   <script src="pc_commun.js"></script>
-  <link rel="stylesheet" href="mp_style.css">
+  <link rel="stylesheet" href="pc_style.css">
   <style>
     .cell { cursor:pointer; text-align:center; min-width:70px; }
-    .cell .v { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:1.1rem; display:block; }
+    .cell .v { font-family:var(--display); font-weight:700; font-size:1.1rem; display:block; }
     .cell:hover { background:#fff7e6; }
     .stats { display:flex; gap:10px; flex-wrap:wrap; }
-    .stats div { flex:1; min-width:120px; background:#f7f1e6; border-radius:12px; padding:10px; text-align:center; }
-    .stats b { display:block; font-family:'Rajdhani',sans-serif; font-size:1.6rem; color:var(--bord); }
+    .stats div { flex:1; min-width:120px; background:var(--tint); border-radius:12px; padding:10px; text-align:center; }
+    .stats b { display:block; font-family:var(--display); font-size:1.6rem; color:var(--bord); }
     .stats span { font-size:.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
     .stats .alert b { color:var(--orange); }
     .tools { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
     .tools input[type=search] { max-width:260px; }
     .tools select { width:auto; padding:8px 10px; }
     .tools label.chk { display:flex; align-items:center; gap:6px; margin:0; text-transform:none; letter-spacing:0; font-size:.95rem; color:#0f1923; }
-    details.card summary { cursor:pointer; font-family:'Rajdhani',sans-serif; font-weight:700; text-transform:uppercase; color:var(--bord); letter-spacing:.04em; }
+    details.card summary { cursor:pointer; font-family:var(--display); font-weight:700; text-transform:uppercase; color:var(--bord); letter-spacing:.04em; }
     .info dt { color:var(--muted); font-size:.8rem; text-transform:uppercase; letter-spacing:.05em; margin-top:8px; }
     .info dd { margin:2px 0 0; font-weight:600; }
-    input.big { font-family:'Rajdhani',sans-serif; font-size:1.8rem; font-weight:700; text-align:center; max-width:180px; }
+    input.big { font-family:var(--display); font-size:1.8rem; font-weight:700; text-align:center; max-width:180px; }
     .del { background:none; border:none; cursor:pointer; font-size:1.05rem; opacity:.5; }
     .del:hover { opacity:1; }
   </style>
@@ -165,7 +165,7 @@
   let inscrits = {}, scores = {}, settings = {}, clubs = {}, contacts = {};
   let onglet = 'P', ouvert = null, edite = null, ecoutes = [];
 
-  const VERSION_PAGE = 'v1.0 — 15/10/2026';   // ← à incrémenter à chaque modification de cette page
+  const VERSION_PAGE = 'v1.1 — 16/10/2026';   // ← à incrémenter à chaque modification de cette page
   document.querySelectorAll('.verTxt').forEach(e => e.textContent = VERSION_PAGE);
   $('saisonTxt').textContent = PC.saison();
   $('footClub').textContent = CONFIG.clubName || '';
