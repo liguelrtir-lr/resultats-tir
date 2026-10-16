@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<!--
+  © 2026 Gérard GARCIA — Tous droits réservés.
+  Logiciel de gestion de compétitions de tir sportif (inscriptions, saisie, résultats).
+  Toute reproduction, copie, modification, diffusion ou réutilisation, totale ou partielle,
+  est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
+  intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
+-->
+<!-- LES PETITS CANONS — Espace club : inscription des jeunes et envoi des scores — v1.0 — 15/10/2026 -->
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>Les Petits Canons — Espace club</title>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="config.js"></script>
+  <script src="pc_commun.js"></script>
+  <link rel="stylesheet" href="mp_style.css">
+  <style>
+    .info { font-size:.92rem; line-height:1.45; }
+    .info b { color:var(--bord); }
+    .choix { display:grid; gap:8px; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); }
+    .choix label.opt { margin:0; border:2px solid #e5dccd; border-radius:12px; padding:12px; font-size:1rem; text-transform:none; letter-spacing:0; color:#0f1923; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:10px; }
+    .choix input { width:auto; transform:scale(1.25); }
+    .choix label.opt:has(input:checked) { background:var(--bord); border-color:var(--bord); color:#fff; }
+    .jeune { border-bottom:1px solid var(--line); padding:12px 0; }
+    .jeune:last-child { border-bottom:none; }
+    .jeune .tete { display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; }
+    .jeune .tete b { font-size:1.05rem; }
+    .match { display:flex; align-items:center; gap:10px; padding:6px 0 0 6px; flex-wrap:wrap; }
+    .match .lib { font-weight:600; min-width:70px; }
+    .match .sc { font-family:'Rajdhani',sans-serif; font-size:1.3rem; font-weight:700; color:var(--bord); min-width:60px; text-align:right; }
+    .match .act { margin-left:auto; }
+    .match .motif { font-size:.82rem; color:var(--red); }
+    .photoBox { border:2px dashed #d9cfbf; border-radius:12px; padding:14px; text-align:center; cursor:pointer; background:#fffdf8; }
+    .photoBox img { max-width:100%; max-height:320px; border-radius:8px; margin-top:8px; }
+    input.big { font-family:'Rajdhani',sans-serif; font-size:2rem; font-weight:700; text-align:center; letter-spacing:.05em; }
+    .count { display:flex; gap:10px; flex-wrap:wrap; }
+    .count div { flex:1; min-width:110px; background:#f7f1e6; border-radius:12px; padding:10px; text-align:center; }
+    .count b { display:block; font-family:'Rajdhani',sans-serif; font-size:1.6rem; color:var(--bord); }
+    .count span { font-size:.78rem; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+    .grp { font-family:'Rajdhani',sans-serif; font-weight:700; color:var(--bord); text-transform:uppercase; letter-spacing:.04em; margin:14px 0 2px; font-size:1rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="logo.png" alt="" onerror="this.style.display='none'">
+    <div>
+      <h1 id="titre">Les Petits Canons</h1>
+      <div class="sub">Espace écoles de tir — saison <span id="saisonTxt"></span></div>
+      <div class="ver">Version <span class="verTxt"></span></div>
+    </div>
+    <div class="right hidden" id="hdBtns"><button class="hd" onclick="deconnecter()">Changer de club</button></div>
+  </header>
+
+  <main>
+    <div id="screenLoading" class="card">Chargement…</div>
+    <div id="screenError" class="card hidden"><div class="msg err" id="errorText"></div></div>
+
+    <!-- 1. Connexion du club -->
+    <div id="screenLogin" class="hidden">
+      <div class="card info">
+        <h2>Le challenge</h2>
+        Challenge réservé aux <b>écoles de tir</b> : <b>Poussins, Benjamins et Minimes</b>, en <b>Pistolet 10 m</b> et <b>Carabine 10 m</b>.<br>
+        <b>2 matches de 40 coups</b> tirés au club<span id="periodeTxt"></span>. Pistolet en points entiers (sur 400), carabine au dixième (sur 436,0).
+        <b>Les 2 matches sont obligatoires</b> pour être classé.<br>
+        Classements séparés par <b>discipline, catégorie, garçons et filles</b>.<br><br>
+        Le <b>responsable de l'école de tir</b> inscrit ses jeunes et envoie leurs scores, avec une photo de contrôle
+        (écran de la cible électronique ou feuille de comptage). Les scores sont validés par l'organisateur.
+        <div class="count" style="margin-top:14px;">
+          <div><b id="nP">–</b><span>Pistolet</span></div>
+          <div><b id="nC">–</b><span>Carabine</span></div>
+          <div><b id="nClubs">–</b><span>Clubs</span></div>
+        </div>
+        <div class="hint" id="limiteTxt"></div>
+        <div class="hint"><a href="pc_classement.html" id="lienCl">📊 Voir les classements</a></div>
+      </div>
+
+      <form class="card" onsubmit="connecter(event)" novalidate>
+        <h2>Connexion du club</h2>
+        <label for="lNum">N° de club (7 chiffres) <span class="req">*</span></label>
+        <input id="lNum" maxlength="7" inputmode="numeric" autocomplete="off" placeholder="ex : 1166090">
+        <div class="hint" id="lClubInfo">Le n° d'affiliation du club figure sur les licences.</div>
+
+        <div id="boxCode" class="hidden">
+          <label for="lCode">Code d'accès du club <span class="req">*</span></label>
+          <input id="lCode" type="password" maxlength="30" autocomplete="current-password">
+          <div class="hint">Code choisi lors de la première connexion du club. Oublié ? Demandez à l'organisateur de le réinitialiser.</div>
+        </div>
+
+        <div id="boxNouveau" class="hidden">
+          <div class="msg info">Première connexion de ce club : créez l'accès de votre école de tir.</div>
+          <label for="nClub">Nom du club <span class="req">*</span></label>
+          <input id="nClub" maxlength="60" autocomplete="off">
+          <label for="nResp">Responsable de l'école de tir <span class="req">*</span></label>
+          <input id="nResp" maxlength="60" autocomplete="name" placeholder="Prénom NOM">
+          <div class="row2">
+            <div><label for="nEmail">E-mail <span class="req">*</span></label><input id="nEmail" type="email" maxlength="80" autocomplete="email"></div>
+            <div><label for="nTel">Téléphone</label><input id="nTel" type="tel" maxlength="20" autocomplete="tel"></div>
+          </div>
+          <div class="row2">
+            <div><label for="nCode">Choisissez un code d'accès <span class="req">*</span></label><input id="nCode" type="password" maxlength="30" autocomplete="new-password"></div>
+            <div><label for="nCode2">Confirmez le code <span class="req">*</span></label><input id="nCode2" type="password" maxlength="30" autocomplete="new-password"></div>
+          </div>
+          <div class="hint">4 caractères minimum. À communiquer uniquement aux encadrants qui saisiront les scores.
+            L'e-mail et le téléphone ne sont visibles que par l'organisateur.</div>
+        </div>
+        <div id="lMsg"></div>
+        <button class="main" id="btnLogin" type="submit">Continuer</button>
+      </form>
+    </div>
+
+    <!-- 2. Espace du club -->
+    <div id="screenClub" class="hidden">
+      <div class="card">
+        <div style="font-weight:700;font-size:1.15rem;" id="cNom"></div>
+        <div class="hint" style="margin:0;" id="cInfo"></div>
+        <div id="cMsg"></div>
+        <div class="btns">
+          <button class="ok" id="btnAjout" onclick="ouvrirInscription()">➕ Inscrire un jeune</button>
+          <a href="pc_classement.html" id="lienCl2"><button class="sec" type="button">📊 Classements</button></a>
+        </div>
+      </div>
+      <div id="listeJeunes"></div>
+    </div>
+
+    <!-- 3. Inscription d'un jeune -->
+    <form id="screenInscr" class="card hidden" onsubmit="inscrire(event)" novalidate>
+      <h2>Inscrire un jeune</h2>
+      <div class="row2">
+        <div><label for="jNom">Nom <span class="req">*</span></label><input id="jNom" maxlength="40" autocomplete="off"></div>
+        <div><label for="jPrenom">Prénom <span class="req">*</span></label><input id="jPrenom" maxlength="40" autocomplete="off"></div>
+      </div>
+      <label for="jLic">N° de licence <span class="req">*</span></label>
+      <input id="jLic" maxlength="20" inputmode="numeric" autocomplete="off">
+      <label>Catégorie <span class="req">*</span></label>
+      <div class="choix" id="jCat"></div>
+      <label>Garçon / fille <span class="req">*</span></label>
+      <div class="choix" id="jSexe"></div>
+      <label>Discipline(s) <span class="req">*</span></label>
+      <div class="choix" id="jDisc"></div>
+      <div class="hint">Un jeune peut tirer les deux disciplines : chacune compte 2 matches et un classement séparé.</div>
+      <div id="jMsg"></div>
+      <button class="main" id="btnInscr" type="submit">Inscrire</button>
+      <button class="sec" type="button" style="width:100%;margin-top:10px;" onclick="afficherClub()">Retour</button>
+    </form>
+
+    <!-- 4. Saisie d'un match -->
+    <form id="screenMatch" class="card hidden" onsubmit="envoyer(event)" novalidate>
+      <h2 id="mTitre"></h2>
+      <div class="hint" style="margin-top:0;" id="mJeune"></div>
+      <label for="mScore" id="mLabel">Score</label>
+      <input id="mScore" class="big" inputmode="decimal" maxlength="5" autocomplete="off">
+      <label>Photo de contrôle <span class="req">*</span></label>
+      <div class="photoBox" onclick="document.getElementById('mFile').click()">
+        <div id="photoTxt"></div>
+        <img id="photoPrev" class="hidden" alt="">
+      </div>
+      <input id="mFile" type="file" accept="image/*" class="hidden" onchange="photoChoisie(this)">
+      <label for="mNote">Remarque (facultatif)</label>
+      <input id="mNote" maxlength="120" placeholder="ex : tiré le 14/11 au club">
+      <div id="mMsg"></div>
+      <button class="main" id="btnEnvoyer" type="submit">Envoyer le score</button>
+      <button class="sec" type="button" style="width:100%;margin-top:10px;" onclick="afficherClub()">Annuler</button>
+    </form>
+  </main>
+  <footer><span id="footClub"></span> · Les Petits Canons · <span class="verTxt"></span> · © 2026 Gérard GARCIA</footer>
+
+<script>
+  const BASE = PC.base();
+  firebase.initializeApp(CONFIG.firebase);
+  const db = firebase.database();
+  const auth = firebase.auth();
+  const $ = id => document.getElementById(id);
+  const esc = PC.esc;
+  const TS = () => firebase.database.ServerValue.TIMESTAMP;
+
+  const VERSION_PAGE = 'v1.0 — 15/10/2026';   // ← à incrémenter à chaque modification de cette page
+  document.querySelectorAll('.verTxt').forEach(e => e.textContent = VERSION_PAGE);
+  $('saisonTxt').textContent = PC.saison();
+  $('footClub').textContent = CONFIG.clubName || '';
+  $('lienCl').href = $('lienCl2').href = 'pc_classement.html' + location.search;
+
+  let settings = {}, clubs = {}, inscrits = {}, scores = {};
+  let pret = { st: false, cl: false, i: false, s: false };
+  let club = null;          // n° du club connecté
+  let cible = null, photoData = null;
+  const CLE_SESSION = 'pc_club_' + PC.saison();
+
+  // Boutons de choix (catégorie, sexe, discipline)
+  $('jCat').innerHTML = PC.ORDRE_CAT.map(c => '<label class="opt"><input type="radio" name="cat" value="' + c + '">' + PC.CAT1[c] + '</label>').join('');
+  $('jSexe').innerHTML = PC.ORDRE_SEXE.map(s => '<label class="opt"><input type="radio" name="sexe" value="' + s + '">' + PC.SEXE1[s] + '</label>').join('');
+  $('jDisc').innerHTML = PC.ORDRE.map(d => '<label class="opt"><input type="checkbox" name="disc" value="' + d + '">' + PC.DISC[d] + '</label>').join('');
+
+  function show(id) {
+    ['screenLoading', 'screenError', 'screenLogin', 'screenClub', 'screenInscr', 'screenMatch'].forEach(s => $(s).classList.toggle('hidden', s !== id));
+    $('hdBtns').classList.toggle('hidden', !club || id === 'screenLogin');
+  }
+  function fail(t) { $('errorText').textContent = t; show('screenError'); }
+  function msgIn(el, t, type) { $(el).innerHTML = t ? '<div class="msg ' + (type || 'err') + '">' + t + '</div>' : ''; }
+
+  function inscrOuvertes() {
+    if (settings.ouvert === false) return false;
+    if (settings.dateLimite && new Date() > new Date(settings.dateLimite + 'T23:59:59')) return false;
+    return true;
+  }
+
+  auth.onAuthStateChanged(user => {
+    if (!user) { auth.signInAnonymously().catch(e => fail("Connexion impossible (connexion anonyme désactivée ?) — [" + (e.code || e.message) + "]")); return; }
+    const err = e => fail("Lecture impossible — vérifiez les règles Firebase du nœud petitsCanons. [" + (e.code || e.message) + "]");
+    db.ref(BASE + '/settings').on('value', s => { settings = s.val() || {}; pret.st = true; maj(); }, err);
+    db.ref(BASE + '/clubs').on('value', s => { clubs = s.val() || {}; pret.cl = true; maj(); }, err);
+    db.ref(BASE + '/inscrits').on('value', s => { inscrits = s.val() || {}; pret.i = true; maj(); }, err);
+    db.ref(BASE + '/scores').on('value', s => { scores = s.val() || {}; pret.s = true; maj(); }, err);
+  });
+
+  function maj() {
+    if (!pret.st || !pret.cl || !pret.i || !pret.s) return;
+    if (settings.titre) { $('titre').textContent = settings.titre; document.title = settings.titre + ' — Espace club'; }
+    $('periodeTxt').textContent = settings.periode ? ' (' + settings.periode + ')' : '';
+    $('limiteTxt').textContent = settings.dateLimite ? 'Date limite d\'inscription des jeunes : ' +
+      new Date(settings.dateLimite + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+    const n = { P: 0, C: 0 };
+    Object.values(inscrits).forEach(i => { if (n[i.disc] !== undefined) n[i.disc]++; });
+    $('nP').textContent = n.P; $('nC').textContent = n.C; $('nClubs').textContent = Object.keys(clubs).length;
+
+    // Reprise de session (même onglet)
+    if (!club) {
+      try {
+        const s = JSON.parse(sessionStorage.getItem(CLE_SESSION) || 'null');
+        if (s && clubs[s.n] && clubs[s.n].h === s.h) club = s.n;
+      } catch (e) { /* stockage indisponible */ }
+    }
+    if (club && !clubs[club]) club = null;     // accès réinitialisé par l'organisateur
+    if (!$('screenMatch').classList.contains('hidden') || !$('screenInscr').classList.contains('hidden')) return;   // saisie en cours
+    if (club) afficherClub(); else { majLoginClub(); show('screenLogin'); }
+  }
+
+  // ---------- Connexion ----------
+  function majLoginClub() {
+    const num = $('lNum').value.replace(/\D/g, '');
+    const nomOff = (settings.clubsNum || {})[num];
+    const existe = num.length === 7 && clubs[num];
+    $('boxCode').classList.toggle('hidden', !existe);
+    $('boxNouveau').classList.toggle('hidden', !(num.length === 7 && !existe));
+    if (existe) $('lClubInfo').innerHTML = '✅ ' + esc(clubs[num].club) + ' — responsable : ' + esc(clubs[num].resp || '');
+    else if (num.length === 7) {
+      $('lClubInfo').innerHTML = nomOff ? '✅ ' + esc(nomOff) : (Object.keys(settings.clubsNum || {}).length ? '⚠️ N° absent de la liste de la Ligue : vérifiez-le.' : '');
+      if (nomOff) { $('nClub').value = nomOff; $('nClub').readOnly = true; } else { $('nClub').readOnly = false; }
+    } else $('lClubInfo').textContent = 'Le n° d\'affiliation du club figure sur les licences.';
+    $('btnLogin').textContent = num.length === 7 && !existe ? 'Créer l\'accès du club' : 'Continuer';
+  }
+  $('lNum').addEventListener('input', () => { $('lNum').value = $('lNum').value.replace(/\D/g, ''); msgIn('lMsg', ''); majLoginClub(); });
+
+  async function connecter(ev) {
+    ev.preventDefault();
+    msgIn('lMsg', '');
+    const num = $('lNum').value.replace(/\D/g, '');
+    if (!/^\d{7}$/.test(num)) return msgIn('lMsg', 'Le n° de club doit comporter 7 chiffres (ex : 1166090).');
+    if (clubs[num]) {
+      const code = $('lCode').value;
+      if (!code) return msgIn('lMsg', 'Saisissez le code d\'accès du club.');
+      const h = await PC.empreinte(num, code);
+      if (h !== clubs[num].h) return msgIn('lMsg', 'Code d\'accès incorrect.');
+      return ouvrirSession(num, h);
+    }
+    // Création de l'accès du club
+    if (!inscrOuvertes()) return msgIn('lMsg', 'Les inscriptions sont closes : contactez l\'organisateur.');
+    const nomClub = ((settings.clubsNum || {})[num] || $('nClub').value).trim();
+    const resp = $('nResp').value.trim(), email = $('nEmail').value.trim().toLowerCase(), tel = $('nTel').value.trim();
+    const c1 = $('nCode').value.trim(), c2 = $('nCode2').value.trim();
+    const manque = [];
+    if (!nomClub) manque.push('nom du club'); if (!resp) manque.push('responsable'); if (!email) manque.push('e-mail'); if (!c1) manque.push('code d\'accès');
+    if (manque.length) return msgIn('lMsg', 'Merci de compléter : ' + manque.join(', ') + '.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return msgIn('lMsg', 'L\'adresse e-mail ne semble pas valide.');
+    if (c1.length < 4) return msgIn('lMsg', 'Le code d\'accès doit comporter au moins 4 caractères.');
+    if (c1 !== c2) return msgIn('lMsg', 'Les deux codes ne sont pas identiques.');
+    $('btnLogin').disabled = true;
+    try {
+      const h = await PC.empreinte(num, c1);
+      await db.ref(BASE + '/clubs/' + num).set({ club: nomClub, resp, h, ts: TS() });
+      await db.ref(BASE + '/contacts/' + num).set(tel ? { email, tel } : { email });
+      ouvrirSession(num, h);
+    } catch (e) {
+      msgIn('lMsg', 'Enregistrement refusé — [' + (e.code || e.message) + ']. Ce club a peut-être déjà été créé : rechargez la page.');
+    } finally { $('btnLogin').disabled = false; }
+  }
+  function ouvrirSession(num, h) {
+    club = num;
+    try { sessionStorage.setItem(CLE_SESSION, JSON.stringify({ n: num, h })); } catch (e) { /* stockage indisponible */ }
+    $('lCode').value = $('nCode').value = $('nCode2').value = '';
+    afficherClub();
+  }
+  function deconnecter() {
+    club = null;
+    try { sessionStorage.removeItem(CLE_SESSION); } catch (e) { /* */ }
+    $('lNum').value = ''; majLoginClub(); show('screenLogin');
+  }
+
+  // ---------- Espace du club ----------
+  function jeunesDuClub() {
+    return Object.entries(inscrits).filter(([, i]) => i.numClub === club)
+      .sort((a, b) => PC.ORDRE.indexOf(a[1].disc) - PC.ORDRE.indexOf(b[1].disc) || PC.ORDRE_CAT.indexOf(a[1].cat) - PC.ORDRE_CAT.indexOf(b[1].cat) ||
+        (a[1].nom + a[1].prenom).localeCompare(b[1].nom + b[1].prenom, 'fr'));
+  }
+
+  function afficherClub() {
+    cible = null;
+    const c = clubs[club];
+    $('cNom').textContent = c.club + ' (n° ' + club + ')';
+    const liste = jeunesDuClub();
+    const nbJeunes = new Set(liste.map(([, i]) => i.licence)).size;
+    $('cInfo').textContent = 'Responsable : ' + (c.resp || '') + ' · ' + nbJeunes + ' jeune(s) inscrit(s), ' + liste.length + ' engagement(s)';
+    $('btnAjout').disabled = !inscrOuvertes();
+    $('btnAjout').title = inscrOuvertes() ? '' : 'Inscriptions closes';
+    const saisie = settings.saisieOuverte !== false;
+    msgIn('cMsg', !inscrOuvertes() ? 'Les inscriptions sont closes.' : '', 'info');
+    if (!saisie) $('cMsg').innerHTML += '<div class="msg info">L\'envoi des scores est fermé.</div>';
+
+    let h = '';
+    PC.ORDRE.forEach(d => {
+      const L = liste.filter(([, i]) => i.disc === d);
+      if (!L.length) return;
+      h += '<div class="card"><h2>' + PC.DISC[d] + ' <span class="hint">(' + L.length + ')</span></h2>';
+      let grp = '';
+      L.forEach(([id, i]) => {
+        if (i.cat !== grp) { grp = i.cat; h += '<div class="grp">' + PC.CAT[i.cat] + '</div>'; }
+        const sc = scores[id] || {};
+        let tot = 0, nbV = 0, lignes = '';
+        for (let m = 1; m <= PC.NB_MATCHES; m++) {
+          const x = sc[m];
+          let badge = '<span class="badge b-vide">Non envoyé</span>', val = '–', act = '', motif = '';
+          if (x) {
+            badge = '<span class="badge b-' + x.statut + '">' + (PC.STATUT[x.statut] || x.statut) + '</span>';
+            val = PC.fmt(x.s, i.disc);
+            if (x.statut === 'valide') { tot += x.s; nbV++; }
+            if (x.statut === 'refuse' && x.motif) motif = '<div class="motif">Motif : ' + esc(x.motif) + '</div>';
+          }
+          if (!saisie) act = '';
+          else if (!x) act = '<button class="ok" type="button" onclick="ouvrirMatch(\'' + id + '\',' + m + ')">Saisir</button>';
+          else if (x.statut === 'attente') act = '<button class="sec" type="button" onclick="ouvrirMatch(\'' + id + '\',' + m + ')">Corriger</button>';
+          else if (x.statut === 'refuse') act = '<button class="ok" type="button" onclick="ouvrirMatch(\'' + id + '\',' + m + ')">Renvoyer</button>';
+          else act = '<span class="hint" style="margin:0;">🔒</span>';
+          lignes += '<div class="match"><div class="lib">Match ' + m + '</div><div class="sc">' + val + '</div><div>' + badge + motif + '</div><div class="act">' + act + '</div></div>';
+        }
+        h += '<div class="jeune"><div class="tete"><b>' + esc(i.nom) + ' ' + esc(i.prenom) + '</b><span class="hint" style="margin:0;">' +
+          PC.SEXE1[i.sexe] + ' · licence ' + esc(i.licence) + ' · ' + nbV + '/' + PC.NB_MATCHES + ' validé(s)' + (nbV ? ' · ' + PC.fmt(tot, i.disc) + ' pts' : '') + '</span></div>' + lignes + '</div>';
+      });
+      h += '</div>';
+    });
+    if (!liste.length) h = '<div class="card hint" style="text-align:center;">Aucun jeune inscrit pour l\'instant. Cliquez sur « ➕ Inscrire un jeune ».</div>';
+    else h += '<div class="hint" style="text-align:center;">Un score « À valider » peut encore être corrigé. Une fois validé par l\'organisateur, il est verrouillé.<br>Erreur d\'inscription ? Prévenez l\'organisateur, qui peut la corriger ou la supprimer.</div>';
+    $('listeJeunes').innerHTML = h;
+    show('screenClub');
+  }
+
+  // ---------- Inscription d'un jeune ----------
+  function ouvrirInscription() {
+    if (!inscrOuvertes()) return;
+    ['jNom', 'jPrenom', 'jLic'].forEach(id => $(id).value = '');
+    document.querySelectorAll('#screenInscr input[type=radio], #screenInscr input[type=checkbox]').forEach(c => c.checked = false);
+    msgIn('jMsg', '');
+    show('screenInscr'); window.scrollTo(0, 0);
+  }
+  function dejaInscrit(lic, nom, prenom, disc) {
+    return Object.values(inscrits).some(i => i.disc === disc &&
+      ((lic && PC.licNorm(i.licence) === lic) || (PC.norm(i.nom) === PC.norm(nom) && PC.norm(i.prenom) === PC.norm(prenom))));
+  }
+  async function inscrire(ev) {
+    ev.preventDefault();
+    msgIn('jMsg', '');
+    if (!inscrOuvertes()) return msgIn('jMsg', 'Les inscriptions sont closes.');
+    const nom = $('jNom').value.trim().toUpperCase();
+    const prenom = $('jPrenom').value.trim().toLowerCase().replace(/(^|[\s-])\S/g, c => c.toUpperCase());
+    const licence = PC.licNorm($('jLic').value);
+    const cat = (document.querySelector('input[name=cat]:checked') || {}).value;
+    const sexe = (document.querySelector('input[name=sexe]:checked') || {}).value;
+    const discs = [...document.querySelectorAll('input[name=disc]:checked')].map(c => c.value);
+    const manque = [];
+    if (!nom) manque.push('nom'); if (!prenom) manque.push('prénom'); if (!licence) manque.push('n° de licence');
+    if (!cat) manque.push('catégorie'); if (!sexe) manque.push('garçon / fille'); if (!discs.length) manque.push('discipline');
+    if (manque.length) return msgIn('jMsg', 'Merci de compléter : ' + manque.join(', ') + '.');
+    const deja = discs.filter(d => dejaInscrit(licence, nom, prenom, d));
+    const aFaire = discs.filter(d => !deja.includes(d));
+    if (!aFaire.length) return msgIn('jMsg', 'Ce jeune est déjà inscrit en ' + deja.map(d => PC.DISC[d]).join(' et ') + '.');
+    $('btnInscr').disabled = true;
+    try {
+      for (const disc of aFaire) {
+        await db.ref(BASE + '/inscrits').push({ nom, prenom, licence, sexe, cat, disc, numClub: club, club: clubs[club].club, ts: TS() });
+      }
+      afficherClub();
+      $('listeJeunes').insertAdjacentHTML('afterbegin', '<div class="msg ok" style="margin:0 0 16px;">✅ ' + esc(nom + ' ' + prenom) + ' inscrit(e) en ' +
+        aFaire.map(d => PC.DISC[d]).join(' et ') + (deja.length ? ' (déjà inscrit(e) en ' + deja.map(d => PC.DISC[d]).join(' et ') + ')' : '') + '.</div>');
+      window.scrollTo(0, 0);
+    } catch (e) {
+      msgIn('jMsg', 'Enregistrement refusé — [' + (e.code || e.message) + '].');
+    } finally { $('btnInscr').disabled = false; }
+  }
+
+  // ---------- Saisie d'un match ----------
+  function ouvrirMatch(id, m) {
+    const i = inscrits[id]; if (!i) return;
+    const x = (scores[id] || {})[m];
+    cible = { id, m }; photoData = null;
+    $('mTitre').textContent = PC.DISC[i.disc] + ' — Match ' + m;
+    $('mJeune').textContent = i.nom + ' ' + i.prenom + ' · ' + PC.CAT1[i.cat] + ' ' + PC.SEXE1[i.sexe].toLowerCase();
+    $('mLabel').innerHTML = 'Score du match (40 coups, ' + PC.aideScore(i.disc) + ') <span class="req">*</span>';
+    $('mScore').placeholder = PC.DIXIEME[i.disc] ? '000,0' : '000';
+    $('mScore').value = x && x.statut === 'attente' ? PC.fmt(x.s, i.disc) : '';
+    $('mNote').value = x && x.statut === 'attente' && x.note ? x.note : '';
+    $('photoPrev').classList.add('hidden');
+    $('photoTxt').innerHTML = '📷 Prendre ou choisir une photo<br><span class="hint">écran de la cible électronique ou feuille de comptage</span>';
+    $('mFile').value = '';
+    msgIn('mMsg', x && x.statut === 'attente' ? 'Ce score attend déjà sa validation : renvoyez-le avec une nouvelle photo pour le corriger.' : '', 'info');
+    show('screenMatch'); window.scrollTo(0, 0);
+  }
+  async function photoChoisie(inp) {
+    const f = inp.files && inp.files[0];
+    if (!f) return;
+    $('photoTxt').innerHTML = 'Préparation de la photo…';
+    try {
+      photoData = await PC.compresserPhoto(f);
+      $('photoPrev').src = photoData; $('photoPrev').classList.remove('hidden');
+      $('photoTxt').innerHTML = '✅ Photo prête — toucher pour la changer';
+    } catch (e) {
+      photoData = null;
+      $('photoTxt').innerHTML = '⚠️ ' + esc(e.message) + '<br>Toucher pour réessayer';
+    }
+  }
+  async function envoyer(ev) {
+    ev.preventDefault();
+    if (!cible) return;
+    const i = inscrits[cible.id];
+    const s = PC.parseScore($('mScore').value, i.disc);
+    if (s === null) return msgIn('mMsg', 'Score invalide : ' + PC.aideScore(i.disc) + '.');
+    if (!photoData) return msgIn('mMsg', 'La photo de contrôle est obligatoire.');
+    const actuel = (scores[cible.id] || {})[cible.m];
+    if (actuel && actuel.statut === 'valide') return msgIn('mMsg', 'Ce match est déjà validé.');
+    $('btnEnvoyer').disabled = true;
+    msgIn('mMsg', 'Envoi en cours…', 'info');
+    try {
+      await db.ref(BASE + '/preuves/' + cible.id + '/' + cible.m).set({ img: photoData, ts: TS() });
+      const fiche = { s, statut: 'attente', par: 'club', ts: TS() };
+      const note = $('mNote').value.trim(); if (note) fiche.note = note;
+      await db.ref(BASE + '/scores/' + cible.id + '/' + cible.m).set(fiche);
+      const nom = i.nom + ' ' + i.prenom;
+      afficherClub();
+      $('listeJeunes').insertAdjacentHTML('afterbegin', '<div class="msg ok" style="margin:0 0 16px;">✅ Score de ' + esc(nom) + ' envoyé. Il apparaîtra au classement dès sa validation.</div>');
+      window.scrollTo(0, 0);
+    } catch (e) {
+      msgIn('mMsg', 'Envoi refusé — [' + (e.code || e.message) + ']. Si le match vient d\'être validé, il ne peut plus être modifié.');
+    } finally { $('btnEnvoyer').disabled = false; }
+  }
+</script>
+</body>
+</html>

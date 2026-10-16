@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<!--
+  © 2026 Gérard GARCIA — Tous droits réservés.
+  Logiciel de gestion de compétitions de tir sportif (inscriptions, saisie, résultats).
+  Toute reproduction, copie, modification, diffusion ou réutilisation, totale ou partielle,
+  est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
+  intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
+-->
+<!-- LES PETITS CANONS — Classements publics — v1.0 — 15/10/2026 -->
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>Les Petits Canons — Classements</title>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="config.js"></script>
+  <script src="pc_commun.js"></script>
+  <link rel="stylesheet" href="mp_style.css">
+  <style>
+    td.rang { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:1.2rem; color:var(--bord); width:40px; }
+    td.total { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:1.2rem; color:var(--bord); }
+    tr.podium1 td { background:#fde68a; } tr.podium2 td { background:#e5e7eb; } tr.podium3 td { background:#f3d3b5; }
+    .bloc { margin-top:22px; page-break-inside:avoid; }
+    .bloc h3 { display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; border-bottom:3px solid var(--gold); padding-bottom:4px; }
+    .bloc h3 .n { font-family:'Barlow',sans-serif; font-weight:400; font-size:.85rem; color:var(--muted); }
+    .nc td { color:var(--muted); }
+    .tools { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .tools select { width:auto; padding:8px 10px; }
+    @media print {
+      header .right, .tabs, .noprint { display:none !important; } body { background:#fff; } .card { border:none; padding:0; }
+      tr.podium1 td, tr.podium2 td, tr.podium3 td { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="logo.png" alt="" onerror="this.style.display='none'">
+    <div>
+      <h1 id="titre">Les Petits Canons</h1>
+      <div class="sub">Classements — saison <span id="saisonTxt"></span></div>
+      <div class="ver">Version <span class="verTxt"></span> · mis à jour en direct</div>
+    </div>
+    <div class="right"><button class="hd" onclick="window.print()">🖨️ Imprimer</button></div>
+  </header>
+
+  <main class="wide">
+    <div id="screenLoading" class="card">Chargement…</div>
+    <div id="screenError" class="card hidden"><div class="msg err" id="errorText"></div></div>
+    <div id="screenCl" class="card hidden">
+      <div class="tabs" id="tabs"></div>
+      <div class="tools noprint">
+        <label class="hint" style="margin:0;">Catégorie
+          <select id="fCat" onchange="dessiner()"><option value="">Toutes</option></select></label>
+        <label class="hint" style="margin:0;">Club
+          <select id="fClub" onchange="dessiner()"><option value="">Tous les clubs</option></select></label>
+      </div>
+      <div id="blocs"></div>
+      <div class="hint" style="margin-top:18px;">Classement au total des 2 matches validés (40 coups chacun) · départage au meilleur match ·
+        pistolet en points entiers, carabine au dixième. Les jeunes n'ayant pas encore 2 matches validés figurent en gris sous chaque classement.</div>
+    </div>
+  </main>
+  <footer><span id="footClub"></span> · Les Petits Canons · <span class="verTxt"></span> · © 2026 Gérard GARCIA</footer>
+
+<script>
+  const BASE = PC.base();
+  firebase.initializeApp(CONFIG.firebase);
+  const db = firebase.database();
+  const auth = firebase.auth();
+  const $ = id => document.getElementById(id);
+  const esc = PC.esc;
+
+  let inscrits = null, scores = null;
+  const p = new URLSearchParams(location.search);
+  let onglet = PC.DISC[p.get('d')] ? p.get('d') : 'P';
+
+  const VERSION_PAGE = 'v1.0 — 15/10/2026';   // ← à incrémenter à chaque modification de cette page
+  document.querySelectorAll('.verTxt').forEach(e => e.textContent = VERSION_PAGE);
+  $('saisonTxt').textContent = PC.saison();
+  $('footClub').textContent = CONFIG.clubName || '';
+  $('fCat').innerHTML += PC.ORDRE_CAT.map(c => '<option value="' + c + '">' + PC.CAT[c] + '</option>').join('');
+
+  function fail(t) { $('errorText').textContent = t; $('screenLoading').classList.add('hidden'); $('screenError').classList.remove('hidden'); }
+
+  auth.onAuthStateChanged(user => {
+    if (!user) { auth.signInAnonymously().catch(e => fail('Connexion impossible — [' + (e.code || e.message) + ']')); return; }
+    const err = e => fail('Lecture impossible — [' + (e.code || e.message) + ']');
+    db.ref(BASE + '/settings/titre').on('value', s => { if (s.val()) { $('titre').textContent = s.val(); document.title = 'Classements — ' + s.val(); } });
+    db.ref(BASE + '/inscrits').on('value', s => { inscrits = s.val() || {}; majClubs(); dessiner(); }, err);
+    db.ref(BASE + '/scores').on('value', s => { scores = s.val() || {}; dessiner(); }, err);
+  });
+
+  function majClubs() {
+    const v = $('fClub').value;
+    const L = [...new Map(Object.values(inscrits).map(i => [i.numClub, i.club])).entries()].sort((a, b) => a[1].localeCompare(b[1], 'fr'));
+    $('fClub').innerHTML = '<option value="">Tous les clubs</option>' + L.map(([n, c]) => '<option value="' + esc(n) + '">' + esc(c) + '</option>').join('');
+    $('fClub').value = L.some(([n]) => n === v) ? v : '';
+  }
+
+  function dessiner() {
+    if (!inscrits || !scores) return;
+    $('screenLoading').classList.add('hidden');
+    $('screenCl').classList.remove('hidden');
+    const nb = d => Object.values(inscrits).filter(i => i.disc === d).length;
+    $('tabs').innerHTML = PC.ORDRE.map(d => '<button class="' + (d === onglet ? 'on' : '') + '" onclick="onglet=\'' + d + '\';dessiner()">' +
+      PC.DISC[d] + '<span class="n">(' + nb(d) + ')</span></button>').join('');
+
+    const fCat = $('fCat').value, fClub = $('fClub').value;
+    let h = '';
+    PC.ORDRE_CAT.filter(c => !fCat || c === fCat).forEach(cat => {
+      PC.ORDRE_SEXE.forEach(sexe => {
+        let { classes, nonClasses } = PC.classement(inscrits, scores, onglet, cat, sexe);
+        const total = classes.length + nonClasses.length;
+        if (fClub) { classes = classes.filter(l => l.i.numClub === fClub); nonClasses = nonClasses.filter(l => l.i.numClub === fClub); }
+        if (!classes.length && !nonClasses.length) return;
+        h += '<div class="bloc"><h3><span>' + PC.CAT[cat] + ' ' + PC.SEXE[sexe] + '</span><span class="n">' + PC.DISC[onglet] + ' · ' +
+          classes.length + ' classé(s)' + (fClub ? ' du club' : '') + ' · ' + total + ' inscrit(s) au total</span></h3>';
+        h += '<div class="scroll"><table class="t"><tr><th>Rg</th><th>Tireur</th><th>Club</th><th class="num">Match 1</th><th class="num">Match 2</th><th class="num">Total</th></tr>';
+        classes.forEach(l => {
+          h += '<tr class="' + (l.rang <= 3 ? 'podium' + l.rang : '') + '"><td class="rang">' + l.rang + '</td><td><b>' + esc(l.i.nom) + '</b> ' + esc(l.i.prenom) + '</td><td>' + esc(l.i.club) + '</td>' +
+            l.m.map(v => '<td class="num">' + PC.fmt(v, onglet) + '</td>').join('') + '<td class="num total">' + PC.fmt(l.total, onglet) + '</td></tr>';
+        });
+        nonClasses.forEach(l => {
+          h += '<tr class="nc"><td>–</td><td>' + esc(l.i.nom) + ' ' + esc(l.i.prenom) + '</td><td>' + esc(l.i.club) + '</td>' +
+            l.m.map(v => '<td class="num">' + (v === null ? '–' : PC.fmt(v, onglet)) + '</td>').join('') + '<td class="num">' + l.nb + '/2</td></tr>';
+        });
+        h += '</table></div></div>';
+      });
+    });
+    $('blocs').innerHTML = h || '<div class="hint" style="margin-top:14px;">Aucun jeune inscrit dans cette sélection.</div>';
+  }
+</script>
+</body>
+</html>

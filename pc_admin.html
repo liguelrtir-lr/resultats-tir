@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<!--
+  © 2026 Gérard GARCIA — Tous droits réservés.
+  Logiciel de gestion de compétitions de tir sportif (inscriptions, saisie, résultats).
+  Toute reproduction, copie, modification, diffusion ou réutilisation, totale ou partielle,
+  est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
+  intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
+-->
+<!-- LES PETITS CANONS — Administration — v1.0 — 15/10/2026 -->
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>Les Petits Canons — Administration</title>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="config.js"></script>
+  <script src="pc_commun.js"></script>
+  <link rel="stylesheet" href="mp_style.css">
+  <style>
+    .cell { cursor:pointer; text-align:center; min-width:70px; }
+    .cell .v { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:1.1rem; display:block; }
+    .cell:hover { background:#fff7e6; }
+    .stats { display:flex; gap:10px; flex-wrap:wrap; }
+    .stats div { flex:1; min-width:120px; background:#f7f1e6; border-radius:12px; padding:10px; text-align:center; }
+    .stats b { display:block; font-family:'Rajdhani',sans-serif; font-size:1.6rem; color:var(--bord); }
+    .stats span { font-size:.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+    .stats .alert b { color:var(--orange); }
+    .tools { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+    .tools input[type=search] { max-width:260px; }
+    .tools select { width:auto; padding:8px 10px; }
+    .tools label.chk { display:flex; align-items:center; gap:6px; margin:0; text-transform:none; letter-spacing:0; font-size:.95rem; color:#0f1923; }
+    details.card summary { cursor:pointer; font-family:'Rajdhani',sans-serif; font-weight:700; text-transform:uppercase; color:var(--bord); letter-spacing:.04em; }
+    .info dt { color:var(--muted); font-size:.8rem; text-transform:uppercase; letter-spacing:.05em; margin-top:8px; }
+    .info dd { margin:2px 0 0; font-weight:600; }
+    input.big { font-family:'Rajdhani',sans-serif; font-size:1.8rem; font-weight:700; text-align:center; max-width:180px; }
+    .del { background:none; border:none; cursor:pointer; font-size:1.05rem; opacity:.5; }
+    .del:hover { opacity:1; }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="logo.png" alt="" onerror="this.style.display='none'">
+    <div>
+      <h1 id="titre">Les Petits Canons</h1>
+      <div class="sub">Administration — saison <span id="saisonTxt"></span></div>
+      <div class="ver">Version <span class="verTxt"></span></div>
+    </div>
+    <div class="right hidden" id="hdBtns">
+      <button class="hd" onclick="ouvrir('pc_classement.html')">🏆 Classements</button>
+      <button class="hd" onclick="ouvrir('pc_club.html')">🏫 Espace club</button>
+      <button class="hd" onclick="auth.signOut()">Déconnexion</button>
+    </div>
+  </header>
+
+  <main class="wide">
+    <div id="screenLoading" class="card">Chargement…</div>
+
+    <form id="screenLogin" class="card hidden" style="max-width:420px;margin:30px auto;" onsubmit="connexion(event)">
+      <h2>Connexion administrateur</h2>
+      <label for="lEmail">E-mail</label><input id="lEmail" type="email" autocomplete="username">
+      <label for="lPwd">Mot de passe</label><input id="lPwd" type="password" autocomplete="current-password">
+      <div id="lMsg"></div>
+      <button class="main" type="submit">Se connecter</button>
+      <div class="hint">Mêmes identifiants que le tableau de bord des compétitions.</div>
+    </form>
+
+    <div id="screenAdmin" class="hidden">
+      <div class="card"><div class="stats" id="stats"></div></div>
+
+      <details class="card" id="cardReglages">
+        <summary>⚙️ Réglages de la saison</summary>
+        <label for="rTitre">Titre affiché</label>
+        <input id="rTitre" maxlength="80" placeholder="ex : Challenge Les Petits Canons 2026-2027">
+        <div class="row2">
+          <div><label for="rLimite">Date limite d'inscription des jeunes</label><input id="rLimite" type="date"></div>
+          <div><label for="rPeriode">Période des matches (texte libre)</label><input id="rPeriode" maxlength="80" placeholder="ex : du 1er novembre au 31 mars"></div>
+        </div>
+        <label for="rClubs">Liste des clubs — une ligne par club : n° de club puis nom (<span id="rClubsN">0</span> clubs)</label>
+        <textarea id="rClubs" rows="7" placeholder="ex :&#10;1166090 SCT Saint-Cyprien&#10;…"></textarea>
+        <div class="hint">Le club tape son n° et le nom officiel s'affiche tout seul.
+          <a href="#" onclick="reprendreClubsMP();return false;">↪️ Reprendre la liste du Match Postal</a>
+          <span id="rClubsErr" style="color:var(--red)"></span></div>
+        <div class="tools" style="margin-top:14px;">
+          <label class="chk"><input type="checkbox" id="rOuvert"> Inscriptions ouvertes</label>
+          <label class="chk"><input type="checkbox" id="rSaisie"> Envoi des scores ouvert</label>
+        </div>
+        <div id="rMsg"></div>
+        <div class="btns"><button class="ok" type="button" onclick="enregistrerReglages()">Enregistrer les réglages</button>
+          <button class="sec" type="button" onclick="exporterCSV()">⬇️ Exporter jeunes + scores (CSV)</button></div>
+      </details>
+
+      <details class="card" id="cardClubs" ontoggle="dessinerClubs()">
+        <summary>🏫 Écoles de tir inscrites</summary>
+        <div class="scroll" id="listeClubs" style="margin-top:12px;"></div>
+        <div class="hint">« Réinitialiser l'accès » efface le code du club (ses jeunes et scores sont conservés) : le responsable recrée un code à sa prochaine connexion.</div>
+      </details>
+
+      <div class="card">
+        <div class="tabs" id="tabs"></div>
+        <div class="tools">
+          <input type="search" id="recherche" placeholder="🔎 Nom, licence, club…" oninput="dessiner()">
+          <select id="fCat" onchange="dessiner()"><option value="">Toutes catégories</option></select>
+          <select id="fSexe" onchange="dessiner()"><option value="">Garçons et filles</option></select>
+          <label class="chk"><input type="checkbox" id="filtreAttente" onchange="dessiner()"> Seulement les scores à valider</label>
+        </div>
+        <div class="scroll"><table class="t" id="table"></table></div>
+        <div class="hint">Cliquez sur une case Match pour voir la photo, valider, refuser ou saisir directement un score (un score saisi ici est validé d'office).
+          Cliquez sur ✏️ pour corriger une inscription (catégorie, garçon/fille…).</div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Fenêtre d'un match -->
+  <div class="modal hidden" id="modal" onclick="if(event.target===this)fermer()">
+    <div class="card">
+      <h2 id="moTitre"></h2>
+      <dl class="info" id="moInfo"></dl>
+      <div id="moPhoto"></div>
+      <label for="moScore" id="moLabel">Score</label>
+      <input id="moScore" class="big" inputmode="decimal" maxlength="5" autocomplete="off">
+      <div id="moMsg"></div>
+      <div class="btns">
+        <button class="ok" onclick="valider()">✅ Valider ce score</button>
+        <button class="ko" id="btnRefuser" onclick="refuser()">❌ Refuser</button>
+        <button class="sec" id="btnEffacer" onclick="effacer()">🗑️ Effacer le match</button>
+        <button class="sec" style="margin-left:auto;" onclick="fermer()">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fenêtre de correction d'une inscription -->
+  <div class="modal hidden" id="modalJ" onclick="if(event.target===this)fermerJ()">
+    <div class="card">
+      <h2>Corriger l'inscription</h2>
+      <div class="row2">
+        <div><label for="eNom">Nom</label><input id="eNom" maxlength="40"></div>
+        <div><label for="ePrenom">Prénom</label><input id="ePrenom" maxlength="40"></div>
+      </div>
+      <div class="row2">
+        <div><label for="eLic">Licence</label><input id="eLic" maxlength="20"></div>
+        <div><label for="eCat">Catégorie</label><select id="eCat"></select></div>
+      </div>
+      <label for="eSexe">Garçon / fille</label><select id="eSexe"></select>
+      <div class="hint">La discipline ne se change pas (les scores n'ont pas la même échelle) : supprimez l'inscription et faites-en une nouvelle.</div>
+      <div id="eMsg"></div>
+      <div class="btns"><button class="ok" onclick="enregistrerJ()">Enregistrer</button><button class="sec" style="margin-left:auto;" onclick="fermerJ()">Fermer</button></div>
+    </div>
+  </div>
+
+  <footer><span id="footClub"></span> · Les Petits Canons · <span class="verTxt"></span> · © 2026 Gérard GARCIA</footer>
+
+<script>
+  const BASE = PC.base();
+  firebase.initializeApp(CONFIG.firebase);
+  const db = firebase.database();
+  const auth = firebase.auth();
+  const $ = id => document.getElementById(id);
+  const esc = PC.esc;
+  const TS = () => firebase.database.ServerValue.TIMESTAMP;
+
+  let inscrits = {}, scores = {}, settings = {}, clubs = {}, contacts = {};
+  let onglet = 'P', ouvert = null, edite = null, ecoutes = [];
+
+  const VERSION_PAGE = 'v1.0 — 15/10/2026';   // ← à incrémenter à chaque modification de cette page
+  document.querySelectorAll('.verTxt').forEach(e => e.textContent = VERSION_PAGE);
+  $('saisonTxt').textContent = PC.saison();
+  $('footClub').textContent = CONFIG.clubName || '';
+  const optCat = PC.ORDRE_CAT.map(c => '<option value="' + c + '">' + PC.CAT[c] + '</option>').join('');
+  const optSexe = PC.ORDRE_SEXE.map(s => '<option value="' + s + '">' + PC.SEXE[s] + '</option>').join('');
+  $('fCat').innerHTML += optCat; $('fSexe').innerHTML += optSexe; $('eCat').innerHTML = optCat; $('eSexe').innerHTML = optSexe;
+
+  function show(id) { ['screenLoading', 'screenLogin', 'screenAdmin'].forEach(s => $(s).classList.toggle('hidden', s !== id)); }
+  function msgIn(el, t, type) { $(el).innerHTML = t ? '<div class="msg ' + (type || 'err') + '">' + t + '</div>' : ''; }
+  function ouvrir(page) { window.open(page + location.search, '_blank'); }
+
+  auth.onAuthStateChanged(user => {
+    ecoutes.forEach(r => r.off()); ecoutes = [];
+    if (!user || user.isAnonymous) { $('hdBtns').classList.add('hidden'); show('screenLogin'); return; }
+    $('hdBtns').classList.remove('hidden');
+    const ecoute = (chemin, f) => { const r = db.ref(BASE + chemin); r.on('value', s => f(s.val() || {}), e => alert('Lecture refusée (' + chemin + ') : ' + (e.code || e.message))); ecoutes.push(r); };
+    ecoute('/settings', v => { settings = v; remplirReglages(); });
+    ecoute('/clubs', v => { clubs = v; dessinerClubs(); });
+    ecoute('/contacts', v => { contacts = v; dessinerClubs(); });
+    ecoute('/inscrits', v => { inscrits = v; dessiner(); });
+    ecoute('/scores', v => { scores = v; dessiner(); if (ouvert) remplirModal(false); });
+    show('screenAdmin');
+  });
+
+  function connexion(ev) {
+    ev.preventDefault();
+    msgIn('lMsg', '');
+    auth.signInWithEmailAndPassword($('lEmail').value.trim(), $('lPwd').value)
+      .catch(e => msgIn('lMsg', 'Connexion refusée — ' + (e.code || e.message)));
+  }
+
+  // ---------- Réglages ----------
+  function remplirReglages() {
+    if (settings.titre) { $('titre').textContent = settings.titre; document.title = 'Admin — ' + settings.titre; }
+    if ($('cardReglages').open) return;
+    $('rTitre').value = settings.titre || '';
+    $('rLimite').value = settings.dateLimite || '';
+    $('rPeriode').value = settings.periode || '';
+    const cm = settings.clubsNum || {};
+    $('rClubs').value = Object.keys(cm).sort().map(n => n + '\t' + cm[n]).join('\n');
+    $('rClubsN').textContent = Object.keys(cm).length;
+    $('rOuvert').checked = settings.ouvert !== false;
+    $('rSaisie').checked = settings.saisieOuverte !== false;
+  }
+  function lireClubs(txt) {
+    const res = {}, rejets = [];
+    txt.split(/\r?\n/).forEach(l => {
+      const t = l.trim(); if (!t) return;
+      const m = t.match(/^(\d{7})\s*[\t;,\-–:]?\s*(.+)$/) || t.match(/^(.+?)\s*[\t;,\-–:]?\s*(\d{7})$/);
+      if (!m) { rejets.push(t); return; }
+      const num = /^\d{7}$/.test(m[1]) ? m[1] : m[2], nom = (/^\d{7}$/.test(m[1]) ? m[2] : m[1]).replace(/^[\s;,\-–:]+|[\s;,\-–:]+$/g, '');
+      if (nom) res[num] = nom; else rejets.push(t);
+    });
+    return { res, rejets };
+  }
+  async function reprendreClubsMP() {
+    try {
+      const v = (await db.ref('matchPostal/' + PC.saison() + '/settings/clubsNum').once('value')).val() || {};
+      if (!Object.keys(v).length) return msgIn('rMsg', 'Aucune liste de clubs trouvée dans le Match Postal ' + PC.saison() + '.');
+      $('rClubs').value = Object.keys(v).sort().map(n => n + '\t' + v[n]).join('\n');
+      $('rClubsN').textContent = Object.keys(v).length;
+      msgIn('rMsg', Object.keys(v).length + ' clubs repris du Match Postal : cliquez sur « Enregistrer les réglages ».', 'info');
+    } catch (e) { msgIn('rMsg', 'Lecture refusée — ' + (e.code || e.message)); }
+  }
+  function enregistrerReglages() {
+    const { res, rejets } = lireClubs($('rClubs').value);
+    $('rClubsErr').textContent = rejets.length ? ' ⚠️ ' + rejets.length + ' ligne(s) ignorée(s) faute de n° à 7 chiffres : ' + rejets.slice(0, 3).join(' | ') + (rejets.length > 3 ? '…' : '') : '';
+    const st = { titre: $('rTitre').value.trim(), dateLimite: $('rLimite').value, periode: $('rPeriode').value.trim(),
+      ouvert: $('rOuvert').checked, saisieOuverte: $('rSaisie').checked, clubsNum: res };
+    db.ref(BASE + '/settings').update(st)
+      .then(() => { $('rClubsN').textContent = Object.keys(res).length; msgIn('rMsg', 'Réglages enregistrés.', 'ok'); })
+      .catch(e => msgIn('rMsg', 'Refusé — ' + (e.code || e.message)));
+  }
+
+  // ---------- Clubs ----------
+  function dessinerClubs() {
+    if (!$('cardClubs').open) return;
+    const L = Object.entries(clubs).sort((a, b) => (a[1].club || '').localeCompare(b[1].club || '', 'fr'));
+    let h = '<table class="t"><tr><th>N°</th><th>Club</th><th>Responsable</th><th>E-mail</th><th>Tél.</th><th class="num">Jeunes</th><th class="num">Engag.</th><th></th></tr>';
+    if (!L.length) h += '<tr><td colspan="8" class="hint">Aucune école de tir n\'a encore créé son accès.</td></tr>';
+    L.forEach(([n, c]) => {
+      const J = Object.values(inscrits).filter(i => i.numClub === n);
+      const k = contacts[n] || {};
+      h += '<tr><td>' + esc(n) + '</td><td><b>' + esc(c.club) + '</b></td><td>' + esc(c.resp || '') + '</td>' +
+        '<td>' + (k.email ? '<a href="mailto:' + esc(k.email) + '">' + esc(k.email) + '</a>' : '') + '</td><td>' + esc(k.tel || '') + '</td>' +
+        '<td class="num">' + new Set(J.map(i => i.licence)).size + '</td><td class="num">' + J.length + '</td>' +
+        '<td><button class="sec" onclick="reinitClub(\'' + n + '\')">🔑 Réinitialiser l\'accès</button></td></tr>';
+    });
+    h += '</table>';
+    const mails = Object.values(contacts).map(k => k.email).filter(Boolean);
+    if (mails.length) h += '<div class="btns"><a href="mailto:?bcc=' + encodeURIComponent(mails.join(',')) + '"><button class="sec" type="button">✉️ Écrire à tous les responsables (' + mails.length + ')</button></a></div>';
+    $('listeClubs').innerHTML = h;
+  }
+  function reinitClub(n) {
+    if (!confirm('Réinitialiser l\'accès de ' + clubs[n].club + ' ?\nLe code actuel ne fonctionnera plus ; le responsable en recréera un à sa prochaine connexion (jeunes et scores conservés).')) return;
+    const maj = {}; maj['clubs/' + n] = null; maj['contacts/' + n] = null;
+    db.ref(BASE).update(maj).catch(e => alert('Refusé — ' + (e.code || e.message)));
+  }
+
+  // ---------- Tableau ----------
+  function nbAttente(disc) {
+    let n = 0;
+    Object.entries(inscrits).forEach(([id, i]) => {
+      if (disc && i.disc !== disc) return;
+      Object.values(scores[id] || {}).forEach(x => { if (x && x.statut === 'attente') n++; });
+    });
+    return n;
+  }
+  function dessiner() {
+    const nb = { P: 0, C: 0 }, complets = { P: 0, C: 0 };
+    Object.entries(inscrits).forEach(([id, i]) => {
+      if (nb[i.disc] === undefined) return;
+      nb[i.disc]++;
+      const sc = scores[id] || {};
+      if ([1, 2].every(m => sc[m] && sc[m].statut === 'valide')) complets[i.disc]++;
+    });
+    const att = nbAttente();
+    $('stats').innerHTML = PC.ORDRE.map(d => '<div><b>' + nb[d] + '</b><span>' + PC.DISC_COURT[d] + ' — ' + complets[d] + ' avec 2 matches</span></div>').join('') +
+      '<div><b>' + Object.keys(clubs).length + '</b><span>écoles de tir</span></div>' +
+      '<div class="' + (att ? 'alert' : '') + '"><b>' + att + '</b><span>score(s) à valider</span></div>';
+
+    $('tabs').innerHTML = PC.ORDRE.map(d => {
+      const a = nbAttente(d);
+      return '<button class="' + (d === onglet ? 'on' : '') + '" onclick="onglet=\'' + d + '\';dessiner()">' + PC.DISC[d] +
+        '<span class="n">(' + nb[d] + ')</span>' + (a ? ' <span class="badge b-attente">' + a + '</span>' : '') + '</button>';
+    }).join('');
+
+    const q = PC.norm($('recherche').value), fC = $('fCat').value, fS = $('fSexe').value, seulAttente = $('filtreAttente').checked;
+    const lignes = Object.entries(inscrits)
+      .filter(([, i]) => i.disc === onglet && (!fC || i.cat === fC) && (!fS || i.sexe === fS))
+      .filter(([, i]) => !q || PC.norm([i.nom, i.prenom, i.licence, i.club, i.numClub].join(' ')).includes(q))
+      .filter(([id]) => !seulAttente || Object.values(scores[id] || {}).some(x => x && x.statut === 'attente'))
+      .sort((a, b) => PC.ORDRE_CAT.indexOf(a[1].cat) - PC.ORDRE_CAT.indexOf(b[1].cat) || a[1].sexe.localeCompare(b[1].sexe) ||
+        (a[1].nom + a[1].prenom).localeCompare(b[1].nom + b[1].prenom, 'fr'));
+
+    let h = '<tr><th>Tireur</th><th>Cat.</th><th>Licence</th><th>Club</th><th style="text-align:center">Match 1</th><th style="text-align:center">Match 2</th><th class="num">Total validé</th><th></th></tr>';
+    if (!lignes.length) h += '<tr><td colspan="8" class="hint">Aucun jeune.</td></tr>';
+    lignes.forEach(([id, i]) => {
+      const sc = scores[id] || {};
+      let tot = 0, nbV = 0, cells = '';
+      for (let m = 1; m <= PC.NB_MATCHES; m++) {
+        const x = sc[m];
+        if (x && x.statut === 'valide') { tot += x.s; nbV++; }
+        const b = x ? '<span class="badge b-' + x.statut + '">' + (PC.STATUT[x.statut] || '') + (x.par === 'admin' ? ' ✍️' : '') + '</span>' : '<span class="badge b-vide">—</span>';
+        cells += '<td class="cell" onclick="ouvrirMatch(\'' + id + '\',' + m + ')"><span class="v">' + (x ? PC.fmt(x.s, i.disc) : '&nbsp;') + '</span>' + b + '</td>';
+      }
+      h += '<tr><td><b>' + esc(i.nom) + '</b> ' + esc(i.prenom) + '</td><td>' + PC.CAT1[i.cat] + ' ' + (i.sexe === 'F' ? 'F' : 'G') + '</td><td>' + esc(i.licence) + '</td><td>' + esc(i.club) + '</td>' +
+        cells + '<td class="num"><b>' + (nbV ? PC.fmt(tot, i.disc) : '') + '</b> <span class="hint">' + nbV + '/2</span></td>' +
+        '<td style="white-space:nowrap"><button class="del" title="Corriger" onclick="ouvrirJ(\'' + id + '\')">✏️</button>' +
+        '<button class="del" title="Supprimer cette inscription" onclick="supprimer(\'' + id + '\')">🗑️</button></td></tr>';
+    });
+    $('table').innerHTML = h;
+    dessinerClubs();
+  }
+
+  // ---------- Fenêtre d'un match ----------
+  function ouvrirMatch(id, m) { ouvert = { id, m }; $('modal').classList.remove('hidden'); remplirModal(true); }
+  function remplirModal(chargerPhoto) {
+    const { id, m } = ouvert;
+    const i = inscrits[id]; if (!i) return fermer();
+    const x = (scores[id] || {})[m];
+    $('moTitre').textContent = i.nom + ' ' + i.prenom + ' — ' + PC.DISC[i.disc] + ' — Match ' + m;
+    $('moLabel').textContent = 'Score (' + PC.aideScore(i.disc) + ')';
+    let info = '<dt>Club</dt><dd>' + esc(i.club) + ' · licence ' + esc(i.licence) + ' · ' + PC.CAT1[i.cat] + ' ' + PC.SEXE1[i.sexe].toLowerCase() + '</dd>';
+    if (x) {
+      info += '<dt>Statut</dt><dd><span class="badge b-' + x.statut + '">' + PC.STATUT[x.statut] + '</span> — score ' + PC.fmt(x.s, i.disc) +
+        ' — ' + (x.par === 'admin' ? 'saisi par l\'organisateur' : 'envoyé par le club') + (x.ts ? ' le ' + PC.dateFr(x.ts) : '') + '</dd>';
+      if (x.note) info += '<dt>Remarque</dt><dd>' + esc(x.note) + '</dd>';
+      if (x.motif) info += '<dt>Motif du refus</dt><dd>' + esc(x.motif) + '</dd>';
+    } else info += '<dt>Statut</dt><dd>Aucun score — vous pouvez le saisir directement ci-dessous (validé d\'office).</dd>';
+    $('moInfo').innerHTML = info;
+    if (chargerPhoto) {
+      $('moScore').value = x ? PC.fmt(x.s, i.disc) : '';
+      msgIn('moMsg', '');
+      $('moPhoto').innerHTML = '<div class="hint">Chargement de la photo…</div>';
+      db.ref(BASE + '/preuves/' + id + '/' + m).once('value').then(s => {
+        const p = s.val();
+        $('moPhoto').innerHTML = p && p.img
+          ? '<a href="#" onclick="voirPhoto();return false;" title="Ouvrir en grand"><img class="preuve" src="' + p.img + '" alt="Photo de contrôle"></a>'
+          : '<div class="hint">Pas de photo de contrôle' + (x && x.par === 'admin' ? ' (saisie directe).' : '.') + '</div>';
+      }).catch(e => $('moPhoto').innerHTML = '<div class="msg err">Photo illisible — ' + esc(e.code || e.message) + '</div>');
+    }
+    $('btnRefuser').classList.toggle('hidden', !x);
+    $('btnEffacer').classList.toggle('hidden', !x);
+  }
+  function voirPhoto() {
+    const img = $('moPhoto').querySelector('img'); if (!img) return;
+    const w = window.open(''); w.document.write('<title>Photo</title><body style="margin:0;background:#111"><img src="' + img.src + '" style="max-width:100%;display:block;margin:auto">');
+  }
+  function fermer() { ouvert = null; $('modal').classList.add('hidden'); }
+  function valider() {
+    const { id, m } = ouvert;
+    const i = inscrits[id];
+    const s = PC.parseScore($('moScore').value, i.disc);
+    if (s === null) return msgIn('moMsg', 'Score invalide : ' + PC.aideScore(i.disc) + '.');
+    const x = (scores[id] || {})[m];
+    const fiche = (x && x.s === s)
+      ? Object.assign({}, x, { statut: 'valide', valideLe: TS() })
+      : Object.assign({}, x || {}, { s, statut: 'valide', par: 'admin', ts: TS(), valideLe: TS() });
+    delete fiche.motif;
+    if (x && x.s !== s && x.par === 'club') fiche.scoreClub = x.s;
+    db.ref(BASE + '/scores/' + id + '/' + m).set(fiche).then(fermer).catch(e => msgIn('moMsg', 'Refusé — ' + (e.code || e.message)));
+  }
+  function refuser() {
+    const motif = prompt('Motif du refus (visible par le club) :', 'Photo illisible');
+    if (motif === null) return;
+    const { id, m } = ouvert;
+    db.ref(BASE + '/scores/' + id + '/' + m).update({ statut: 'refuse', motif: motif.trim().slice(0, 120) }).then(fermer)
+      .catch(e => msgIn('moMsg', 'Refusé — ' + (e.code || e.message)));
+  }
+  function effacer() {
+    if (!confirm('Effacer complètement ce match (score et photo) ? Le club pourra le renvoyer.')) return;
+    const { id, m } = ouvert;
+    const maj = {}; maj['scores/' + id + '/' + m] = null; maj['preuves/' + id + '/' + m] = null;
+    db.ref(BASE).update(maj).then(fermer).catch(e => msgIn('moMsg', 'Refusé — ' + (e.code || e.message)));
+  }
+
+  // ---------- Inscriptions ----------
+  function ouvrirJ(id) {
+    const i = inscrits[id]; edite = id;
+    $('eNom').value = i.nom; $('ePrenom').value = i.prenom; $('eLic').value = i.licence; $('eCat').value = i.cat; $('eSexe').value = i.sexe;
+    msgIn('eMsg', ''); $('modalJ').classList.remove('hidden');
+  }
+  function fermerJ() { edite = null; $('modalJ').classList.add('hidden'); }
+  function enregistrerJ() {
+    const nom = $('eNom').value.trim().toUpperCase(), prenom = $('ePrenom').value.trim(), licence = PC.licNorm($('eLic').value);
+    if (!nom || !prenom || !licence) return msgIn('eMsg', 'Nom, prénom et licence sont obligatoires.');
+    db.ref(BASE + '/inscrits/' + edite).update({ nom, prenom, licence, cat: $('eCat').value, sexe: $('eSexe').value })
+      .then(fermerJ).catch(e => msgIn('eMsg', 'Refusé — ' + (e.code || e.message)));
+  }
+  function supprimer(id) {
+    const i = inscrits[id];
+    if (!confirm('Supprimer l\'inscription de ' + i.nom + ' ' + i.prenom + ' en ' + PC.DISC[i.disc] + ' (avec ses scores et photos) ?')) return;
+    const maj = {}; maj['inscrits/' + id] = null;
+    for (let m = 1; m <= PC.NB_MATCHES; m++) { maj['scores/' + id + '/' + m] = null; maj['preuves/' + id + '/' + m] = null; }
+    db.ref(BASE).update(maj).catch(e => alert('Refusé — ' + (e.code || e.message)));
+  }
+
+  // ---------- Export ----------
+  function exporterCSV() {
+    const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+    const num = (v, d) => v === '' || v == null ? '' : PC.fmt(v, d);
+    const ent = ['Discipline', 'Catégorie', 'Garçon/Fille', 'Nom', 'Prénom', 'Licence', 'N° club', 'Club',
+      'Match 1', 'Statut 1', 'Match 2', 'Statut 2', 'Total validé', 'Matches validés'];
+    const lignes = Object.entries(inscrits)
+      .sort((a, b) => PC.ORDRE.indexOf(a[1].disc) - PC.ORDRE.indexOf(b[1].disc) || PC.ORDRE_CAT.indexOf(a[1].cat) - PC.ORDRE_CAT.indexOf(b[1].cat) ||
+        a[1].sexe.localeCompare(b[1].sexe) || (a[1].nom + a[1].prenom).localeCompare(b[1].nom + b[1].prenom, 'fr'))
+      .map(([id, i]) => {
+        const sc = scores[id] || {};
+        let tot = 0, nbV = 0; const ms = [];
+        for (let m = 1; m <= PC.NB_MATCHES; m++) {
+          const x = sc[m];
+          ms.push(x ? num(x.s, i.disc) : '', x ? PC.STATUT[x.statut] : '');
+          if (x && x.statut === 'valide') { tot += x.s; nbV++; }
+        }
+        return [PC.DISC[i.disc], PC.CAT1[i.cat], PC.SEXE1[i.sexe], i.nom, i.prenom, i.licence, i.numClub, i.club, ...ms, nbV ? num(tot, i.disc) : '', nbV].map(q).join(';');
+      });
+    const csv = '﻿' + [ent.map(q).join(';'), ...lignes].join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = 'petits_canons_' + PC.saison() + '.csv';
+    a.click();
+  }
+</script>
+</body>
+</html>
