@@ -6,7 +6,7 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- LIGUE LR — version v2.7 — 09/09/2026 -->
+<!-- LIGUE LR — version v2.8 — 18/10/2026 — ajout impression du palmarès -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -201,6 +201,41 @@
             font-style: italic;
             font-size: 1.2rem;
         }
+
+        /* ===== v2.8 : impression du palmarès ===== */
+        .btn-print {
+            position: fixed; right: 18px; bottom: 18px; z-index: 200;
+            background: var(--primary-bordeaux); color: #fff; border: none; border-radius: 999px;
+            padding: 12px 20px; font-size: 1rem; font-weight: 700; cursor: pointer;
+            box-shadow: 0 6px 18px rgba(0,0,0,.2); font-family: inherit;
+        }
+        .btn-print:hover { filter: brightness(1.15); }
+        .print-date { display: none; }
+        @media print {
+            @page { size: A4 portrait; margin: 12mm 10mm 14mm; }
+            body { background: #fff; padding: 0; font-size: 11pt; }
+            .btn-print, .gg-copyright { display: none !important; }
+            .container { max-width: none; }
+            header { position: static; box-shadow: none; border-radius: 10px; padding: 10px 16px; margin-bottom: 14px;
+                     -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .header-logo { height: 50px; }
+            .header-center h1 { font-size: 1.5rem; }
+            .print-date { display: block; font-size: .75rem; opacity: .85; margin-top: 2px; }
+            #resultsContainer { padding-bottom: 0; }
+            .discipline-section { box-shadow: none; border: none; padding: 0; margin-bottom: 0; border-radius: 0; break-before: page; }
+            .discipline-section:first-child { break-before: auto; }
+            .discipline-title { position: static; box-shadow: none; font-size: 1.25rem; padding: 8px 12px; margin-bottom: 10px;
+                                -webkit-print-color-adjust: exact; print-color-adjust: exact; break-after: avoid; }
+            .category-block { margin-bottom: 14px; break-inside: avoid-page; }
+            .category-title { font-size: 1rem; padding: 5px 12px; margin-bottom: 6px; break-after: avoid;
+                              -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            th { font-size: .7rem; padding: 5px 8px; }
+            td { font-size: .95rem; padding: 5px 8px; border-bottom: 1px solid #e2e8f0; }
+            tr { break-inside: avoid; }
+            thead { display: table-header-group; }
+            .score-cell { font-size: 1.05rem; }
+            .series-cell { font-size: .9rem; }
+        }
     </style>
 </head>
 <body>
@@ -210,11 +245,14 @@
         <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
         <div class="header-center">
             <h1>🏆 PALMARÈS PROVISOIRE</h1>
-            <div class="version-tag">v2.7</div>
+            <div class="version-tag">v2.8</div>
             <div id="compTitle" class="comp-name">Chargement...</div>
+            <div class="print-date" id="printDate"></div>
         </div>
         <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
     </header>
+
+    <button type="button" class="btn-print" id="btnPrint" title="Imprimer ou enregistrer en PDF (une discipline par page)">🖨️ Imprimer le palmarès</button>
 
     <div id="resultsContainer">
         <div class="no-data">Connexion au serveur de résultats en cours...</div>
@@ -357,13 +395,29 @@
         });
 
         document.getElementById('resultsContainer').innerHTML = html;
+        if (new URLSearchParams(window.location.search).get('print') === '1' && !window.__printed) { window.__printed = true; setTimeout(() => { preparePrint(); window.print(); }, 800); }
     }
+
+    // ===== v2.8 : impression =====
+    // Le défilement automatique est suspendu pendant l'impression ; chaque discipline commence sur une nouvelle page.
+    var printing = false;
+    function preparePrint() {
+        printing = true;
+        const d = new Date();
+        document.getElementById('printDate').textContent = 'Édité le ' + d.toLocaleDateString('fr-FR') + ' à ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        window.scrollTo(0, 0);
+    }
+    window.addEventListener('beforeprint', preparePrint);
+    window.addEventListener('afterprint', () => { printing = false; });
+    document.getElementById('btnPrint').addEventListener('click', () => { preparePrint(); window.print(); });
+    // ?print=1 dans l'adresse : ouvre directement la fenêtre d'impression une fois les résultats chargés
+    var autoPrint = new URLSearchParams(window.location.search).get('print') === '1';
 
     let isScrolling = true;
     
     function startAutoScroll() {
         setInterval(() => {
-            if (isScrolling) {
+            if (isScrolling && !printing && !autoPrint) {
                 if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 5) {
                     isScrolling = false; 
                     setTimeout(() => {
