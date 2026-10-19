@@ -6,7 +6,7 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- LIGUE LR — version v3.24 — 19/10/2026 — concours amical : catalogue complet -->
+<!-- LIGUE LR — version v3.24 — 19/10/2026 — amical : catalogue complet ; club par n° d'affiliation -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -17,6 +17,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
     <script src="config.js"></script>
+    <script src="clubs.js"></script>  <!-- liste officielle des clubs (facultative) -->
     <!-- pdf.js : lecture best-effort du texte d'un PDF pour l'import de résultats (voir handleScoreFileImport).
          Si cette librairie ne se charge pas (réseau, CDN indisponible), l'import PDF affichera un message
          clair invitant à copier-coller le texte à la place — le reste de la page n'en dépend pas. -->
@@ -782,9 +783,15 @@
                 <label>Prénom</label>
                 <input type="text" id="newPrenom" autocomplete="off" placeholder="Jean">
             </div>
+            <div class="field" id="clubNumField" style="display:none">
+                <label>N° club</label>
+                <input type="text" id="newClubNum" autocomplete="off" inputmode="numeric" maxlength="7" placeholder="1166090">
+            </div>
             <div class="field">
                 <label>Club</label>
-                <input type="text" id="newClub" autocomplete="off" placeholder="ST BEZIERS">
+                <input type="text" id="newClub" autocomplete="off" placeholder="ST BEZIERS" list="clubsOfficielsList">
+                <datalist id="clubsOfficielsList"></datalist>
+                <div id="clubNumInfo" style="font-size:0.75rem; color:var(--text-dim); margin-top:3px; min-height:1em;"></div>
             </div>
             <div class="field">
                 <label>N° de licence</label>
@@ -917,6 +924,45 @@
     const db = firebase.database();
     const auth = firebase.auth();
     const CLUB_PATH = 'clubs/' + CONFIG.clubKey;   // dossier propre au club
+
+    // ─── v3.24 : club rattaché à son n° d'affiliation FFTir (7 chiffres) — liste dans clubs.js ───
+    // N° connu → nom officiel rempli automatiquement. N° à 7 chiffres inconnu → club hors Ligue : nom saisi
+    // à la main. Si clubs.js est absent du site, la saisie fonctionne exactement comme avant.
+    const CLUBS_ON = (typeof ClubsLR !== 'undefined');
+    function clubEls() { return { num: document.getElementById('newClubNum'), club: document.getElementById('newClub'), info: document.getElementById('clubNumInfo') }; }
+    function majClubDepuisNum() {
+        if (!CLUBS_ON) return;
+        const e = clubEls();
+        e.num.value = e.num.value.replace(/\D/g, '').slice(0, 7);
+        const nom = ClubsLR.nom(e.num.value);
+        if (nom) { e.club.value = nom; e.club.dataset.auto = '1'; e.info.textContent = '✅ Club de la Ligue'; e.info.style.color = 'var(--success, #15803d)'; return; }
+        if (e.club.dataset.auto === '1') { e.club.value = ''; e.club.dataset.auto = ''; }
+        e.info.style.color = '';
+        e.info.textContent = e.num.value.length === 7 ? 'Club hors Ligue : saisir le nom du club' : '';
+    }
+    function majNumDepuisClub() {
+        if (!CLUBS_ON) return;
+        const e = clubEls(), n = ClubsLR.num(e.club.value);
+        if (n && e.num.value !== n) { e.num.value = n; majClubDepuisNum(); }
+    }
+    // Vérifie le couple n° / nom avant enregistrement. Renvoie { club } ou { err }.
+    function clubValide(nomSaisi) {
+        if (!CLUBS_ON) return { club: nomSaisi };
+        const e = clubEls(); let n = e.num.value.replace(/\D/g, '');
+        if (!n) n = ClubsLR.num(nomSaisi);
+        if (!/^\d{7}$/.test(n)) return { err: "N° de club requis : 7 chiffres (il figure sur la licence)." };
+        const off = ClubsLR.nom(n);
+        if (off) return { club: off };
+        if (!nomSaisi || nomSaisi === '-') return { err: "Club hors Ligue (n° " + n + ") : indiquer le nom du club." };
+        return { club: nomSaisi };
+    }
+    if (CLUBS_ON) {
+        document.getElementById('clubNumField').style.display = '';
+        document.getElementById('clubsOfficielsList').innerHTML = ClubsLR.noms().map(x => '<option value="' + x.replace(/"/g, '&quot;') + '">').join('');
+        document.getElementById('newClubNum').addEventListener('input', majClubDepuisNum);
+        document.getElementById('newClub').addEventListener('change', majNumDepuisClub);
+        document.getElementById('newClub').addEventListener('input', () => { document.getElementById('newClub').dataset.auto = ''; });
+    }
     const compId = new URLSearchParams(window.location.search).get('comp');
 
     document.title = "Saisie — " + CONFIG.clubName;
@@ -1837,7 +1883,9 @@
     function addShooter(keepIdentity) {
         const nom = document.getElementById('newNom').value.toUpperCase().trim();
         const prenom = document.getElementById('newPrenom').value.trim();
-        const club = document.getElementById('newClub').value.trim() || "-";
+        const clubChk = clubValide(document.getElementById('newClub').value.trim());
+        if (clubChk.err) return alert(clubChk.err);
+        const club = clubChk.club || "-";
         const licence = document.getElementById('newLicence').value.replace(/\s+/g, '');
         const disc = document.getElementById('newDiscipline').value.trim();
         const cat = document.getElementById('newCategorie').value.trim() || "Général";
@@ -1926,6 +1974,7 @@
         document.getElementById('newNom').value = s.lastName;
         document.getElementById('newPrenom').value = s.firstName;
         document.getElementById('newClub').value = s.club;
+        if (CLUBS_ON) { document.getElementById('newClubNum').value = ClubsLR.num(s.club); majClubDepuisNum(); if (!ClubsLR.num(s.club)) document.getElementById('clubNumInfo').textContent = s.club && s.club !== '-' ? 'N° de club à compléter' : ''; }
         document.getElementById('newLicence').value = s.licence || '';
         document.getElementById('slotMultiWrap').style.display = 'none';
         document.getElementById('slotSingleWrap').style.display = 'block';
@@ -1978,6 +2027,9 @@
         };
         const lic = document.getElementById('newLicence').value.replace(/\s+/g, '');
         if (lic) updates.licence = lic;
+        const clubChkM = clubValide(updates.club);
+        if (clubChkM.err) return alert(clubChkM.err);
+        updates.club = clubChkM.club || '-';
         writeShooter(db.ref(CLUB_PATH + '/' + compId + '/shooters/' + id), updates, true)
             .catch(e => alert("Échec de la modification : " + (e.message || e.code || e)));
 
@@ -2013,6 +2065,7 @@
         document.getElementById('newNom').value = '';
         document.getElementById('newPrenom').value = '';
         document.getElementById('newClub').value = '';
+        if (CLUBS_ON) { document.getElementById('newClubNum').value = ''; document.getElementById('newClub').dataset.auto = ''; document.getElementById('clubNumInfo').textContent = ''; }
         document.getElementById('newLicence').value = '';
         document.getElementById('newSlot').value = '';
         clearCheckedSlots();
@@ -2198,6 +2251,7 @@
         document.getElementById('newNom').value = n;
         document.getElementById('newPrenom').value = p;
         document.getElementById('newClub').value = c;
+        if (CLUBS_ON) { document.getElementById('newClubNum').value = ClubsLR.num(c); majClubDepuisNum(); }
         document.getElementById('newLicence').value = l || '';
         document.getElementById('suggestions').style.display = 'none';
     }
