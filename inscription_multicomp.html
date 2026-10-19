@@ -6,7 +6,7 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- LIGUE LR — Inscription publique par QR code — v2.31 — 19/10/2026 — amical : catalogue complet ; club par n° d'affiliation -->
+<!-- LIGUE LR — Inscription publique par QR code — v2.32 — 19/10/2026 — amical : catalogue complet ; club par n° d'affiliation ; catégorie après les séries -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -208,7 +208,7 @@
         <h1>Inscription en direct</h1>
         <div class="comp-name" id="compName">Chargement…</div>
         <div class="comp-type" id="compType"></div>
-        <div class="comp-type" style="margin-top:6px; opacity:0.9;">Version 2.31 — 19/10/2026</div>
+        <div class="comp-type" style="margin-top:6px; opacity:0.9;">Version 2.32 — 19/10/2026</div>
     </header>
 
     <div id="screenLoading">Connexion à la compétition…</div>
@@ -261,7 +261,7 @@
             <div class="slots-hint" id="slotsHint">Pour chaque série cochée, indique la discipline tirée (elle peut être différente d'une série à l'autre).</div>
         </div>
 
-        <!-- v2.31 : la catégorie se choisit APRÈS la (les) discipline(s) : TAR et armes anciennes imposent « Senior » -->
+        <!-- v2.32 : la catégorie se choisit APRÈS la (les) discipline(s) : TAR et armes anciennes imposent « Senior » -->
         <div class="panel" id="catPanel">
             <div class="field" id="catWrap">
                 <label>Catégorie</label>
@@ -276,7 +276,7 @@
             </button>
         </div>
         <div class="footer-note">Ton inscription apparaît immédiatement dans le classement en direct.</div>
-        <div class="footer-note" style="margin-top:2px; opacity:0.6;">v2.31</div>
+        <div class="footer-note" style="margin-top:2px; opacity:0.6;">v2.32</div>
     </div>
 
     <div id="screenConfirm" style="display:none;">
@@ -560,7 +560,7 @@
         majCategorie();
     }
 
-    // ─── v2.31 : catégorie proposée selon la ou les disciplines choisies ───
+    // ─── v2.32 : catégorie proposée selon la ou les disciplines choisies ───
     // TAR et armes anciennes : « Senior » imposé (Kuchenreuter : Senior ou Junior). Si le tireur mélange
     // ces disciplines avec d'autres (ex. 104 + 820), il choisit sa catégorie d'âge, et les épreuves
     // TAR / armes anciennes sont automatiquement enregistrées en « Senior » (voir categorieImposee).
