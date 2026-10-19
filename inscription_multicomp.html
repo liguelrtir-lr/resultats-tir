@@ -244,10 +244,6 @@
                 <input type="text" id="fClub" placeholder="Ton club" required>
                 <div id="fClubInfo" style="font-size:0.8rem; opacity:0.8; margin-top:4px; min-height:1em;"></div>
             </div>
-            <div class="field" id="catWrap">
-                <label>Catégorie</label>
-                <select id="fCatSelect"></select>
-            </div>
             <!-- Discipline globale : utilisée seulement quand la compétition n'a pas de séries -->
             <div id="globalDiscBlock">
                 <div class="field" id="discWrap">
@@ -263,6 +259,15 @@
             </div>
             <table class="slots-table" id="slotsTable"></table>
             <div class="slots-hint" id="slotsHint">Pour chaque série cochée, indique la discipline tirée (elle peut être différente d'une série à l'autre).</div>
+        </div>
+
+        <!-- v2.31 : la catégorie se choisit APRÈS la (les) discipline(s) : TAR et armes anciennes imposent « Senior » -->
+        <div class="panel" id="catPanel">
+            <div class="field" id="catWrap">
+                <label>Catégorie</label>
+                <select id="fCatSelect"></select>
+            </div>
+            <div class="slots-hint" id="catHint" style="margin-top:6px;"></div>
         </div>
 
         <div class="panel">
@@ -541,13 +546,55 @@
             // Amical : menus figés (liste de la compétition + séries), pour des classements cohérents
             discWrap.innerHTML = '<label>Discipline</label><select id="fDiscSelect">' + discOptionsGrouped(amicalDiscList(), undefined, optionsHtml) + '</select>';
             catWrap.innerHTML = '<label>Catégorie</label><select id="fCatSelect">' + optionsHtml(AMICAL_CATS, 'Senior 1') + '</select>';
+            catsCompletes = AMICAL_CATS.slice();
         } else {
             discWrap.innerHTML = '<label>Discipline</label><select id="fDiscSelect">' +
                 cat.disc.map(d => `<option value="${d}">${d}</option>`).join('') + '</select>';
             // La catégorie est celle du tireur (âge/sexe) : choisie une fois, valable pour toutes ses séries.
             catWrap.innerHTML = '<label>Catégorie</label><select id="fCatSelect">' +
                 cat.cats.map(c => `<option value="${c}">${c}</option>`).join('') + '</select>';
+            catsCompletes = cat.cats.slice();
         }
+        const g = document.getElementById('fDiscSelect');
+        if (g) g.addEventListener('change', majCategorie);
+        majCategorie();
+    }
+
+    // ─── v2.31 : catégorie proposée selon la ou les disciplines choisies ───
+    // TAR et armes anciennes : « Senior » imposé (Kuchenreuter : Senior ou Junior). Si le tireur mélange
+    // ces disciplines avec d'autres (ex. 104 + 820), il choisit sa catégorie d'âge, et les épreuves
+    // TAR / armes anciennes sont automatiquement enregistrées en « Senior » (voir categorieImposee).
+    let catsCompletes = [];
+    function disciplinesChoisies() {
+        if (Object.keys(slotsData || {}).length) {
+            const out = [];
+            selectedSlotIds.forEach(id => { const d = document.getElementById('sDisc_' + id); if (d && d.value) out.push(d.value); });
+            return out;
+        }
+        const g = document.getElementById('fDiscSelect');
+        return g && g.value ? [g.value] : [];
+    }
+    function majCategorie() {
+        const sel = document.getElementById('fCatSelect'), hint = document.getElementById('catHint');
+        if (!sel || !hint) return;
+        const cur = sel.value;
+        const discs = disciplinesChoisies();
+        const libres = discs.filter(d => !familleReglement(d));
+        const kuchen = discs.some(d => familleReglement(d) === 'KUCHEN');
+        let list, msg = '';
+        if (!discs.length) {
+            list = catsCompletes; msg = Object.keys(slotsData || {}).length ? "Coche d'abord ta ou tes séries et choisis la discipline : la catégorie s'adapte." : '';
+        } else if (!libres.length) {
+            list = kuchen ? ['Senior', 'Junior'] : ['Senior'];
+            msg = kuchen ? 'Kuchenreuter : catégorie Senior ou Junior.' : 'Catégorie unique « Senior » pour le TAR et les armes anciennes.';
+        } else {
+            list = catsCompletes;
+            if (libres.length < discs.length) msg = 'Pour tes épreuves TAR / armes anciennes, tu seras automatiquement classé·e en « Senior ».';
+        }
+        const keep = list.includes(cur) ? cur : (list.includes('Senior 1') ? 'Senior 1' : list[0]);
+        sel.innerHTML = list.map(c => `<option value="${escapeAttr(c)}" ${c === keep ? 'selected' : ''}>${c}</option>`).join('');
+        sel.disabled = list.length === 1;
+        hint.textContent = msg;
     }
 
     // ─── Discipline PAR SÉRIE (un tireur peut tirer 10m dans une série, 50m dans une autre) ───
@@ -632,6 +679,7 @@
     function rememberChoice(slotId) {
         const d = document.getElementById('sDisc_' + slotId);
         if (d) lastDisc = d.value;
+        majCategorie();
     }
 
     // Valeurs saisies par série (conservées si le tableau est redessiné par une mise à jour en direct)
@@ -678,6 +726,7 @@
         if (entries.length === 0) {
             panel.style.display = 'none';
             selectedSlotIds.clear();
+            majCategorie();
             return;
         }
         panel.style.display = 'block';
@@ -712,6 +761,7 @@
         });
         html += '</tbody>';
         table.innerHTML = html;
+        majCategorie();
     }
 
     function toggleSlot(slotId, on) {
@@ -726,6 +776,7 @@
             tr.innerHTML = `<td></td><td colspan="2">${slotDetailHtml(slotId)}</td>`;
             row.after(tr);
         }
+        majCategorie();
     }
 
     function slotDisplayLabel(slot) {
