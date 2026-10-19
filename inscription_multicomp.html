@@ -827,7 +827,11 @@
                     if (entry.discipline) info.discipline = entry.discipline;
                     return db.ref(base + '/registered/' + ref.key).set(info);
                 })
-                .then(() => { shootersSnapshot.push(entry); return { slotId, ok: true }; });
+                .then(() => { shootersSnapshot.push(entry); return { slotId, ok: true }; })
+                // v2.32 : si l'écriture échoue après la réservation de la place, on rend la place.
+                .catch(err => db.ref(base + '/count').transaction(c => Math.max(0, (c || 1) - 1))
+                    .catch(() => {})
+                    .then(() => ({ slotId, ok: false, reason: 'erreur', detail: (err && (err.code || err.message)) || String(err) })));
         });
     }
 
@@ -912,7 +916,10 @@
         // traitées l'une après l'autre (une série devenue complète n'empêche pas les autres).
         const work = hasSlots
             ? wanted.reduce((chain, id) => chain.then(acc =>
-                  registerInSlot(id, entryFor(choices[id].disc.trim(), cat)).then(r => { acc.push(r); return acc; })), Promise.resolve([]))
+                  // v2.32 : une série en échec n'empêche plus l'enregistrement des suivantes
+                  registerInSlot(id, entryFor(choices[id].disc.trim(), cat))
+                      .catch(err => ({ slotId: id, ok: false, reason: 'erreur', detail: (err && (err.code || err.message)) || String(err) }))
+                      .then(r => { acc.push(r); return acc; })), Promise.resolve([]))
             : pushShooter(entry).then(() => { shootersSnapshot.push(entry); return [{ ok: true }]; });
 
         work
@@ -922,9 +929,12 @@
               const failed = results.filter(r => !r.ok);
 
               if (done.length === 0) {
+                  const errs = failed.filter(r => r.reason === 'erreur');
                   selectedSlotIds.clear();
                   renderSlotsTable(slotsData);
-                  return showFormError("Ces séries viennent de se remplir. Choisis-en d'autres.");
+                  return showFormError(errs.length
+                      ? "Échec de l'enregistrement : " + errs.map(r => slotDisplayLabel(slotsData[r.slotId]) + ' (' + r.detail + ')').join(' ; ')
+                      : "Ces séries viennent de se remplir. Choisis-en d'autres.");
               }
 
               let slotLines = '';
@@ -932,7 +942,8 @@
                   slotLines = '<div style="margin-top:8px;"><b>Séries :</b></div>' +
                       done.map(r => `<div>✓ ${slotDisplayLabel(slotsData[r.slotId])} — ${choices[r.slotId].disc}</div>`).join('');
                   if (failed.length) {
-                      slotLines += failed.map(r => `<div style="color:var(--accent);">✗ ${slotDisplayLabel(slotsData[r.slotId])} — complète, non inscrit</div>`).join('');
+                      slotLines += failed.map(r => `<div style="color:var(--accent);">✗ ${slotDisplayLabel(slotsData[r.slotId])} — ` +
+                          (r.reason === 'erreur' ? `non inscrit (erreur : ${escapeAttr(r.detail)}) — préviens l'organisateur` : 'complète, non inscrit') + `</div>`).join('');
                   }
               }
               document.getElementById('recapBox').innerHTML = `
