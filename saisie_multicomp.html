@@ -6,7 +6,7 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- LIGUE LR — version v3.23 — 02/10/2026 -->
+<!-- LIGUE LR — version v3.24 — 19/10/2026 — concours amical : catalogue complet -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -636,7 +636,7 @@
             </div>
         </div>
         <div class="header-actions">
-            <span class="version-tag">v3.23</span>
+            <span class="version-tag">v3.24</span>
             <button type="button" id="btnToggleImport" class="btn-toggle-import">
                 <span>🪄</span> Import Tireurs
             </button>
@@ -1059,6 +1059,10 @@
         // Retire un éventuel code numérique de catalogue officiel en préfixe (ex. "103 - Pistolet Standard 10m")
         // — sans ça, aucune reconnaissance de synonyme/distance ne fonctionnait pour TAR/ISSF/MLAIC/EDT,
         // seulement pour les noms libres du concours amical.
+        // (v3.24) Disciplines TAR (8xx) et armes anciennes (6xx/7xx) : chaque code est une épreuve distincte
+        // (ex. 820/821/822/823 sont quatre épreuves de carabine 22 lr) — jamais fusionnées entre elles.
+        const codeM = String(name || '').match(/^\s*(\d{3})\s*[-–]/);
+        if (codeM && Number(codeM[1]) >= 600 && Number(codeM[1]) < 900) return 'code' + codeM[1];
         let raw = String(name || '').replace(/^\s*\d+\s*[-–]\s*/, '');
         let norm = raw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
         let k = norm.replace(/[^a-z0-9]/g, '');
@@ -1148,7 +1152,38 @@
     // simplifiés — pour qu'il n'existe jamais deux écritures différentes de la même discipline
     // (ex. "Pistolet 10 m" vs "100 - Pistolet 10m") qui se retrouveraient sur deux lignes
     // séparées dans les classements alors qu'il s'agit du même événement.
-    const AMICAL_DEFAULT_DISC = ["100 - Pistolet 10m", "104 - Carabine 10m", "252 - Pistolet 25m", "500 - Pistolet 50m", "501 - Carabine 60BC", "502 - Carabine 3x20"];
+    // (v3.24 — 19/10/2026) Concours amical : par défaut, TOUT le catalogue officiel est proposé
+    // (10 m, 25 m, 50 m, TAR, armes anciennes), hors disciplines « HP » (le para-tir reste porté par la
+    // CATÉGORIE) et hors disciplines EDT (même épreuve que leur équivalent 10 m : les catégories poussin à
+    // minime suffisent à séparer les classements). Pour un concours limité à quelques disciplines, l'admin les liste dans
+    // Tableau de bord → Modifier → « Disciplines du concours amical » : seule cette liste est alors proposée.
+    const AMICAL_DEFAULT_DISC = (function () {
+        const out = [];
+        ['ISSF10', 'ISSF2550', 'TAR', 'MLAIC'].forEach(t => (dataRef[t].disc || []).forEach(d => {
+            if (!/\bHP\b/.test(d) && out.indexOf(d) < 0) out.push(d);
+        }));
+        return out;
+    })();
+    // Rangement des disciplines par famille dans les menus déroulants (<optgroup>), d'après leur code officiel.
+    function discFamily(d) {
+        const m = String(d).match(/^\s*(\d{3})/); const c = m ? Number(m[1]) : NaN;
+        if (/EDT/.test(d)) return 'École de tir';
+        if (c >= 800 && c < 900) return 'TAR — Armes réglementaires';
+        if (c >= 600 && c < 800) return 'Armes anciennes (MLAIC)';
+        if (c >= 500 && c < 600) return '50 mètres';
+        if (c >= 200 && c < 300) return '25 mètres';
+        if (c >= 100 && c < 200) return '10 mètres';
+        if (c >= 0 && c < 100) return 'Arbalète field';
+        return 'Autres disciplines';
+    }
+    const FAMILY_ORDER = ['10 mètres', '25 mètres', '50 mètres', 'École de tir', 'TAR — Armes réglementaires', 'Armes anciennes (MLAIC)', 'Arbalète field', 'Autres disciplines'];
+    function discOptionsGrouped(list, selected, optFn) {
+        const groups = {};
+        list.forEach(d => { const f = discFamily(d); (groups[f] = groups[f] || []).push(d); });
+        const fams = FAMILY_ORDER.filter(f => groups[f]);
+        if (fams.length < 2) return optFn(list, selected);   // une seule famille : pas de sous-titres
+        return fams.map(f => '<optgroup label="' + f + '">' + optFn(groups[f], selected) + '</optgroup>').join('');
+    }
     const AMICAL_CATS = ["Poussin Fille", "Poussin Garçon", "Benjamin Fille", "Benjamin Garçon", "Minime Fille", "Minime Garçon",
         "Cadet Fille", "Cadet Garçon", "Junior Fille", "Junior Garçon", "Dame 1", "Dame 2", "Dame 3", "Senior 1", "Senior 2", "Senior 3",
         "HP P1", "HP P1/P2", "HP P3", "HP P4", "HP P5", "HP R1/R2", "HP R3", "HP R4", "HP R5", "HP R6", "HP R7/R8", "HP R9",
@@ -1186,7 +1221,7 @@
             const list = amicalDiscList();
             const discs = list.includes(curD) || !curD ? list : [curD].concat(list); // conserve une ancienne valeur en édition
             const cats = AMICAL_CATS.includes(curC) || !curC ? AMICAL_CATS : [curC].concat(AMICAL_CATS);
-            discWrap.innerHTML = '<label>Discipline</label><select id="newDiscipline">' + optsHtml(discs, curD || discs[0]) + '</select>';
+            discWrap.innerHTML = '<label>Discipline</label><select id="newDiscipline">' + discOptionsGrouped(discs, curD || discs[0], optsHtml) + '</select>';
             catWrap.innerHTML = '<label>Catégorie</label><select id="newCategorie">' + optsHtml(cats, curC || 'Senior 1') + '</select>';
             applySlotDisciplineConstraint();
             return;
