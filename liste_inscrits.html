@@ -6,7 +6,7 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- LIGUE LR — version v1.1 — 09/09/2026 -->
+<!-- LIGUE LR — version v1.2 — 19/10/2026 — catégorie par engagement (TAR / armes anciennes en « Senior ») -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -177,7 +177,7 @@
         <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
         <div class="header-center">
             <h1>👥 Liste des inscrits</h1>
-            <div class="version-tag">v1.1</div>
+            <div class="version-tag">v1.2</div>
             <div id="compTitle" class="comp-name">Chargement...</div>
         </div>
         <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
@@ -287,11 +287,17 @@
             const p = people[key];
             if (!p.club && s.club) p.club = s.club;
             if (!p.licence) p.licence = s.licence || (slotOf[id] && slotOf[id].licence) || '';
-            if (!p.category && s.category) p.category = s.category;
             const so = slotOf[id];
-            p.engagements.push({ discipline: s.discipline || '', slotId: so ? so.slotId : null, poste: so ? so.poste : null });
+            p.engagements.push({ discipline: s.discipline || '', category: s.category || '', slotId: so ? so.slotId : null, poste: so ? so.poste : null });
         });
 
+        // v1.2 : un tireur peut avoir une catégorie différente selon l'épreuve (TAR / armes anciennes =
+        // « Senior » imposé). La colonne Catégorie montre sa catégorie d'âge ; l'engagement dont la
+        // catégorie diffère l'affiche à côté de la discipline.
+        Object.values(people).forEach(p => {
+            const cats = p.engagements.map(e => e.category).filter(Boolean);
+            p.category = cats.find(c => !/^(senior|junior|général)$/i.test(c)) || cats[0] || p.category || '';
+        });
         let rows = Object.values(people).sort((a, b) =>
             a.lastName.localeCompare(b.lastName, 'fr') || a.firstName.localeCompare(b.firstName, 'fr'));
         const totalPeople = rows.length;
@@ -320,7 +326,7 @@
                 .sort((a, b) => (slotOrder.indexOf(a.slotId) - slotOrder.indexOf(b.slotId)) || a.discipline.localeCompare(b.discipline))
                 .map(e => {
                     const sl = e.slotId && lastSlots[e.slotId];
-                    return `<span class="eng">${sl ? escapeHtml(slotLabel(sl)) + ' — ' : ''}<span class="d">${escapeHtml(e.discipline)}</span>${e.poste ? `<span class="p">${e.poste}</span>` : ''}</span>`;
+                    return `<span class="eng">${sl ? escapeHtml(slotLabel(sl)) + ' — ' : ''}<span class="d">${escapeHtml(e.discipline)}</span>${e.category && e.category !== p.category ? ` <small style="opacity:.75">(${escapeHtml(e.category)})</small>` : ''}${e.poste ? `<span class="p">${e.poste}</span>` : ''}</span>`;
                 }).join('');
             html += `<tr>
                 <td class="col-num">${i + 1}</td>
