@@ -138,8 +138,8 @@
       <details class="card" id="cardImport">
         <summary>📥 Importer des tireurs (listing Excel)</summary>
         <div class="hint" style="margin-top:10px;">Pour les tireurs qui ont envoyé leur fiche à la Ligue : un fichier Excel (ou CSV) avec une ligne par tireur et par discipline.
-          Colonnes reconnues : <b>Nom, Prénom, Licence, N° club, Discipline</b> (obligatoires), Club, Catégorie para, E-mail, Téléphone, Match 1, Match 2, Match 3.
-          Discipline : P, C, PC (ou Pistolet, Carabine, Para-tir ; « P+C » crée les deux inscriptions). Les scores importés sont <b>validés d'office</b>.</div>
+          Colonnes reconnues : <b>Nom, Prénom, N° licence, Discipline, N° club</b> (obligatoires), Para-tir (X si coché), Club, E-mail, Téléphone, Catégorie para, Match 1, Match 2, Match 3.
+          Discipline : P, C ou P+C (ou Pistolet, Carabine). Carabine + Para-tir coché = Para-tir Carabine. Catégorie para facultative. Une fiche club : recopiez le n° de club sur chaque ligne. Les scores importés sont <b>validés d'office</b>.</div>
         <div class="btns">
           <button class="sec" type="button" onclick="telechargerModele()">⬇️ Télécharger le modèle Excel</button>
           <label class="sec" style="display:inline-block;margin:0;padding:10px 14px;border:1px solid #d9cfbf;border-radius:10px;background:#fff;font-size:.95rem;cursor:pointer;text-transform:none;letter-spacing:0;color:inherit;font-weight:400;">
@@ -628,13 +628,13 @@
 
   // ---------- Import d'un listing (fiches reçues à la Ligue) ----------
   const CATS_PARA = ["HP R1/R2", "HP R3", "HP R4", "HP R5", "HP R6", "HP R7/R8", "HP R9", "HP VIS", "HP VIP"];
-  const IMP_COLS = ['Nom', 'Prénom', 'Licence', 'N° club', 'Club', 'Discipline', 'Catégorie para', 'E-mail', 'Téléphone', 'Match 1', 'Match 2', 'Match 3'];
+  const IMP_COLS = ['Nom', 'Prénom', 'N° licence', 'Para-tir', 'Discipline', 'N° club', 'Club', 'E-mail', 'Téléphone', 'Catégorie para', 'Match 1', 'Match 2', 'Match 3'];
   let impLignes = [];
 
   function telechargerModele() {
     if (typeof XLSX === 'undefined') return msgIn('impMsg', 'Bibliothèque Excel non chargée (connexion internet ?).');
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet([IMP_COLS, ['DUPONT', 'Jean', '123456', '1166090', '', 'P', '', '', '', 548, '', '']]);
+    const ws = XLSX.utils.aoa_to_sheet([IMP_COLS, ['DUPONT', 'Jean', '123456', '', 'P+C', '1166090', '', '', '', '', '', '', ''], ['MARTIN', 'Paul', '654321', 'X', 'C', '1166090', '', '', '', '', '', '', '']]);
     ws['!cols'] = IMP_COLS.map(c => ({ wch: Math.max(11, c.length + 2) }));
     XLSX.utils.book_append_sheet(wb, ws, 'Tireurs');
     const clubs = Object.entries(settings.clubsNum || {}).sort((a, b) => a[1].localeCompare(b[1], 'fr'));
@@ -678,6 +678,7 @@
     if (mots.includes('licence')) return 'licence';
     if (/^(discipline|arme)/.test(n)) return 'disc';
     if (/^cat/.test(n)) return 'cat';
+    if (/^para/.test(n)) return 'para';
     if (/mail/.test(n)) return 'email';
     if (/^tel/.test(n)) return 'tel';
     const m = n.match(/^(match|m) ?([123])$/); if (m) return 'm' + m[2];
@@ -718,20 +719,22 @@
       const cat = CATS_PARA.find(c => MP.norm(c).replace(/\s/g, '') === MP.norm(v.cat).replace(/\s/g, '')) || '';
       const email = (v.email || '').toLowerCase();
       const ms = [1, 2, 3].map(m => { const t = v['m' + m] || ''; return t === '' ? null : MP.parseScore(t.replace(/[.,]0+$/, '')); });
-      const err = [], info = [];
+      const err = [], info0 = [];
       if (!nom || !prenom) err.push('nom/prénom manquant');
       if (!licence) err.push('licence manquante');
       if (!/^\d{7}$/.test(numClub)) err.push('n° de club invalide (7 chiffres)');
       else if (!club) err.push('club inconnu : ajoutez-le dans les réglages ou remplissez la colonne Club');
       const ds = discs(v.disc);
       if (!ds.length) err.push('discipline non reconnue « ' + esc(v.disc || '') + ' »');
-      if (ds.includes('PC') && !cat) err.push('catégorie para-tir manquante ou inconnue');
+      const para = /^(x|oui|o|1|v|vrai|true|✓|✔)$/.test(MP.norm(v.para));
+      if (para) { const k = ds.indexOf('C'); if (k >= 0) ds[k] = 'PC'; else if (ds.length && !ds.includes('PC')) info0.push('para-tir pistolet : classé en scratch'); }
+      if (v.cat && !cat) err.push('catégorie para-tir inconnue « ' + esc(v.cat) + ' »');
       if (ds.length > 1 && ms.some(x => x !== null)) err.push('avec des scores, une ligne par discipline');
       [1, 2, 3].forEach(m => { if ((v['m' + m] || '') !== '' && ms[m - 1] === null) err.push('match ' + m + ' invalide « ' + esc(v['m' + m]) + ' »'); });
       if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) err.push('e-mail invalide');
       (ds.length ? ds : ['?']).forEach(disc => {
         const cle = licence + '|' + disc;
-        const L = { ligne: k + 2, nom, prenom, licence, numClub, club, disc, cat: disc === 'PC' ? cat : '', email, tel: v.tel || '', ms: ms.slice(), err: err.slice(), info: [] };
+        const L = { ligne: k + 2, nom, prenom, licence, numClub, club, disc, cat: disc === 'PC' ? cat : '', email, tel: v.tel || '', ms: ms.slice(), err: err.slice(), info: info0.slice() };
         if (!L.err.length && vus.has(cle)) L.err.push('doublon dans le fichier');
         vus.add(cle);
         if (!L.err.length) {
@@ -760,7 +763,7 @@
       const etat = l.err.length ? '<span class="badge b-refuse">Erreur</span> ' + l.err.join(' ; ')
         : l.rien ? '<span class="badge b-vide">Rien à faire</span> ' + esc(l.info.join(' ; '))
         : l.id ? '<span class="badge b-attente">Scores ajoutés</span> ' + esc(l.info.join(' ; '))
-        : '<span class="badge b-valide">Nouveau</span>';
+        : '<span class="badge b-valide">Nouveau</span> ' + esc(l.info.join(' ; '));
       h += '<tr' + (l.err.length ? ' style="background:#fef2f2"' : '') + '><td>' + l.ligne + '</td><td>' + esc(l.nom + ' ' + l.prenom) + '</td><td>' + esc(l.licence) + '</td><td>' + esc(l.numClub + ' ' + l.club) + '</td><td>' + esc(MP.DISC_COURT[l.disc] || '?') + (l.cat ? ' (' + esc(l.cat) + ')' : '') + '</td>' +
         l.ms.map(s => '<td class="num">' + (s === null ? '' : s) + '</td>').join('') + '<td>' + etat + '</td></tr>';
     });
@@ -782,7 +785,7 @@
         if (!id) {
           const ref = db.ref(BASE + '/inscrits').push(); id = ref.key;
           const fiche = { nom: l.nom, prenom: l.prenom, licence: l.licence, numClub: l.numClub, club: l.club, disc: l.disc, attestePaiement: true, ts: TS() };
-          if (l.disc === 'PC') fiche.cat = l.cat;
+          if (l.disc === 'PC' && l.cat) fiche.cat = l.cat;
           await ref.set(fiche); nI++;
           if (l.email) await db.ref(BASE + '/contacts/' + id).set(l.tel ? { email: l.email, tel: l.tel } : { email: l.email });
         }
