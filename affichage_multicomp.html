@@ -6,7 +6,7 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- LIGUE LR — version v2.8 — 18/10/2026 — ajout impression du palmarès -->
+<!-- LIGUE LR — version v2.9 — 03/11/2026 — sécurité : noms et libellés affichés comme du simple texte -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -245,7 +245,7 @@
         <img src="logo.png" alt="Logo Ligue LR" class="header-logo">
         <div class="header-center">
             <h1>🏆 PALMARÈS PROVISOIRE</h1>
-            <div class="version-tag">v2.8</div>
+            <div class="version-tag">v2.9</div>
             <div id="compTitle" class="comp-name">Chargement...</div>
             <div class="print-date" id="printDate"></div>
         </div>
@@ -286,6 +286,9 @@
         const [y, m, d] = slot.date.split('-');
         return `${d}/${m}` + (slot.time ? ' ' + slot.time : '');
     }
+
+    // v2.9 : tout texte venant de la base est affiché comme du simple texte
+    function escHtml(v) { return (v === null || v === undefined ? '' : String(v)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
     let lastShootersData = null; // { shooterId: {...} }
     let slotByShooter = {};      // shooterId -> libellé de série (ou '' si non trouvé)
@@ -350,13 +353,13 @@
 
         sortedDisciplines.forEach(disc => {
             html += `<div class="discipline-section">`;
-            html += `<h2 class="discipline-title">🎯 ${disc}</h2>`;
+            html += `<h2 class="discipline-title">🎯 ${escHtml(disc)}</h2>`;
 
             const sortedCategories = Object.keys(tree[disc]).sort();
 
             sortedCategories.forEach(cat => {
                 html += `<div class="category-block">`;
-                html += `<div class="category-title">👥 ${cat}</div>`;
+                html += `<div class="category-title">👥 ${escHtml(cat)}</div>`;
                 const catShooters = tree[disc][cat];
                 const hasSeries = catShooters.some(s => s.series);
 
@@ -382,11 +385,11 @@
                     const seriesLabel = s.series ? s.series.split(',').join('  ') : '';
                     html += `<tr>
                                 <td class="rank-cell">${index + 1}</td>
-                                <td class="name-cell">${medal}${s.lastName} ${s.firstName}</td>
-                                <td class="club-cell">${s.club || '-'}</td>
-                                ${hasSlots ? `<td class="slot-cell">${slotLabel || '—'}</td>` : ''}
-                                ${hasSeries ? `<td class="series-cell">${seriesLabel || '—'}</td>` : ''}
-                                <td class="score-cell">${displayScore}</td>
+                                <td class="name-cell">${medal}${escHtml(s.lastName)} ${escHtml(s.firstName)}</td>
+                                <td class="club-cell">${escHtml(s.club || '-')}</td>
+                                ${hasSlots ? `<td class="slot-cell">${escHtml(slotLabel || '—')}</td>` : ''}
+                                ${hasSeries ? `<td class="series-cell">${escHtml(seriesLabel || '—')}</td>` : ''}
+                                <td class="score-cell">${escHtml(displayScore)}</td>
                              </tr>`;
                 });
                 html += `</tbody></table></div>`;

@@ -6,7 +6,7 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- LIGUE LR — version v3.24 — 19/10/2026 — amical : catalogue complet ; club par n° d'affiliation -->
+<!-- LIGUE LR — version v3.25 — 03/11/2026 — sécurité : noms et libellés affichés comme du simple texte -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -637,7 +637,7 @@
             </div>
         </div>
         <div class="header-actions">
-            <span class="version-tag">v3.24</span>
+            <span class="version-tag">v3.25</span>
             <button type="button" id="btnToggleImport" class="btn-toggle-import">
                 <span>🪄</span> Import Tireurs
             </button>
@@ -1270,9 +1270,11 @@
         });
         return uniqDisc(base); // fusionne les synonymes tapés à la main (liste du concours / des séries)
     }
+    // v3.25 : tout texte venant de la base est affiché comme du simple texte
+    function escHtml(v) { return (v === null || v === undefined ? '' : String(v)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
     function escAttr(v) { return String(v || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
     function optsHtml(list, selected) {
-        return list.map(x => `<option value="${escAttr(x)}" ${x === selected ? 'selected' : ''}>${x}</option>`).join('');
+        return list.map(x => `<option value="${escAttr(x)}" ${x === selected ? 'selected' : ''}>${escHtml(x)}</option>`).join('');
     }
 
     function updateMenus() {
@@ -1827,7 +1829,7 @@
             const label = when ? (slot.label ? `${when} — ${slot.label}` : when) : (slot.label || '(sans nom)');
             const capacity = Number(slot.capacity) || 0;
             const count = Number(slot.count) || 0;
-            html += `<option value="${slotId}">${label} (${count}/${capacity})</option>`;
+            html += `<option value="${escHtml(slotId)}">${escHtml(label)} (${count}/${capacity})</option>`;
         });
         sel.innerHTML = html;
         if (currentVal && slotsData[currentVal]) sel.value = currentVal;
@@ -1843,8 +1845,8 @@
             const allowed = Array.isArray(slot.disciplines) ? slot.disciplines : [];
             const discTxt = allowed.length === 1 ? ` · imposée : ${allowed[0]}` : (allowed.length > 1 ? ` · ${allowed.join(' / ')}` : '');
             return `<label class="slot-check ${isFull ? 'full' : ''} ${on ? 'on' : ''}" title="${allowed.length === 1 ? 'Discipline imposée par la série' : (allowed.length > 1 ? 'Disciplines possibles dans cette série' : 'Discipline libre')}">
-                <input type="checkbox" value="${slotId}" ${on ? 'checked' : ''} onchange="this.parentNode.classList.toggle('on', this.checked); applySlotDisciplineConstraint()">
-                ${slotLabelOf(slot)} <span style="color:var(--text-muted);">(${count}/${capacity})${discTxt}</span></label>`;
+                <input type="checkbox" value="${escHtml(slotId)}" ${on ? 'checked' : ''} onchange="this.parentNode.classList.toggle('on', this.checked); applySlotDisciplineConstraint()">
+                ${escHtml(slotLabelOf(slot))} <span style="color:var(--text-muted);">(${count}/${capacity})${escHtml(discTxt)}</span></label>`;
         }).join('');
         applySlotDisciplineConstraint();
     }
@@ -2035,7 +2037,7 @@
         updateMenus();
         const ensureOpt = (sel, val) => {
             if (!sel || sel.tagName !== 'SELECT' || !val) return;
-            if (!Array.from(sel.options).some(o => o.value === val)) sel.insertAdjacentHTML('afterbegin', `<option value="${escAttr(val)}">${val}</option>`);
+            if (!Array.from(sel.options).some(o => o.value === val)) sel.insertAdjacentHTML('afterbegin', `<option value="${escAttr(val)}">${escHtml(val)}</option>`);
         };
         document.getElementById('newDiscipline').disabled = false;
         document.getElementById('discHint').classList.remove('show');
@@ -2123,23 +2125,24 @@
         list.sort((a,b) => a.lastName.localeCompare(b.lastName)).forEach(s => {
             const div = document.createElement('div');
             div.className = 'shooter-item';
+            div.dataset.id = s.id;   // v3.25 : les boutons retrouvent le tireur par cette étiquette
             div.innerHTML = `
                 <div style="flex:1; min-width:0;">
-                    <div class="shooter-name">${s.lastName} <span style="font-weight:400; color:var(--text-muted)">${s.firstName}</span></div>
+                    <div class="shooter-name">${escHtml(s.lastName)} <span style="font-weight:400; color:var(--text-muted)">${escHtml(s.firstName)}</span></div>
                     <div class="shooter-detail">
-                        <span class="tag">${s.discipline}</span>
-                        <span class="tag" style="border-color:rgba(217,154,28,0.4); color:#b07d10">${s.category}</span>
-                        <span class="tag">${s.club}</span>
-                        ${s.licence ? `<span class="tag" title="N° de licence">🪪 ${s.licence}</span>` : ''}
+                        <span class="tag">${escHtml(s.discipline)}</span>
+                        <span class="tag" style="border-color:rgba(217,154,28,0.4); color:#b07d10">${escHtml(s.category)}</span>
+                        <span class="tag">${escHtml(s.club)}</span>
+                        ${s.licence ? `<span class="tag" title="N° de licence">🪪 ${escHtml(s.licence)}</span>` : ''}
                     </div>
                 </div>
-                ${hasSlots ? `<span class="tag slot-tag" title="Série (créneau)">${(slotByShooter[s.id] && slotByShooter[s.id].label) || '—'}${(slotByShooter[s.id] && slotByShooter[s.id].poste) ? ` · <b>Poste ${slotByShooter[s.id].poste}</b>` : ''}</span>` : ''}
-                ${s.series ? `<div class="volees-detail">${s.series.split(',').join('  ')}</div>` : ''}
+                ${hasSlots ? `<span class="tag slot-tag" title="Série (créneau)">${escHtml((slotByShooter[s.id] && slotByShooter[s.id].label) || '—')}${(slotByShooter[s.id] && slotByShooter[s.id].poste) ? ` · <b>Poste ${escHtml(slotByShooter[s.id].poste)}</b>` : ''}</span>` : ''}
+                ${s.series ? `<div class="volees-detail">${escHtml(s.series.split(',').join('  '))}</div>` : ''}
                 <div class="actions">
-                    <input type="number" step="0.1" class="score-input" value="${s.score || 0}" onchange="saveScore('${s.id}', this.value)">
-                    <button type="button" class="btn-calc" title="Détail par séries" onclick="openScoreCalc('${s.id}', '${(s.lastName + ' ' + s.firstName).replace(/'/g,"\\'")}')">🧮</button>
-                    <button type="button" class="btn-action btn-edit" onclick="prepareEdit('${s.id}')">✏️</button>
-                    <button type="button" class="btn-action btn-del" onclick="deleteShooter('${s.id}')">🗑️</button>
+                    <input type="number" step="0.1" class="score-input" value="${escHtml(s.score || 0)}" onchange="saveScore(this.closest('.shooter-item').dataset.id, this.value)">
+                    <button type="button" class="btn-calc" title="Détail par séries" onclick="calcDepuisLigne(this)">🧮</button>
+                    <button type="button" class="btn-action btn-edit" onclick="prepareEdit(this.closest('.shooter-item').dataset.id)">✏️</button>
+                    <button type="button" class="btn-action btn-del" onclick="deleteShooter(this.closest('.shooter-item').dataset.id)">🗑️</button>
                 </div>`;
             cont.appendChild(div);
         });
@@ -2155,6 +2158,12 @@
     // de créneau d'inscription (places limitées) utilisée ailleurs sur le site — même mot, deux sens
     // distincts selon le contexte, comme dans le club.
     let calcShooterId = null;
+
+    function calcDepuisLigne(btn) {
+        const id = btn.closest('.shooter-item').dataset.id;
+        const s = shootersData.find(x => x.id === id) || {};
+        openScoreCalc(id, (s.lastName || '') + ' ' + (s.firstName || ''));
+    }
 
     function openScoreCalc(id, name) {
         calcShooterId = id;
@@ -2277,9 +2286,16 @@
         if (val.length < 3) { box.style.display = 'none'; return; }
         const matches = archiveTireurs.filter(t => t.lastName.includes(val.toUpperCase())).slice(0, 5);
         if (matches.length > 0) {
-            box.innerHTML = matches.map(m => `<div class="suggestion-item" onclick="remplirTireur('${m.lastName}', '${m.firstName}', '${m.club}', '${m.licence || ''}')"><b>${m.lastName}</b> ${m.firstName} — ${m.club}${m.licence ? ' · ' + m.licence : ''}</div>`).join('');
+            suggestionsCourantes = matches;
+            box.innerHTML = matches.map((m, i) => `<div class="suggestion-item" onclick="remplirDepuisSuggestion(${i})"><b>${escHtml(m.lastName)}</b> ${escHtml(m.firstName)} — ${escHtml(m.club)}${m.licence ? ' · ' + escHtml(m.licence) : ''}</div>`).join('');
             box.style.display = 'block';
         } else { box.style.display = 'none'; }
+    }
+
+    let suggestionsCourantes = [];
+    function remplirDepuisSuggestion(i) {
+        const m = suggestionsCourantes[i];
+        if (m) remplirTireur(m.lastName, m.firstName, m.club, m.licence || '');
     }
 
     function remplirTireur(n, p, c, l) {
