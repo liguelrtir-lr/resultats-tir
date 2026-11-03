@@ -6,7 +6,7 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- LIGUE LR — version v3.25 — 03/11/2026 — sécurité : noms et libellés affichés comme du simple texte -->
+<!-- LIGUE LR — version v3.26 — 03/11/2026 — sécurité : affichage en texte simple ; une session QR anonyme ne vaut plus connexion admin -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -637,7 +637,7 @@
             </div>
         </div>
         <div class="header-actions">
-            <span class="version-tag">v3.25</span>
+            <span class="version-tag">v3.26</span>
             <button type="button" id="btnToggleImport" class="btn-toggle-import">
                 <span>🪄</span> Import Tireurs
             </button>
@@ -997,8 +997,9 @@
 
     // ─── Authentification ───
     auth.onAuthStateChanged(user => {
-        document.getElementById('loginOverlay').style.display = user ? 'none' : 'flex';
-        if (user && !listenersStarted) {
+        const estAdmin = user && !user.isAnonymous;   // v3.26 : la session anonyme du QR ne donne pas accès à la saisie
+        document.getElementById('loginOverlay').style.display = estAdmin ? 'none' : 'flex';
+        if (estAdmin && !listenersStarted) {
             listenersStarted = true;
             startDataListeners();
         }
