@@ -6,7 +6,7 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- MATCH POSTAL — Administration (validation des scores, saisie directe, réglages, export, finales) — v1.9 — 11/10/2026 -->
+<!-- MATCH POSTAL — Administration (validation des scores, saisie directe, réglages, export, finales) — v2.1 — 04/11/2026 -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
@@ -199,7 +199,7 @@
   let ouvert = null;    // { id, m }
   let ecoutes = [];
 
-  const VERSION_PAGE = 'v2.0 — 26/10/2026';   // ← à incrémenter à chaque modification de cette page
+  const VERSION_PAGE = 'v2.1 — 04/11/2026';   // ← à incrémenter à chaque modification de cette page
   document.querySelectorAll('.verTxt').forEach(e => e.textContent = VERSION_PAGE);
   $('saisonTxt').textContent = MP.saison();
   $('footClub').textContent = CONFIG.clubName || '';
@@ -323,7 +323,8 @@
       h += '<tr><td><b>' + esc(i.nom) + '</b> ' + esc(i.prenom) + '</td><td>' + esc(i.licence) + '</td><td>' + esc(i.club) + '</td>' +
         (para ? '<td>' + esc(i.cat || '') + '</td>' : '') + cells +
         '<td class="num"><b>' + (nbV ? tot : '') + '</b> <span class="hint">' + nbV + '/3</span></td>' +
-        '<td><button class="del" title="Supprimer cette inscription" onclick="supprimer(\'' + id + '\')">🗑️</button></td></tr>';
+        '<td style="white-space:nowrap"><button class="del" title="Corriger le club de ce tireur (scores et photos conservés)" onclick="corrigerClubTireur(\'' + id + '\')">✏️</button> ' +
+        '<button class="del" title="Supprimer cette inscription" onclick="supprimer(\'' + id + '\')">🗑️</button></td></tr>';
     });
     $('table').innerHTML = h;
     dessinerClubs();
@@ -616,6 +617,25 @@
     db.ref(BASE).update(maj).then(fermer).catch(e => msgIn('moMsg', 'Refusé — ' + (e.code || e.message)));
   }
 
+  // Corrige le club d'un seul tireur : scores, photos et contacts ne sont pas touchés.
+  // S'il est inscrit dans plusieurs disciplines (même n° de licence), toutes ses inscriptions suivent.
+  function corrigerClubTireur(id) {
+    const i = inscrits[id];
+    if (!i) return;
+    const off = settings.clubsNum || {};
+    let num = prompt('Nouveau n° de club (7 chiffres) pour ' + i.nom + ' ' + i.prenom + '\nClub actuel : ' + (i.numClub ? i.numClub + ' — ' : '') + i.club, i.numClub || '');
+    if (num === null) return;
+    num = num.replace(/\D/g, '');
+    if (!/^\d{7}$/.test(num)) return alert('Le n° de club doit comporter 7 chiffres.');
+    let nom = off[num];
+    if (!nom) { nom = prompt('Ce n° n\'est pas dans la liste de la Ligue. Nom du club :', ''); if (!nom || !nom.trim()) return; nom = nom.trim(); }
+    const ids = Object.keys(inscrits).filter(k => k === id || (i.licence && inscrits[k].licence === i.licence));
+    const discs = ids.map(k => MP.DISC[inscrits[k].disc]).join(', ');
+    if (!confirm('Mettre ' + i.nom + ' ' + i.prenom + ' au club « ' + num + ' — ' + nom + ' » ?\nInscription(s) : ' + discs + '\nSes scores et photos sont conservés.')) return;
+    const maj = {};
+    ids.forEach(k => { maj['inscrits/' + k + '/numClub'] = num; maj['inscrits/' + k + '/club'] = nom; });
+    db.ref(BASE).update(maj).catch(e => alert('Refusé — ' + (e.code || e.message)));
+  }
   function supprimer(id) {
     const i = inscrits[id];
     if (!confirm('Supprimer l\'inscription de ' + i.nom + ' ' + i.prenom + ' en ' + MP.DISC[i.disc] + ' (avec ses scores et photos) ?')) return;
