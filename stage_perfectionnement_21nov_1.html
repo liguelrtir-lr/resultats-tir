@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stage de perfectionnement jeunes – 21 novembre 2026 – CDTir 66</title>
+<!-- V1.02 -->
+<style>
+  :root{
+    --marine:#1B3A6B; --rouge:#D62828; --or:#F2B705; --gris:#5B6478;
+    --bleuclair:#EEF2F8; --creme:#FFF7DC;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Calibri,"Segoe UI",Arial,sans-serif;background:var(--bleuclair);color:#1d2433}
+  .page{max-width:640px;margin:0 auto;background:#fff;min-height:100vh;box-shadow:0 0 24px rgba(27,58,107,.12)}
+  header{text-align:center;padding:26px 20px 14px;border-bottom:4px solid var(--rouge)}
+  .sigle{display:inline-block;background:var(--marine);color:#fff;font-weight:700;padding:6px 14px;border-radius:6px;letter-spacing:1px;font-size:14px}
+  .surtitre{color:var(--rouge);font-variant:small-caps;font-weight:700;letter-spacing:1.5px;margin:14px 0 2px;font-size:17px}
+  h1{color:var(--marine);margin:0;font-size:30px;line-height:1.15}
+  .sous{color:var(--gris);margin-top:6px;font-size:15px}
+  .bandeau{background:var(--marine);color:#fff;text-align:center;padding:16px 12px}
+  .bandeau .date{font-size:22px;font-weight:700}
+  .bandeau .lieu{margin-top:4px;font-size:16px}
+  .bandeau .lieu b{color:var(--or)}
+  main{padding:22px 22px 30px}
+  .info{background:var(--creme);border-left:5px solid var(--or);padding:12px 14px;border-radius:4px;font-size:15px;margin-bottom:22px}
+  h2{color:var(--marine);font-size:18px;margin:24px 0 12px;display:flex;align-items:center;gap:8px}
+  h2::before{content:"";width:6px;height:20px;background:var(--rouge);display:inline-block}
+  label{display:block;font-weight:700;color:var(--marine);margin:14px 0 5px;font-size:15px}
+  .req{color:var(--rouge)}
+  input[type=text],input[type=email],input[type=tel],select,textarea{
+    width:100%;padding:11px 12px;border:1.5px solid #c9d3e3;border-radius:6px;font-size:16px;font-family:inherit;background:#fff}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--marine);box-shadow:0 0 0 3px rgba(27,58,107,.15)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:520px){.row{grid-template-columns:1fr}h1{font-size:25px}}
+  .choix{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px}
+  .choix input{display:none}
+  .choix label{margin:0;text-align:center;padding:16px 8px;border:2px solid #c9d3e3;border-radius:8px;cursor:pointer;font-size:17px;color:var(--gris);transition:.15s}
+  #oui:checked + label{border-color:#1f8a4c;background:#e8f6ee;color:#1f8a4c}
+  #non:checked + label{border-color:var(--rouge);background:#fdecec;color:var(--rouge)}
+  button{width:100%;margin-top:26px;padding:15px;border:0;border-radius:8px;background:var(--rouge);color:#fff;font-size:18px;font-weight:700;cursor:pointer;font-family:inherit}
+  button:hover{background:#b81f1f}
+  button:disabled{background:#aab3c2;cursor:wait}
+  .msg{display:none;margin-top:20px;padding:16px;border-radius:8px;font-size:16px;text-align:center}
+  .msg.ok{display:block;background:#e8f6ee;color:#1f6b3d;border:1.5px solid #1f8a4c}
+  .msg.err{display:block;background:#fdecec;color:#a51d1d;border:1.5px solid var(--rouge)}
+  footer{border-top:3px solid var(--rouge);text-align:center;color:var(--gris);font-size:13px;padding:14px 10px}
+  .version{color:#aab3c2;font-size:11px;margin-top:4px}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <span class="sigle">C.D.T. 66</span>
+    <div class="surtitre">Comité Départemental de Tir des Pyrénées-Orientales</div>
+    <h1>Stage de perfectionnement<br>Jeunes tireurs</h1>
+    <div class="sous">Merci de nous indiquer si tu seras présent(e)</div>
+  </header>
+
+  <div class="bandeau">
+    <div class="date">Samedi 21 novembre 2026 • 8h30 – 12h00</div>
+    <div class="lieu" id="lieuAffiche"></div>
+  </div>
+
+  <main>
+    <div class="info">
+      Réponse souhaitée <b>avant le <span id="dateLimite"></span></b>.
+      Si tu es mineur(e), fais remplir ce formulaire avec un parent.
+    </div>
+
+    <form id="form" novalidate>
+      <h2>Le jeune tireur</h2>
+      <div class="row">
+        <div><label for="nom">Nom <span class="req">*</span></label><input type="text" id="nom" name="nom" required></div>
+        <div><label for="prenom">Prénom <span class="req">*</span></label><input type="text" id="prenom" name="prenom" required></div>
+      </div>
+      <div class="row">
+        <div>
+          <label for="club">Club <span class="req">*</span></label>
+          <input type="text" id="club" name="club" required>
+        </div>
+        <div>
+          <label for="categorie">Catégorie <span class="req">*</span></label>
+          <select id="categorie" name="categorie" required>
+            <option value="">— Choisir —</option>
+            <option>Poussin</option><option>Benjamin</option><option>Minime</option>
+            <option>Cadet</option><option>Junior</option>
+          </select>
+        </div>
+      </div>
+      <label for="discipline">Discipline <span class="req">*</span></label>
+      <select id="discipline" name="discipline" required>
+        <option value="">— Choisir —</option>
+        <option>Carabine 10 m</option><option>Pistolet 10 m</option>
+        <option>Carabine et pistolet</option>
+      </select>
+
+      <h2>Ta réponse</h2>
+      <div class="choix">
+        <input type="radio" name="presence" id="oui" value="OUI"><label for="oui">✔ Je serai présent(e)</label>
+        <input type="radio" name="presence" id="non" value="NON"><label for="non">✖ Je ne pourrai pas venir</label>
+      </div>
+
+      <h2>Contact</h2>
+      <div class="row">
+        <div><label for="tel">Téléphone (parent ou tireur) <span class="req">*</span></label><input type="tel" id="tel" name="tel" required></div>
+        <div><label for="email">E-mail</label><input type="email" id="email" name="email"></div>
+      </div>
+      <label for="remarque">Remarque (facultatif)</label>
+      <textarea id="remarque" name="remarque" rows="3" placeholder="Ex. : arrivée en retard, matériel à prêter…"></textarea>
+
+      <button type="submit" id="btn">Envoyer ma réponse</button>
+      <div class="msg" id="msg"></div>
+    </form>
+  </main>
+
+  <footer>
+    Comité Départemental de Tir des Pyrénées-Orientales • cdtir66@yahoo.com
+    <div class="version">V1.02</div>
+  </footer>
+</div>
+
+<script src="config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+/* ===================== RÉGLAGES (à modifier ici) ===================== */
+const LIEU        = "Stand de tir — <b>THUIR</b>";
+const DATE_LIMITE = "18 novembre 2026";
+const NOEUD       = "stagesJeunes/2026-11-21";   // emplacement des réponses dans la base
+
+// Clés Firebase lues automatiquement dans config.js (même dépôt)
+const firebaseConfig = CONFIG.firebase;
+/* ===================================================================== */
+
+document.getElementById('lieuAffiche').innerHTML = LIEU;
+document.getElementById('dateLimite').textContent = DATE_LIMITE;
+
+const form = document.getElementById('form');
+const msg  = document.getElementById('msg');
+const btn  = document.getElementById('btn');
+function afficher(type, texte){ msg.className = 'msg ' + type; msg.innerHTML = texte; }
+
+let db = null;
+if (firebaseConfig.apiKey){
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+  firebase.auth().signInAnonymously().catch(()=>{});
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const champs = ['nom','prenom','club','categorie','discipline','tel'];
+  const vide = champs.find(id => !document.getElementById(id).value.trim());
+  const presence = form.querySelector('input[name=presence]:checked');
+  if (vide){ afficher('err','Merci de remplir tous les champs marqués d’une <b>*</b>.'); document.getElementById(vide).focus(); return; }
+  if (!presence){ afficher('err','Merci d’indiquer si tu seras présent(e) ou non.'); return; }
+  if (!db){ afficher('err','Formulaire en mode test : les clés Firebase ne sont pas encore renseignées.'); return; }
+
+  const data = {
+    nom: form.nom.value.trim().toUpperCase(),
+    prenom: form.prenom.value.trim(),
+    club: form.club.value.trim(),
+    categorie: form.categorie.value,
+    discipline: form.discipline.value,
+    presence: presence.value,
+    tel: form.tel.value.trim(),
+    email: form.email.value.trim(),
+    remarque: form.remarque.value.trim(),
+    date: new Date().toISOString()
+  };
+
+  btn.disabled = true; btn.textContent = 'Envoi en cours…';
+  try{
+    if (!firebase.auth().currentUser) await firebase.auth().signInAnonymously();
+    await db.ref(NOEUD).push(data);
+    form.querySelectorAll('input,select,textarea,button').forEach(el => el.disabled = true);
+    btn.style.display = 'none';
+    afficher('ok', data.presence === 'OUI'
+      ? '<b>Merci ' + data.prenom + ' !</b><br>Ta présence est bien enregistrée. À samedi 21 novembre, 8h30 à Thuir.'
+      : '<b>Merci ' + data.prenom + '.</b><br>Ta réponse est bien enregistrée. À une prochaine fois !');
+  }catch(err){
+    btn.disabled = false; btn.textContent = 'Envoyer ma réponse';
+    afficher('err','L’envoi n’a pas fonctionné. Vérifie ta connexion et réessaie.');
+  }
+});
+</script>
+</body>
+</html>

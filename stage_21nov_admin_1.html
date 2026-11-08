@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin – Stage jeunes 21/11/2026 – CDTir 66</title>
+<!-- V1.01 -->
+<style>
+  :root{--marine:#1B3A6B;--rouge:#D62828;--or:#F2B705;--gris:#5B6478;--bleuclair:#EEF2F8}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Calibri,"Segoe UI",Arial,sans-serif;background:var(--bleuclair);color:#1d2433}
+  header{background:var(--marine);color:#fff;padding:16px 22px;border-bottom:4px solid var(--rouge)}
+  header h1{margin:0;font-size:22px} header div{color:var(--or);font-size:14px;margin-top:3px}
+  main{max-width:1100px;margin:0 auto;padding:20px}
+  .carte{background:#fff;border-radius:8px;padding:18px;box-shadow:0 2px 10px rgba(27,58,107,.08);margin-bottom:18px}
+  input{padding:10px;border:1.5px solid #c9d3e3;border-radius:6px;font-size:15px;margin:4px 6px 4px 0;font-family:inherit}
+  button{padding:10px 16px;border:0;border-radius:6px;background:var(--marine);color:#fff;font-size:15px;cursor:pointer;font-family:inherit;margin:4px 6px 4px 0}
+  button.rouge{background:var(--rouge)}
+  .compteurs{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .cpt{background:#fff;border-radius:8px;padding:16px;text-align:center;box-shadow:0 2px 10px rgba(27,58,107,.08)}
+  .cpt b{display:block;font-size:34px} .cpt span{color:var(--gris)}
+  .vert b{color:#1f8a4c} .rge b{color:var(--rouge)} .mar b{color:var(--marine)}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{background:var(--rouge);color:#fff;text-align:left;padding:8px}
+  td{padding:7px 8px;border-bottom:1px solid #e3e8f0}
+  tr:nth-child(even) td{background:#f6f8fc}
+  .oui{color:#1f8a4c;font-weight:700} .non{color:var(--rouge);font-weight:700}
+  .filtres{margin-bottom:10px}
+  #erreur{color:var(--rouge)}
+  @media(max-width:700px){.compteurs{grid-template-columns:1fr}table{font-size:12px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Stage de perfectionnement jeunes — Réponses</h1>
+  <div>Samedi 21 novembre 2026 • 8h30 – 12h00 • Thuir</div>
+</header>
+<main>
+  <div class="carte" id="connexion">
+    <b>Connexion administrateur</b><br>
+    <input type="email" id="email" placeholder="E-mail admin">
+    <input type="password" id="mdp" placeholder="Mot de passe">
+    <button id="btnCo">Se connecter</button>
+    <div id="erreur"></div>
+  </div>
+
+  <div id="contenu" style="display:none">
+    <div class="compteurs" style="margin-bottom:18px">
+      <div class="cpt vert"><b id="nOui">0</b><span>Présents</span></div>
+      <div class="cpt rge"><b id="nNon">0</b><span>Absents</span></div>
+      <div class="cpt mar"><b id="nTot">0</b><span>Réponses</span></div>
+    </div>
+    <div class="carte">
+      <div class="filtres">
+        <button data-f="TOUS">Tous</button>
+        <button data-f="OUI">Présents</button>
+        <button data-f="NON">Absents</button>
+        <button id="btnCsv">Exporter (Excel / CSV)</button>
+        <button class="rouge" id="btnDeco">Se déconnecter</button>
+      </div>
+      <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Nom</th><th>Prénom</th><th>Club</th><th>Catégorie</th><th>Discipline</th><th>Présence</th><th>Téléphone</th><th>E-mail</th><th>Remarque</th><th>Reçu le</th><th></th></tr></thead>
+        <tbody id="liste"></tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+  <div style="text-align:center;color:#aab3c2;font-size:11px">V1.01</div>
+</main>
+
+<script src="config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+/* ===================== RÉGLAGES (mêmes que le formulaire) ===================== */
+const NOEUD = "stagesJeunes/2026-11-21";
+// Clés Firebase lues automatiquement dans config.js (même dépôt)
+const firebaseConfig = CONFIG.firebase;
+/* ============================================================================== */
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth(), db = firebase.database();
+let reponses = [], filtre = 'TOUS';
+const $ = id => document.getElementById(id);
+const esc = t => String(t||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+$('btnCo').onclick = () => {
+  $('erreur').textContent = '';
+  auth.signInWithEmailAndPassword($('email').value.trim(), $('mdp').value)
+      .catch(() => $('erreur').textContent = 'Identifiants incorrects.');
+};
+$('btnDeco').onclick = () => auth.signOut();
+
+auth.onAuthStateChanged(u => {
+  const admin = u && !u.isAnonymous;
+  $('connexion').style.display = admin ? 'none' : 'block';
+  $('contenu').style.display = admin ? 'block' : 'none';
+  if (admin){
+    db.ref(NOEUD).on('value', snap => {
+      reponses = [];
+      snap.forEach(c => { reponses.push({id:c.key, ...c.val()}); });
+      reponses.sort((a,b) => (a.nom||'').localeCompare(b.nom||'') || (a.prenom||'').localeCompare(b.prenom||''));
+      afficher();
+    }, () => $('erreur').textContent = 'Accès refusé : vérifier les règles Firebase.');
+  }
+});
+
+document.querySelectorAll('[data-f]').forEach(b => b.onclick = () => { filtre = b.dataset.f; afficher(); });
+
+function afficher(){
+  $('nOui').textContent = reponses.filter(r => r.presence === 'OUI').length;
+  $('nNon').textContent = reponses.filter(r => r.presence === 'NON').length;
+  $('nTot').textContent = reponses.length;
+  const vis = reponses.filter(r => filtre === 'TOUS' || r.presence === filtre);
+  $('liste').innerHTML = vis.map(r => `<tr>
+    <td>${esc(r.nom)}</td><td>${esc(r.prenom)}</td><td>${esc(r.club)}</td><td>${esc(r.categorie)}</td>
+    <td>${esc(r.discipline)}</td><td class="${r.presence==='OUI'?'oui':'non'}">${esc(r.presence)}</td>
+    <td>${esc(r.tel)}</td><td>${esc(r.email)}</td><td>${esc(r.remarque)}</td>
+    <td>${r.date ? new Date(r.date).toLocaleString('fr-FR') : ''}</td>
+    <td><button class="rouge" style="padding:4px 8px" onclick="suppr('${r.id}')">✖</button></td></tr>`).join('')
+    || '<tr><td colspan="11" style="text-align:center;color:#5B6478">Aucune réponse</td></tr>';
+}
+
+function suppr(id){
+  if (confirm('Supprimer cette réponse (doublon, erreur) ?')) db.ref(NOEUD + '/' + id).remove();
+}
+
+$('btnCsv').onclick = () => {
+  const cols = ['nom','prenom','club','categorie','discipline','presence','tel','email','remarque','date'];
+  const ent = ['Nom','Prénom','Club','Catégorie','Discipline','Présence','Téléphone','E-mail','Remarque','Reçu le'];
+  const lignes = [ent.join(';')].concat(reponses.map(r => cols.map(c => {
+    let v = c === 'date' && r.date ? new Date(r.date).toLocaleString('fr-FR') : (r[c] || '');
+    return '"' + String(v).replace(/"/g,'""') + '"';
+  }).join(';')));
+  const blob = new Blob(['﻿' + lignes.join('\n')], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'Stage_jeunes_21-11-2026.csv'; a.click();
+};
+</script>
+</body>
+</html>
