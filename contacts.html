@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<!--
+  © 2026 Gérard GARCIA — Tous droits réservés.
+  Logiciel de gestion de compétitions de tir sportif (inscriptions, saisie, résultats).
+  Reproduction, modification ou réutilisation interdite sans autorisation écrite de l'auteur.
+  Voir le fichier LICENCE.
+-->
+<!-- CONTACTS DES INSCRITS (admin) — v1.0 — 09/11/2026 — e-mails rangés dans contacts/<club>/<compétition>, lisibles par l'admin seulement -->
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>✉️ Contacts des inscrits</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="config.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; background: #f1f5f9; color: #0f172a; }
+    header { background: #0f172a; color: #fff; padding: 14px 20px; display: flex; align-items: center; gap: 14px; }
+    header img { height: 44px; }
+    header h1 { margin: 0; font-size: 1.25rem; }
+    header .sub { font-size: .85rem; opacity: .75; }
+    main { max-width: 1000px; margin: 20px auto; padding: 0 14px; }
+    .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+    .bar .n { margin-right: auto; font-weight: 600; }
+    button { font: inherit; border: 0; border-radius: 8px; padding: 9px 14px; cursor: pointer; background: #e2e8f0; color: #0f172a; font-weight: 600; }
+    button.gold { background: #d4a017; color: #0f172a; }
+    button:hover { filter: brightness(.95); }
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    th, td { padding: 9px 12px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: .93rem; }
+    th { background: #f8fafc; font-size: .8rem; text-transform: uppercase; color: #475569; }
+    td.info, td.date { color: #64748b; font-size: .85rem; }
+    a { color: #1d4ed8; }
+    .empty { background: #fff; border-radius: 10px; padding: 30px; text-align: center; color: #64748b; }
+    .overlay { position: fixed; inset: 0; background: rgba(15,23,42,.7); display: none; align-items: center; justify-content: center; z-index: 10; }
+    .overlay.on { display: flex; }
+    .modal { background: #fff; border-radius: 12px; padding: 24px; width: min(360px, 92vw); }
+    .modal h2 { margin: 0 0 14px; font-size: 1.1rem; }
+    .modal input { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }
+    .err { color: #b91c1c; font-size: .85rem; min-height: 1em; margin-top: 8px; }
+    .note { font-size: .8rem; color: #64748b; margin-top: 14px; }
+    @media print { header, .bar, .note { display: none; } body { background: #fff; } table { box-shadow: none; } }
+  </style>
+</head>
+<body>
+  <div class="overlay on" id="login">
+    <div class="modal">
+      <h2>🔒 Contacts — accès organisateur</h2>
+      <input type="email" id="lEmail" placeholder="Email" autocomplete="username">
+      <input type="password" id="lPwd" placeholder="Mot de passe" autocomplete="current-password">
+      <button class="gold" style="width:100%" onclick="doLogin()">Se connecter</button>
+      <div class="err" id="lErr"></div>
+    </div>
+  </div>
+
+  <header>
+    <img src="logo.png" alt="" onerror="this.style.display='none'">
+    <div>
+      <h1 id="compName">Contacts des inscrits</h1>
+      <div class="sub">✉️ Contacts des inscrits · réservé à l'organisateur</div>
+    </div>
+  </header>
+
+  <main>
+    <div class="bar">
+      <span class="n" id="count"></span>
+      <button class="gold" onclick="copyMails()">📋 Copier tous les e-mails</button>
+      <button onclick="mailAll()">✉️ Écrire à tous</button>
+      <button onclick="downloadCsv()">⬇️ Fichier Excel (CSV)</button>
+      <button onclick="window.print()">🖨️ Imprimer</button>
+    </div>
+    <div id="out"><div class="empty">Chargement…</div></div>
+    <div class="note">Les adresses sont saisies par les tireurs lors de l'inscription en ligne. Elles ne sont lisibles que par un compte organisateur, jamais par les pages publiques. Une même personne inscrite plusieurs fois n'apparaît qu'une fois (dernière adresse saisie).</div>
+  </main>
+
+<script>
+  firebase.initializeApp(CONFIG.firebase);
+  const db = firebase.database(), auth = firebase.auth();
+  const compId = new URLSearchParams(location.search).get('comp');
+  let ROWS = [];
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  function doLogin() {
+    const err = document.getElementById('lErr');
+    err.textContent = 'Connexion…';
+    auth.signInWithEmailAndPassword(document.getElementById('lEmail').value.trim(), document.getElementById('lPwd').value)
+      .catch(e => err.textContent = 'Échec de connexion [' + e.code + ']');
+  }
+  document.getElementById('lPwd').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+  let started = false;
+  auth.onAuthStateChanged(user => {
+    const ok = user && !user.isAnonymous;
+    document.getElementById('login').classList.toggle('on', !ok);
+    if (ok && !started) start();
+  });
+
+  function start() {
+    started = true;
+    if (!compId) { document.getElementById('out').innerHTML = '<div class="empty">Lien invalide : aucune compétition indiquée.</div>'; return; }
+    db.ref('clubs/' + CONFIG.clubKey + '/' + compId + '/config/name').once('value').then(s => {
+      const n = s.val() || ('#' + compId);
+      document.getElementById('compName').textContent = n;
+      document.title = '✉️ Contacts — ' + n;
+    });
+    db.ref('contacts/' + CONFIG.clubKey + '/' + compId).on('value', snap => {
+      const byPerson = {};
+      Object.values(snap.val() || {}).forEach(c => {
+        const k = ((c.nom || '') + '|' + (c.prenom || '')).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+        if (!byPerson[k] || (c.ts || 0) >= (byPerson[k].ts || 0)) byPerson[k] = c;
+      });
+      ROWS = Object.values(byPerson).sort((a, b) => (a.nom || '').localeCompare(b.nom || '') || (a.prenom || '').localeCompare(b.prenom || ''));
+      render();
+    }, e => {
+      document.getElementById('out').innerHTML = '<div class="empty">Lecture impossible : ' + esc(e.code || e.message) +
+        '<br><br>Vérifiez que le bloc « contacts » a bien été ajouté aux règles Firebase.</div>';
+    });
+  }
+
+  function render() {
+    document.getElementById('count').textContent = ROWS.length + ' contact(s)';
+    if (!ROWS.length) { document.getElementById('out').innerHTML = '<div class="empty">Aucun e-mail enregistré pour cette compétition.</div>'; return; }
+    document.getElementById('out').innerHTML = `<table><thead><tr><th>Nom</th><th>Prénom</th><th>E-mail</th><th>Inscription</th><th>Date</th></tr></thead><tbody>
+      ${ROWS.map(c => `<tr><td><b>${esc(c.nom)}</b></td><td>${esc(c.prenom)}</td>
+        <td><a href="mailto:${esc(c.email)}">${esc(c.email)}</a></td>
+        <td class="info">${esc(c.info)}</td>
+        <td class="date">${c.ts ? new Date(c.ts).toLocaleDateString('fr-FR') : ''}</td></tr>`).join('')}
+      </tbody></table>`;
+  }
+
+  const mails = () => [...new Set(ROWS.map(c => c.email).filter(Boolean))];
+
+  function copyMails() {
+    const list = mails();
+    if (!list.length) return alert('Aucune adresse.');
+    const txt = list.join('; ');
+    (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(
+      () => alert(list.length + ' adresse(s) copiée(s).\nCollez-les dans le champ « Cci » de votre messagerie.'),
+      () => prompt('Copiez ces adresses :', txt));
+  }
+
+  function mailAll() {
+    const list = mails();
+    if (!list.length) return alert('Aucune adresse.');
+    // Cci pour ne pas dévoiler les adresses des tireurs entre eux
+    location.href = 'mailto:?bcc=' + encodeURIComponent(list.join(',')) + '&subject=' + encodeURIComponent(document.getElementById('compName').textContent);
+  }
+
+  function downloadCsv() {
+    const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+    const lines = [['Nom', 'Prénom', 'E-mail', 'Inscription', 'Date'].map(q).join(';')]
+      .concat(ROWS.map(c => [c.nom, c.prenom, c.email, c.info, c.ts ? new Date(c.ts).toLocaleDateString('fr-FR') : ''].map(q).join(';')));
+    const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'contacts_' + compId + '.csv';
+    a.click();
+  }
+</script>
+<div class="gg-copyright" style="text-align:center;font:11px/1.4 system-ui,sans-serif;color:#94a3b8;padding:14px 8px 10px;">© 2026 Gérard GARCIA — Tous droits réservés · Reproduction et réutilisation interdites sans autorisation</div>
+</body>
+</html>
