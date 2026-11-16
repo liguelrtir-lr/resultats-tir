@@ -6,7 +6,7 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- MATCH POSTAL — Administration (validation des scores, saisie directe, réglages, export, finales) — v2.1 — 04/11/2026 -->
+<!-- MATCH POSTAL — Administration (validation des scores, saisie directe, réglages, export, finales) — v2.2 — 16/11/2026 : séries de 10 coups + barrage -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
@@ -39,7 +39,11 @@
     input.big { font-family:'Rajdhani',sans-serif; font-size:1.8rem; font-weight:700; text-align:center; max-width:160px; }
     .del { background:none; border:none; cursor:pointer; font-size:1.05rem; opacity:.5; }
     .del:hover { opacity:1; }
-  </style>
+    .series { display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin-top:6px; }
+  .series div { display:flex; flex-direction:column; }
+  .series span { font-size:.72rem; color:#7a6d5c; text-align:center; margin-bottom:2px; }
+  .series input { font-size:1.2rem; font-weight:700; text-align:center; padding:7px 2px; }
+</style>
 </head>
 <body>
   <header>
@@ -170,7 +174,9 @@
       <h2 id="moTitre"></h2>
       <dl class="info" id="moInfo"></dl>
       <div id="moPhoto"></div>
-      <label for="moScore">Score (0 à 600)</label>
+      <label>Séries de 10 coups (0 à 100)</label>
+      <div class="series"><div><span>S1</span><input id="moS1" inputmode="numeric" maxlength="3" autocomplete="off" oninput="majTotalAdmin()"></div><div><span>S2</span><input id="moS2" inputmode="numeric" maxlength="3" autocomplete="off" oninput="majTotalAdmin()"></div><div><span>S3</span><input id="moS3" inputmode="numeric" maxlength="3" autocomplete="off" oninput="majTotalAdmin()"></div><div><span>S4</span><input id="moS4" inputmode="numeric" maxlength="3" autocomplete="off" oninput="majTotalAdmin()"></div><div><span>S5</span><input id="moS5" inputmode="numeric" maxlength="3" autocomplete="off" oninput="majTotalAdmin()"></div><div><span>S6</span><input id="moS6" inputmode="numeric" maxlength="3" autocomplete="off" oninput="majTotalAdmin()"></div></div>
+      <label for="moScore">Total (0 à 600) — calculé à partir des séries ; à saisir à la main seulement si les séries sont inconnues</label>
       <input id="moScore" class="big" inputmode="numeric" maxlength="3" autocomplete="off">
       <div id="moMsg"></div>
       <div class="btns">
@@ -199,7 +205,7 @@
   let ouvert = null;    // { id, m }
   let ecoutes = [];
 
-  const VERSION_PAGE = 'v2.1 — 04/11/2026';   // ← à incrémenter à chaque modification de cette page
+  const VERSION_PAGE = 'v2.2 — 16/11/2026';   // ← à incrémenter à chaque modification de cette page
   document.querySelectorAll('.verTxt').forEach(e => e.textContent = VERSION_PAGE);
   $('saisonTxt').textContent = MP.saison();
   $('footClub').textContent = CONFIG.clubName || '';
@@ -318,7 +324,7 @@
         if (x && x.statut === 'valide') { tot += x.s; nbV++; }
         const b = x ? '<span class="badge b-' + x.statut + '">' + (MP.STATUT[x.statut] || '') + (x.par === 'admin' ? ' ✍️' : '') + '</span>'
                     : '<span class="badge b-vide">—</span>';
-        cells += '<td class="cell" onclick="ouvrirMatch(\'' + id + '\',' + m + ')"><span class="v">' + (x ? x.s : '&nbsp;') + '</span>' + b + '</td>';
+        cells += '<td class="cell" onclick="ouvrirMatch(\'' + id + '\',' + m + ')"' + (MP.seriesTxt(x) ? ' title="Séries : ' + MP.seriesTxt(x) + '"' : '') + '><span class="v">' + (x ? x.s : '&nbsp;') + '</span>' + b + '</td>';
       }
       h += '<tr><td><b>' + esc(i.nom) + '</b> ' + esc(i.prenom) + '</td><td>' + esc(i.licence) + '</td><td>' + esc(i.club) + '</td>' +
         (para ? '<td>' + esc(i.cat || '') + '</td>' : '') + cells +
@@ -562,6 +568,7 @@
     let info = '<dt>Club</dt><dd>' + esc(i.club) + ' · licence ' + esc(i.licence) + (i.cat ? ' · ' + esc(i.cat) : '') + '</dd>';
     if (x) {
       info += '<dt>Statut</dt><dd><span class="badge b-' + x.statut + '">' + MP.STATUT[x.statut] + '</span> — score ' + x.s +
+        (MP.seriesTxt(x) ? ' (séries : ' + MP.seriesTxt(x) + ')' : ' (séries non renseignées)') +
         ' — ' + (x.par === 'admin' ? 'saisi par l\'organisateur' : 'envoyé par le tireur / club') + (x.ts ? ' le ' + MP.dateFr(x.ts) : '') + '</dd>';
       if (x.note) info += '<dt>Remarque</dt><dd>' + esc(x.note) + '</dd>';
       if (x.motif) info += '<dt>Motif du refus</dt><dd>' + esc(x.motif) + '</dd>';
@@ -570,7 +577,10 @@
     }
     $('moInfo').innerHTML = info;
     if (chargerPhoto) {
+      const ser = MP.seriesDe(x);
+      for (let n = 1; n <= MP.NB_SERIES; n++) $('moS' + n).value = ser ? ser[n - 1] : '';
       $('moScore').value = x ? x.s : '';
+      majTotalAdmin();
       msgIn('moMsg', '');
       $('moPhoto').innerHTML = '<div class="hint">Chargement de la photo…</div>';
       db.ref(BASE + '/preuves/' + id + '/' + m).once('value').then(s => {
@@ -589,17 +599,36 @@
   }
   function fermer() { ouvert = null; $('modal').classList.add('hidden'); }
 
+  // Séries saisies dans la fenêtre : [6 entiers] si toutes remplies, null si toutes vides, 'partiel' sinon
+  function seriesAdmin() {
+    const brut = []; for (let n = 1; n <= MP.NB_SERIES; n++) brut.push($('moS' + n).value.trim());
+    if (brut.every(t => t === '')) return null;
+    const v = brut.map(t => MP.parseSerie(t));
+    return v.some(e => e === null) ? 'partiel' : v;
+  }
+  function majTotalAdmin() {
+    const ser = seriesAdmin();
+    const champ = $('moScore');
+    if (Array.isArray(ser)) { champ.value = ser.reduce((a, b) => a + b, 0); champ.readOnly = true; }
+    else champ.readOnly = false;
+  }
   function valider() {
-    const s = MP.parseScore($('moScore').value);
+    const ser = seriesAdmin();
+    if (ser === 'partiel') return msgIn('moMsg', 'Séries incomplètes ou invalides : remplissez les 6 séries (0 à 100), ou videz-les toutes pour saisir le total seul.');
+    const s = Array.isArray(ser) ? ser.reduce((a, b) => a + b, 0) : MP.parseScore($('moScore').value);
     if (s === null) return msgIn('moMsg', 'Score invalide : nombre entier entre 0 et 600.');
     const { id, m } = ouvert;
     const x = (scores[id] || {})[m];
+    const serX = MP.seriesDe(x);
+    const serNew = Array.isArray(ser) ? ser : null;
+    const inchange = x && x.s === s && ((!serX && !serNew) || (serX && serNew && serX.every((v, k) => v === serNew[k])));
     // Score du tireur validé tel quel, ou corrigé / saisi par l'organisateur
-    const fiche = (x && x.s === s)
+    const fiche = inchange
       ? Object.assign({}, x, { statut: 'valide', valideLe: TS() })
       : Object.assign({}, x || {}, { s, statut: 'valide', par: 'admin', ts: TS(), valideLe: TS() });
     delete fiche.motif;
-    if (x && x.s !== s && x.par === 'tireur') fiche.scoreTireur = x.s;
+    if (!inchange) { if (serNew) fiche.series = serNew; else delete fiche.series; }
+    if (x && !inchange && x.par === 'tireur') { fiche.scoreTireur = x.s; if (serX) fiche.seriesTireur = serX.join(' · '); }
     db.ref(BASE + '/scores/' + id + '/' + m).set(fiche).then(fermer)
       .catch(e => msgIn('moMsg', 'Refusé — ' + (e.code || e.message)));
   }

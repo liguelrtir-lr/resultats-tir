@@ -6,7 +6,7 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- MATCH POSTAL — Envoi des scores par le tireur ou son club (avec photo de contrôle) — v1.1 — 09/10/2026 -->
+<!-- MATCH POSTAL — Envoi des scores par le tireur ou son club (avec photo de contrôle) — v1.2 — 16/11/2026 : saisie des 6 séries, total calculé -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
@@ -31,6 +31,13 @@
     .total { font-size:.9rem; color:var(--muted); }
     .photoBox { border:2px dashed #d9cfbf; border-radius:12px; padding:14px; text-align:center; cursor:pointer; background:#fffdf8; }
     .photoBox img { max-width:100%; max-height:320px; border-radius:8px; margin-top:8px; }
+    .series { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:6px; }
+    .series div { display:flex; flex-direction:column; }
+    .series span { font-size:.75rem; color:#7a6d5c; text-align:center; margin-bottom:2px; }
+    .series input { font-family:'Rajdhani',sans-serif; font-size:1.5rem; font-weight:700; text-align:center; padding:8px 4px; }
+    .totalBox { margin-top:10px; padding:10px; border-radius:10px; background:#f6efe2; text-align:center; font-family:'Rajdhani',sans-serif; font-size:1.6rem; font-weight:700; }
+    .totalBox small { display:block; font-family:inherit; font-size:.8rem; font-weight:400; color:#7a6d5c; }
+    .serTxt { font-size:.75rem; color:#7a6d5c; }
     input.big { font-family:'Rajdhani',sans-serif; font-size:2rem; font-weight:700; text-align:center; letter-spacing:.05em; }
   </style>
 </head>
@@ -77,8 +84,9 @@
     <!-- 3. Saisie d'un match -->
     <form id="screenMatch" class="card hidden" onsubmit="envoyer(event)" novalidate>
       <h2 id="mTitre"></h2>
-      <label for="mScore">Score du match (sur 600, sans dixièmes) <span class="req">*</span></label>
-      <input id="mScore" class="big" inputmode="numeric" maxlength="3" autocomplete="off" placeholder="000">
+      <label>Résultat des 6 séries de 10 coups (sur 100 chacune, sans dixièmes) <span class="req">*</span></label>
+      <div class="series"><div><span>Série 1</span><input id="mS1" inputmode="numeric" maxlength="3" autocomplete="off" placeholder="0" oninput="majTotal()"></div><div><span>Série 2</span><input id="mS2" inputmode="numeric" maxlength="3" autocomplete="off" placeholder="0" oninput="majTotal()"></div><div><span>Série 3</span><input id="mS3" inputmode="numeric" maxlength="3" autocomplete="off" placeholder="0" oninput="majTotal()"></div><div><span>Série 4</span><input id="mS4" inputmode="numeric" maxlength="3" autocomplete="off" placeholder="0" oninput="majTotal()"></div><div><span>Série 5</span><input id="mS5" inputmode="numeric" maxlength="3" autocomplete="off" placeholder="0" oninput="majTotal()"></div><div><span>Série 6</span><input id="mS6" inputmode="numeric" maxlength="3" autocomplete="off" placeholder="0" oninput="majTotal()"></div></div>
+      <div class="totalBox"><span id="mTotal">0</span> / 600<small>Total calculé automatiquement — en cas d'égalité, barrage sur la dernière série</small></div>
       <label>Photo de contrôle <span class="req">*</span></label>
       <div class="photoBox" onclick="document.getElementById('mFile').click()">
         <div id="photoTxt">📷 Prendre ou choisir une photo<br><span class="hint">écran de la cible électronique ou feuille de comptage officielle</span></div>
@@ -108,7 +116,7 @@
   let photoData = null;
   let pret = { i: false, s: false, st: false };
 
-  const VERSION_PAGE = 'v1.1 — 09/10/2026';   // ← à incrémenter à chaque modification de cette page
+  const VERSION_PAGE = 'v1.2 — 16/11/2026';   // ← à incrémenter à chaque modification de cette page
   document.querySelectorAll('.verTxt').forEach(e => e.textContent = VERSION_PAGE);
   $('saisonTxt').textContent = MP.saison();
   $('footClub').textContent = CONFIG.clubName || '';
@@ -173,7 +181,7 @@
         let badge = '<span class="badge b-vide">Non envoyé</span>', val = '–', act = '', motif = '';
         if (x) {
           badge = '<span class="badge b-' + x.statut + '">' + (MP.STATUT[x.statut] || x.statut) + '</span>';
-          val = x.s;
+          val = x.s + (MP.seriesTxt(x) ? '<div class="serTxt">' + MP.seriesTxt(x) + '</div>' : '');
           if (x.statut === 'valide') { tot += x.s; nbV++; }
           if (x.statut === 'refuse' && x.motif) motif = '<div class="motif">Motif : ' + esc(x.motif) + '</div>';
         }
@@ -198,7 +206,9 @@
     cible = { id, m };
     photoData = null;
     $('mTitre').textContent = MP.DISC[i.disc] + ' — Match ' + m;
-    $('mScore').value = x && x.statut === 'attente' ? x.s : '';
+    const ser = x && x.statut === 'attente' ? MP.seriesDe(x) : null;
+    for (let n = 1; n <= MP.NB_SERIES; n++) $('mS' + n).value = ser ? ser[n - 1] : '';
+    majTotal();
     $('mNote').value = x && x.statut === 'attente' && x.note ? x.note : '';
     $('photoPrev').classList.add('hidden');
     $('photoTxt').classList.remove('hidden');
@@ -206,6 +216,15 @@
     msgIn('mMsg', x && x.statut === 'attente' ? 'Ce score attend déjà sa validation : renvoyez-le avec une nouvelle photo pour le corriger.' : '', 'info');
     show('screenMatch');
     window.scrollTo(0, 0);
+  }
+  function lireSeries(pre) {
+    const v = [];
+    for (let n = 1; n <= MP.NB_SERIES; n++) v.push(MP.parseSerie($(pre + n).value));
+    return v;
+  }
+  function majTotal() {
+    const v = lireSeries('mS');
+    $('mTotal').textContent = v.reduce((a, b) => a + (b || 0), 0);
   }
   function retourTireur() { cible = null; afficherTireur(); window.scrollTo(0, 0); }
 
@@ -227,8 +246,10 @@
   async function envoyer(ev) {
     ev.preventDefault();
     if (!cible) return;
-    const s = MP.parseScore($('mScore').value);
-    if (s === null) return msgIn('mMsg', 'Score invalide : un nombre entier entre 0 et 600 (pas de dixièmes).');
+    const series = lireSeries('mS');
+    const bad = series.findIndex(v => v === null);
+    if (bad >= 0) return msgIn('mMsg', 'Série ' + (bad + 1) + ' invalide : un nombre entier entre 0 et 100 (pas de dixièmes).');
+    const s = series.reduce((a, b) => a + b, 0);
     if (!photoData) return msgIn('mMsg', 'La photo de contrôle est obligatoire.');
     const actuel = (scores[cible.id] || {})[cible.m];
     if (actuel && actuel.statut === 'valide') return msgIn('mMsg', 'Ce match est déjà validé.');
@@ -236,7 +257,7 @@
     msgIn('mMsg', 'Envoi en cours…', 'info');
     try {
       await db.ref(BASE + '/preuves/' + cible.id + '/' + cible.m).set({ img: photoData, ts: firebase.database.ServerValue.TIMESTAMP });
-      const fiche = { s, statut: 'attente', par: 'tireur', ts: firebase.database.ServerValue.TIMESTAMP };
+      const fiche = { s, series, statut: 'attente', par: 'tireur', ts: firebase.database.ServerValue.TIMESTAMP };
       const note = $('mNote').value.trim();
       if (note) fiche.note = note;
       await db.ref(BASE + '/scores/' + cible.id + '/' + cible.m).set(fiche);

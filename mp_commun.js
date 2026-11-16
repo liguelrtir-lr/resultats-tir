@@ -4,22 +4,25 @@
   Voir le fichier LICENCE.
 */
 // ============================================================
-//  MATCH POSTAL — fonctions communes (v1.2 — 11/10/2026)
+//  MATCH POSTAL — fonctions communes (v1.3 — 16/11/2026 : saisie par séries de 10 coups + barrage sur la dernière série)
 //  Utilisé par mp_inscription.html, mp_saisie.html, mp_admin.html, mp_classement.html
 //  Données Firebase : matchPostal/<saison>/
 //     settings               : { titre, ouvert, dateLimite, saisieOuverte, periode }
 //     inscrits/<id>          : { nom, prenom, licence, club, disc ('P'|'C'|'PC'), cat (para-tir), ts }
 //     contacts/<id>          : { email, tel }                         (admin seulement)
-//     scores/<id>/<1|2|3>    : { s (0-600 entier), statut ('attente'|'valide'|'refuse'),
+//     scores/<id>/<1|2|3>    : { s (0-600 entier = total des séries), series ([6 entiers 0-100], absent si saisie du total seul),
+//                                statut ('attente'|'valide'|'refuse'),
 //                                par ('tireur'|'admin'), motif, ts }
 //     preuves/<id>/<1|2|3>   : { img (photo JPEG compressée, data URL), ts }   (admin seulement)
 //     confirmations/<id>     : { reponse ('oui'|'non'), convocation ('grande'|'petite'|'reserve'), note, par ('tireur'|'admin'), ts }
 // ============================================================
 const MP = {
-  VERSION: 'v1.2 — 11/10/2026',
+  VERSION: 'v1.3 — 16/11/2026',
   SAISON_DEFAUT: '2026-2027',
   NB_MATCHES: 3,
   MAX: 600,
+  NB_SERIES: 6,                           // 6 séries de 10 coups
+  MAX_SERIE: 100,
   DISC: { P: 'Pistolet 10 m', C: 'Carabine 10 m', PC: 'Para-tir Carabine 10 m' },
   DISC_COURT: { P: 'Pistolet', C: 'Carabine', PC: 'Para-tir cara.' },
   ORDRE: ['P', 'C', 'PC'],
@@ -49,27 +52,50 @@ const MP = {
     return n >= 0 && n <= this.MAX ? n : null;
   },
 
+  // Série de 10 coups → entier 0..100, ou null si invalide
+  parseSerie(v) {
+    const t = String(v == null ? '' : v).trim();
+    if (!/^\d{1,3}$/.test(t)) return null;
+    const n = parseInt(t, 10);
+    return n >= 0 && n <= this.MAX_SERIE ? n : null;
+  },
+  // Tableau des séries d'un score (ou null si le total a été saisi seul)
+  seriesDe(x) {
+    if (!x || !x.series) return null;
+    const a = Array.isArray(x.series) ? x.series : Object.keys(x.series).sort((p, q) => p - q).map(k => x.series[k]);
+    return a.length === this.NB_SERIES && a.every(v => typeof v === 'number') ? a : null;
+  },
+  seriesTxt(x) { const a = this.seriesDe(x); return a ? a.join(' · ') : ''; },
+
   // Classement d'une discipline : seuls les scores VALIDÉS comptent.
+  // v1.3 — Égalité au total : BARRAGE sur la dernière série (série 6 du match 3), puis la précédente, en remontant
+  // jusqu'à la série 1 du match 1. Une série inconnue (total saisi seul) est ignorée. En dernier recours : meilleur match.
   // Classé = 3 matches validés. Départage : total, puis meilleur match, puis 2e meilleur, puis 3e.
   classement(inscrits, scores, disc) {
     const lignes = [];
     Object.entries(inscrits || {}).forEach(([id, i]) => {
       if (i.disc !== disc) return;
       const sc = (scores && scores[id]) || {};
-      const m = [];
+      const m = [], ser = [];
       for (let k = 1; k <= this.NB_MATCHES; k++) {
         const x = sc[k];
         m.push(x && x.statut === 'valide' && typeof x.s === 'number' ? x.s : null);
+        ser.push(x && x.statut === 'valide' ? this.seriesDe(x) : null);
       }
       const valides = m.filter(v => v !== null);
       const tri = valides.slice().sort((a, b) => b - a);
       lignes.push({
-        id, i, m, nb: valides.length, complet: valides.length === this.NB_MATCHES,
+        id, i, m, ser, nb: valides.length, complet: valides.length === this.NB_MATCHES,
         total: valides.reduce((a, b) => a + b, 0), tri
       });
     });
     const cmp = (a, b) => {
       if (b.total !== a.total) return b.total - a.total;
+      for (let k = this.NB_MATCHES - 1; k >= 0; k--) {           // barrage : dernière série d'abord
+        const sa = a.ser[k], sb = b.ser[k];
+        if (!sa || !sb) continue;
+        for (let n = this.NB_SERIES - 1; n >= 0; n--) { const d = sb[n] - sa[n]; if (d) return d; }
+      }
       for (let k = 0; k < this.NB_MATCHES; k++) { const d = (b.tri[k] || 0) - (a.tri[k] || 0); if (d) return d; }
       return 0;
     };
