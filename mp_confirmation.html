@@ -6,7 +6,7 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- MATCH POSTAL — Confirmation de présence aux finales — v1.0 — 11/10/2026 -->
+<!-- MATCH POSTAL — Confirmation de présence aux finales — v1.1 — 16/11/2026 -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
@@ -18,8 +18,8 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="config.js"></script>
-  <script src="mp_commun.js"></script>
-  <link rel="stylesheet" href="mp_style.css">
+  <script src="mp_commun.js?v=1.3"></script>
+  <link rel="stylesheet" href="mp_style.css?v=1.3">
   <style>
     .conv { border-radius:14px; padding:14px 16px; margin-top:12px; }
     .conv.grande { background:#fde68a; }
@@ -76,7 +76,7 @@
   <footer><span id="footClub"></span> · Match Postal · <span class="verTxt"></span> · © 2026 Gérard GARCIA</footer>
 
 <script>
-  const VERSION_PAGE = 'v1.0 — 11/10/2026';   // ← à incrémenter à chaque modification de cette page
+  const VERSION_PAGE = 'v1.1 — 16/11/2026';   // ← à incrémenter à chaque modification de cette page
   const BASE = MP.base();
   firebase.initializeApp(CONFIG.firebase);
   const db = firebase.database();

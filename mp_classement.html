@@ -6,7 +6,7 @@
   est interdite sans l'autorisation écrite préalable de l'auteur (Code de la propriété
   intellectuelle, art. L.122-4 et L.335-2). Voir le fichier LICENCE.
 -->
-<!-- MATCH POSTAL — Classement public des qualifications — v1.4 — 09/10/2026 -->
+<!-- MATCH POSTAL — Classement public des qualifications — v1.5 — 16/11/2026 -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
@@ -18,8 +18,8 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="config.js"></script>
-  <script src="mp_commun.js"></script>
-  <link rel="stylesheet" href="mp_style.css">
+  <script src="mp_commun.js?v=1.3"></script>
+  <link rel="stylesheet" href="mp_style.css?v=1.3">
   <style>
     td.rang { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:1.2rem; color:var(--bord); width:40px; }
     td.total { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:1.25rem; color:var(--bord); }
@@ -74,7 +74,7 @@
   let onglet = new URLSearchParams(location.search).get('d') || 'P';
   if (!MP.DISC[onglet]) onglet = 'P';
 
-  const VERSION_PAGE = 'v1.4 — 09/10/2026';   // ← à incrémenter à chaque modification de cette page
+  const VERSION_PAGE = 'v1.5 — 16/11/2026';   // ← à incrémenter à chaque modification de cette page
   document.querySelectorAll('.verTxt').forEach(e => e.textContent = VERSION_PAGE);
   $('saisonTxt').textContent = MP.saison();
   $('footClub').textContent = CONFIG.clubName || '';
